@@ -2815,3 +2815,11 @@ legend {
   align-items: flex-end;
   line-height: 1.25;
 }
+
+.unassigned {
+  margin-top: 8px;
+}
+.table-card-count small {
+  font-weight: 500;
+  font-size: 12px;
+}

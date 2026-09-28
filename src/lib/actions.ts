@@ -274,6 +274,7 @@ export interface GuestInput {
   busId: string
   busSeat: string
   dinnerTableId: string
+  dinnerSeat: string
 }
 
 export const emptyGuest = (): GuestInput => ({
@@ -294,6 +295,7 @@ export const emptyGuest = (): GuestInput => ({
   busId: '',
   busSeat: '',
   dinnerTableId: '',
+  dinnerSeat: '',
 })
 
 const writeSeats = async (eventId: string, pid: string, g: GuestInput) => {
@@ -301,7 +303,7 @@ const writeSeats = async (eventId: string, pid: string, g: GuestInput) => {
   const rows: SeatAssignment[] = []
   if (g.tableId) rows.push({ id: uid(), eventId, participantId: pid, resourceId: g.tableId, seatLabel: g.tableSeat })
   if (g.dinnerTableId && g.dinnerTableId !== g.tableId)
-    rows.push({ id: uid(), eventId, participantId: pid, resourceId: g.dinnerTableId, seatLabel: '' })
+    rows.push({ id: uid(), eventId, participantId: pid, resourceId: g.dinnerTableId, seatLabel: g.dinnerSeat })
   if (g.busId) rows.push({ id: uid(), eventId, participantId: pid, resourceId: g.busId, seatLabel: g.busSeat })
   if (rows.length) await db.seats.bulkAdd(rows)
 }
@@ -376,6 +378,7 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     busId: bus?.resource.id ?? '',
     busSeat: bus?.seatLabel ?? '',
     dinnerTableId: dinner?.resource.id ?? '',
+    dinnerSeat: dinner?.seatLabel ?? '',
   }
 }
 

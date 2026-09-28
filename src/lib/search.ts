@@ -33,7 +33,9 @@ export const buildIndex = (
   }
   return participants.map((p) => {
     const ts = tByP.get(p.id) ?? []
-    const ss = sByP.get(p.id) ?? []
+    // 顯示次序固定：車位 → 席號 → 聚餐餐席
+    const rank = (x: { resource: Resource }) => (x.resource.type === 'bus' ? 0 : x.resource.purpose ? 2 : 1)
+    const ss = (sByP.get(p.id) ?? []).sort((a, b) => rank(a) - rank(b))
     const ids = [p.memberId, ...ts.flatMap((t) => [t.qrCode, t.invitationId, t.ticketNumber])]
       .filter(Boolean)
       .map(normalize)

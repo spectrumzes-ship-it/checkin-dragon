@@ -8,7 +8,7 @@ import type { GuestEntry } from '../lib/search'
 import { TableArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
-import { EmptyState, FilterChip, PageHeader, ProgressBar } from '../components/ui'
+import { EmptyState, FilterChip, PageHeader, ProgressBar, SectionTitle } from '../components/ui'
 
 // 圓桌圖形：中間是席號，外圍小圓點 = 座位（實心 = 已到）
 const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: number; seated: number }) => {
@@ -60,27 +60,38 @@ const useTables = (ev: EventRec) => {
 
 export default function Tables() {
   const ev = useOutletContext<EventRec>()
+  const nav = useNavigate()
   const tables = useTables(ev)
+  const { index } = useEventData(ev.id)
   const [filter, setFilter] = useState<'all' | 'open' | 'full'>('all')
+  // 巴士模式：這裏是聚餐的餐席，顯示「已安排」人數（上車與否不代表已到餐廳）
+  const dinner = ev.mode === 'bus'
+  const unassigned = dinner ? index.filter((e) => e.p.status === 'active' && !e.seats.some((s) => s.resource.type === 'table')) : []
   if (!tables) return <div className="page" />
   if (!tables.length)
     return (
       <div className="page">
         <EmptyState
           art={<TableArt />}
-          zh="還沒有設定席號。"
-          en="No tables yet."
+          zh={dinner ? '這個行程未設定聚餐餐席。' : '還沒有設定席號。'}
+          en={dinner ? 'No dinner tables yet.' : 'No tables yet.'}
           action={
             <Link to={`/e/${ev.id}/edit`} className="btn btn-primary">
-              設定席數
+              {dinner ? '設定聚餐席數' : '設定席數'}
             </Link>
           }
         />
       </div>
     )
-  const shown = tables.filter((x) => (filter === 'all' ? true : filter === 'full' ? x.arrived >= x.t.capacity : x.arrived < x.t.capacity))
+  const count = (x: (typeof tables)[number]) => (dinner ? x.seated : x.arrived)
+  const shown = tables.filter((x) => (filter === 'all' ? true : filter === 'full' ? count(x) >= x.t.capacity : count(x) < x.t.capacity))
   return (
     <div className="page">
+      {dinner && (
+        <p className="hint">
+          聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
+        </p>
+      )}
       <div className="chips">
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} count={tables.length}>
           全部
@@ -93,7 +104,9 @@ export default function Tables() {
         </FilterChip>
       </div>
       <div className="table-grid">
-        {shown.map(({ t, seated, arrived }) => (
+        {shown.map(({ t, seated, arrived: a }) => {
+          const arrived = dinner ? seated : a
+          return (
           <Link key={t.id} to={`/e/${ev.id}/tables/${t.id}`} className={`table-card ${arrived >= t.capacity ? 'full' : ''}`}>
             <RoundTable capacity={t.capacity} arrived={arrived} seated={seated} />
             <div className="table-card-label">
@@ -102,12 +115,24 @@ export default function Tables() {
             </div>
             <div className="table-card-count">
               {arrived} / {t.capacity}
+              {dinner && <small className="muted">已安排</small>}
               {arrived >= t.capacity && <span className="full-tag">FULL 滿座</span>}
               {seated > t.capacity && <span className="over-tag">超額 {seated - t.capacity}</span>}
             </div>
           </Link>
-        ))}
+          )
+        })}
       </div>
+      {dinner && unassigned.length > 0 && (
+        <section className="unassigned">
+          <SectionTitle zh={`未安排餐席 · ${unassigned.length} 位`} en="Not assigned" />
+          <div className="list card">
+            {unassigned.map((e) => (
+              <GuestRow key={e.p.id} e={e} onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}/edit`)} trailing={<span className="btn btn-sm btn-mode">安排</span>} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
@@ -118,6 +143,7 @@ export function TableDetail() {
   const nav = useNavigate()
   const tables = useTables(ev)
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
+  const dinner = ev.mode === 'bus'
   const x = tables?.find((y) => y.t.id === tid)
   if (!tables) return <div className="page" />
   if (!x) return <div className="page muted">找不到此席</div>
@@ -146,11 +172,23 @@ export function TableDetail() {
       <div className="card table-summary">
         <RoundTable capacity={t.capacity} arrived={arrived} seated={seated} />
         <div>
-          <p className="big-num">
-            {arrived} <small>/ {t.capacity} 已到</small>
-          </p>
-          <ProgressBar value={arrived} max={t.capacity} tone={arrived >= t.capacity ? 'ok' : 'mode'} />
-          <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可入場</p>
+          {dinner ? (
+            <>
+              <p className="big-num">
+                {seated} <small>/ {t.capacity} 已安排</small>
+              </p>
+              <ProgressBar value={seated} max={t.capacity} tone={seated >= t.capacity ? 'ok' : 'mode'} />
+              <p className="muted">點乘客可查看或修改餐席</p>
+            </>
+          ) : (
+            <>
+              <p className="big-num">
+                {arrived} <small>/ {t.capacity} 已到</small>
+              </p>
+              <ProgressBar value={arrived} max={t.capacity} tone={arrived >= t.capacity ? 'ok' : 'mode'} />
+              <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可入場</p>
+            </>
+          )}
           <div className="stepper compact">
             <span>此席人數（一圍）</span>
             <button className="icon-btn" aria-label="減少一位" onClick={() => setTableCapacity(t, t.capacity - 1)} disabled={t.capacity <= 1}>
@@ -172,7 +210,7 @@ export function TableDetail() {
               key={e.p.id}
               e={e}
               onClick={async () => {
-                if (e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
+                if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
                 else nav(`/e/${ev.id}/guests/${e.p.id}`)
               }}
               trailing={<span className="seat-no">{seat ? `${seat} 號` : '—'}</span>}

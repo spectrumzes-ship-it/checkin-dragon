@@ -182,7 +182,7 @@ export const seedDemo = async () => {
       if (p.arrivedCount) p.arrivedCount = 1
       const bus = i < 42 ? busA : busB
       tour.seats.push({ id: uid(), eventId: tour.event.id, participantId: p.id, resourceId: bus.id, seatLabel: String((i % 42) + 1) })
-      tour.seats.push({ id: uid(), eventId: tour.event.id, participantId: p.id, resourceId: tour.resources[2 + (i % 8)].id, seatLabel: '' })
+      tour.seats.push({ id: uid(), eventId: tour.event.id, participantId: p.id, resourceId: tour.resources[2 + (i % 8)].id, seatLabel: String(Math.floor(i / 8) + 1) })
     })
     tour.checkins.forEach((c) => (c.count = 1))
     await save(tour)

@@ -111,17 +111,23 @@ export default function GuestForm() {
             </div>
           )}
           {dinner.length > 0 && (
-            <label className="field">
-              <span>晚餐席號 Dinner Table</span>
-              <select value={g.dinnerTableId} onChange={(e) => up('dinnerTableId', e.target.value)}>
-                <option value="">未安排</option>
-                {dinner.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    第 {t.label} 席
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="field-row">
+              <label className="field">
+                <span>聚餐席號 Dinner Table</span>
+                <select value={g.dinnerTableId} onChange={(e) => up('dinnerTableId', e.target.value)}>
+                  <option value="">未安排</option>
+                  {dinner.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      第 {t.label} 席
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>餐席座位 Seat</span>
+                <input value={g.dinnerSeat} onChange={(e) => up('dinnerSeat', e.target.value)} inputMode="numeric" />
+              </label>
+            </div>
           )}
 
           <div className="field-row">
