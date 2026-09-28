@@ -1,0 +1,16 @@
+# 系統與開發暫存
+.DS_Store
+node_modules/
+dist/
+.env
+.env.*
+
+# 真實嘉賓資料與備份 — 永遠不上傳
+private-data/
+*.backup
+*.ckdbackup
+*.xlsx
+*.xls
+*.csv
+!test-kit/**/*.xlsx
+!test-kit/**/*.csv
