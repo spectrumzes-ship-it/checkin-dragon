@@ -75,12 +75,12 @@ export default function GuestForm() {
           {tables.length > 0 && (
             <div className="field-row">
               <label className="field">
-                <span>桌號 Table</span>
+                <span>席號 Table</span>
                 <select value={g.tableId} onChange={(e) => up('tableId', e.target.value)}>
                   <option value="">未安排</option>
                   {tables.map((t) => (
                     <option key={t.id} value={t.id}>
-                      第 {t.label} 桌
+                      第 {t.label} 席
                     </option>
                   ))}
                 </select>
@@ -112,12 +112,12 @@ export default function GuestForm() {
           )}
           {dinner.length > 0 && (
             <label className="field">
-              <span>晚餐桌號 Dinner Table</span>
+              <span>晚餐席號 Dinner Table</span>
               <select value={g.dinnerTableId} onChange={(e) => up('dinnerTableId', e.target.value)}>
                 <option value="">未安排</option>
                 {dinner.map((t) => (
                   <option key={t.id} value={t.id}>
-                    第 {t.label} 桌
+                    第 {t.label} 席
                   </option>
                 ))}
               </select>

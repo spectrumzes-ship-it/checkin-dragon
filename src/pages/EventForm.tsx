@@ -6,7 +6,7 @@ import { saveEvent, type EventInput } from '../lib/actions'
 import { useEvent } from '../lib/hooks'
 import { setSettings } from '../lib/settings'
 import { todayKey } from '../lib/util'
-import { MODE_META, ModeIcon } from '../components/icons'
+import { MODE_META, ModeIcon, typeLabel } from '../components/icons'
 import { PageHeader, toast } from '../components/ui'
 
 const blank = (mode: Mode): EventInput => ({
@@ -19,9 +19,10 @@ const blank = (mode: Mode): EventInput => ({
   venue: '',
   notes: '',
   tableCount: 20,
-  seatsPerTable: 10,
+  seatsPerTable: 12,
   buses: [{ label: 'A', capacity: 45 }],
   dinnerTables: 0,
+  dinnerSeats: 12,
 })
 
 export default function EventForm() {
@@ -44,9 +45,10 @@ export default function EventForm() {
       venue: existing.venue,
       notes: existing.notes,
       tableCount: existing.modeConfig.tableCount ?? 20,
-      seatsPerTable: existing.modeConfig.seatsPerTable ?? 10,
+      seatsPerTable: existing.modeConfig.seatsPerTable ?? 12,
       buses: existing.modeConfig.buses ?? [{ label: 'A', capacity: 45 }],
       dinnerTables: existing.modeConfig.dinnerTables ?? 0,
+      dinnerSeats: existing.modeConfig.dinnerSeats ?? 12,
     })
   }, [existing])
 
@@ -95,10 +97,12 @@ export default function EventForm() {
             <input value={f.name} onChange={(e) => up('name', e.target.value)} placeholder="例如 Annual Dinner 2026" autoFocus={!id} />
           </label>
           <label className="field">
-            <span>類型 Type</span>
+            <span>活動類型 Type</span>
             <select value={f.type} onChange={(e) => up('type', e.target.value)}>
               {MODE_META[f.mode].types.map((t) => (
-                <option key={t}>{t}</option>
+                <option key={t} value={t}>
+                  {typeLabel(t)} {t}
+                </option>
               ))}
             </select>
           </label>
@@ -131,15 +135,15 @@ export default function EventForm() {
             <legend>宴會設定 Banquet</legend>
             <div className="field-row">
               <label className="field">
-                <span>桌數 Tables</span>
+                <span>席數 Tables</span>
                 <input type="number" min={0} max={300} value={f.tableCount} onChange={(e) => up('tableCount', Number(e.target.value))} />
               </label>
               <label className="field">
-                <span>每桌人數 Seats / Table</span>
+                <span>每席人數（一圍幾位） Seats / Table</span>
                 <input type="number" min={1} max={30} value={f.seatsPerTable} onChange={(e) => up('seatsPerTable', Number(e.target.value))} />
               </label>
             </div>
-            <p className="hint">共 {f.tableCount * f.seatsPerTable} 個座位</p>
+            <p className="hint">共 {f.tableCount * f.seatsPerTable} 個座位。個別席數人數不同（例如主家席），可在「席號」畫面逐席修改。</p>
           </fieldset>
         )}
 
@@ -176,10 +180,16 @@ export default function EventForm() {
             >
               <Plus size={16} /> 加一架巴士
             </button>
-            <label className="field">
-              <span>聚餐桌數（沒有聚餐填 0） Dinner Tables</span>
-              <input type="number" min={0} value={f.dinnerTables} onChange={(e) => up('dinnerTables', Number(e.target.value))} />
-            </label>
+            <div className="field-row">
+              <label className="field">
+                <span>聚餐席數（沒有聚餐填 0） Dinner Tables</span>
+                <input type="number" min={0} value={f.dinnerTables} onChange={(e) => up('dinnerTables', Number(e.target.value))} />
+              </label>
+              <label className="field">
+                <span>每席人數 Seats / Table</span>
+                <input type="number" min={1} max={30} value={f.dinnerSeats} onChange={(e) => up('dinnerSeats', Number(e.target.value))} />
+              </label>
+            </div>
           </fieldset>
         )}
 

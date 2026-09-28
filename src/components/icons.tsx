@@ -22,6 +22,28 @@ export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon;
   },
 }
 
+// 活動類型：資料內保存英文代號，畫面顯示繁體中文
+export const TYPE_LABEL: Record<string, string> = {
+  Concert: '音樂會',
+  Performance: '表演',
+  Exhibition: '展覽',
+  Premiere: '首映',
+  'VIP Event': '貴賓活動',
+  'Company Event': '公司活動',
+  'Launch Event': '發佈會',
+  Wedding: '婚宴',
+  'Annual Dinner': '周年晚宴',
+  Dinner: '晚宴',
+  Gala: '慶典晚會',
+  'Award Ceremony': '頒獎典禮',
+  'VIP Dinner': '貴賓晚宴',
+  Tour: '旅行團',
+  'School Trip': '學校旅行',
+  'Company Trip': '公司旅行',
+  Shuttle: '接駁巴士',
+}
+export const typeLabel = (t: string) => TYPE_LABEL[t] ?? t
+
 export const ModeIcon = ({ mode, ...props }: { mode: Mode } & LucideProps) => {
   const Icon = MODE_META[mode].icon
   return <Icon strokeWidth={1.9} {...props} />

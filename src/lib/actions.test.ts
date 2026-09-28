@@ -28,6 +28,7 @@ const ev = (name: string): EventInput => ({
   seatsPerTable: 10,
   buses: [],
   dinnerTables: 0,
+  dinnerSeats: 12,
 })
 
 const guest = (eventId: string, name: string, qr: string, extra: Partial<ReturnType<typeof emptyGuest>> = {}) =>

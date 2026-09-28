@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import type { EventRec, Resource } from '../db/types'
-import { verifyCheckIn, type ScanOutcome } from '../lib/actions'
+import { Minus, Plus } from 'lucide-react'
+import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
 import { TableArt } from '../illustrations'
@@ -9,7 +10,7 @@ import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { EmptyState, FilterChip, PageHeader, ProgressBar } from '../components/ui'
 
-// 圓桌圖形：中間是桌號，外圍小圓點 = 座位（實心 = 已到）
+// 圓桌圖形：中間是席號，外圍小圓點 = 座位（實心 = 已到）
 const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: number; seated: number }) => {
   const n = Math.max(capacity, seated)
   return (
@@ -67,11 +68,11 @@ export default function Tables() {
       <div className="page">
         <EmptyState
           art={<TableArt />}
-          zh="還沒有設定桌號。"
+          zh="還沒有設定席號。"
           en="No tables yet."
           action={
             <Link to={`/e/${ev.id}/edit`} className="btn btn-primary">
-              設定桌數
+              設定席數
             </Link>
           }
         />
@@ -119,7 +120,7 @@ export function TableDetail() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const x = tables?.find((y) => y.t.id === tid)
   if (!tables) return <div className="page" />
-  if (!x) return <div className="page muted">找不到此桌</div>
+  if (!x) return <div className="page muted">找不到此席</div>
   const { t, guests, arrived, seated } = x as { t: Resource; guests: { seat: string; e: GuestEntry }[]; arrived: number; seated: number }
   const i = tables.indexOf(x)
   const prev = tables[i - 1]
@@ -128,16 +129,16 @@ export function TableDetail() {
   return (
     <div className="page narrow">
       <PageHeader
-        zh={`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 桌`}
+        zh={`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 席`}
         en={`Table ${t.label}`}
         back={`/e/${ev.id}/tables`}
         actions={
           <div className="pager">
             <button className="btn btn-sm btn-ghost" disabled={!prev} onClick={() => nav(`/e/${ev.id}/tables/${prev.t.id}`, { replace: true })}>
-              ‹ 上一桌
+              ‹ 上一席
             </button>
             <button className="btn btn-sm btn-ghost" disabled={!next} onClick={() => nav(`/e/${ev.id}/tables/${next.t.id}`, { replace: true })}>
-              下一桌 ›
+              下一席 ›
             </button>
           </div>
         }
@@ -150,10 +151,20 @@ export function TableDetail() {
           </p>
           <ProgressBar value={arrived} max={t.capacity} tone={arrived >= t.capacity ? 'ok' : 'mode'} />
           <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可入場</p>
+          <div className="stepper compact">
+            <span>此席人數（一圍）</span>
+            <button className="icon-btn" aria-label="減少一位" onClick={() => setTableCapacity(t, t.capacity - 1)} disabled={t.capacity <= 1}>
+              <Minus size={18} />
+            </button>
+            <strong>{t.capacity}</strong>
+            <button className="icon-btn" aria-label="增加一位" onClick={() => setTableCapacity(t, t.capacity + 1)} disabled={t.capacity >= 30}>
+              <Plus size={18} />
+            </button>
+          </div>
         </div>
       </div>
       {guests.length === 0 ? (
-        <p className="muted pad center">此桌未安排嘉賓</p>
+        <p className="muted pad center">此席未安排嘉賓</p>
       ) : (
         <div className="list card">
           {guests.map(({ seat, e }) => (

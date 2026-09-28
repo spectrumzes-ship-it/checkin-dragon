@@ -147,7 +147,7 @@ export default function Guests() {
                 排序
                 <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} disabled={!!dq}>
                   <option value="name">姓名</option>
-                  <option value="seat">座位／桌號</option>
+                  <option value="seat">座位／席號</option>
                   <option value="time">入場時間</option>
                   <option value="status">未到優先</option>
                 </select>

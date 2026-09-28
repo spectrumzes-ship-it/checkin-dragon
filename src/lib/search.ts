@@ -39,7 +39,7 @@ export const buildIndex = (
       .map(normalize)
     const seatWords = ss.flatMap((s) =>
       s.resource.type === 'table'
-        ? [`T${s.resource.label}`, `TABLE${s.resource.label}`, `第${s.resource.label}桌`]
+        ? [`T${s.resource.label}`, `TABLE${s.resource.label}`, `第${s.resource.label}席`, `第${s.resource.label}桌`]
         : [`${s.resource.label}${s.seatLabel}`, `BUS${s.resource.label}`],
     )
     const hay = normalize(

@@ -1,17 +1,22 @@
-import { useEffect } from 'react'
-import { Link, NavLink, Outlet, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { ChevronDown } from 'lucide-react'
+import { db } from '../db/db'
+import type { EventRec } from '../db/types'
 import { ChartPie, ChevronLeft, ClipboardList, Gift, ListChecks, Armchair, ScanLine, Users } from 'lucide-react'
 import { useEvent } from '../lib/hooks'
 import { setSettings } from '../lib/settings'
-import { formatDate } from '../lib/util'
-import { MODE_META, ModeIcon, TableIcon } from '../components/icons'
-import { EmptyState, SyncIndicator } from '../components/ui'
+import { formatDate, todayKey } from '../lib/util'
+import { ModeIcon, TableIcon, typeLabel } from '../components/icons'
+import { EmptyState, Sheet, SyncIndicator } from '../components/ui'
 import { CalendarArt } from '../illustrations'
 
 // 活動內所有畫面共用：頂部模式色條 + 分頁
 export default function EventLayout() {
   const { id } = useParams()
   const ev = useEvent(id)
+  const [picker, setPicker] = useState(false)
 
   useEffect(() => {
     if (id) setSettings({ currentEventId: id })
@@ -38,7 +43,7 @@ export default function EventLayout() {
   const tabs = [
     { to: base, icon: <ChartPie size={18} />, zh: '統計', en: 'Dashboard', end: true },
     { to: `${base}/guests`, icon: <Users size={18} />, zh: '嘉賓', en: 'Guests' },
-    ...(ev.mode === 'banquet' ? [{ to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '桌號', en: 'Tables' }] : []),
+    ...(ev.mode === 'banquet' ? [{ to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '席號', en: 'Tables' }] : []),
     ...(ev.mode === 'bus'
       ? [
           { to: `${base}/rollcall`, icon: <ListChecks size={18} />, zh: '點名', en: 'Roll Call' },
@@ -59,15 +64,17 @@ export default function EventLayout() {
           <span className="event-head-icon">
             <ModeIcon mode={ev.mode} size={22} />
           </span>
-          <div className="event-head-text">
-            <strong>{ev.name}</strong>
+          <button className="event-head-text" onClick={() => setPicker(true)} aria-label="切換活動">
+            <strong>
+              {ev.name} <ChevronDown size={16} className="switch-caret" />
+            </strong>
             <span>
-              {MODE_META[ev.mode].zh} · {formatDate(ev.date)} · {ev.startTime}
+              {typeLabel(ev.type)} · {formatDate(ev.date)} · {ev.startTime}
               {ev.venue && ` · ${ev.venue}`}
               {ev.status === 'completed' && ' · 已完成'}
               {ev.status === 'archived' && ' · 已封存'}
             </span>
-          </div>
+          </button>
           <SyncIndicator />
           <Link to={`${base}/scan`} className="btn btn-primary head-scan">
             <ScanLine size={20} /> 掃描
@@ -83,6 +90,55 @@ export default function EventLayout() {
         </nav>
       </header>
       <Outlet context={ev} />
+      <EventPicker open={picker} onClose={() => setPicker(false)} current={ev} />
     </div>
+  )
+}
+
+// 切換活動：保留目前所在的分頁（例如由 A 活動的嘉賓名單直接跳到 B 活動的嘉賓名單）
+function EventPicker({ open, onClose, current }: { open: boolean; onClose: () => void; current: EventRec }) {
+  const nav = useNavigate()
+  const loc = useLocation()
+  const events = useLiveQuery(() => db.events.toArray(), []) ?? []
+  const today = todayKey()
+  const active = events.filter((e) => e.status !== 'archived')
+  const groups: [string, EventRec[]][] = [
+    ['今日 Today', active.filter((e) => e.date === today).sort((a, b) => a.startTime.localeCompare(b.startTime))],
+    ['即將舉行 Upcoming', active.filter((e) => e.date > today).sort((a, b) => a.date.localeCompare(b.date))],
+    ['已完成 Past', active.filter((e) => e.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)],
+  ]
+  const go = (e: EventRec) => {
+    const sub = loc.pathname.split('/')[3] ?? ''
+    const ok = sub === 'tables' ? e.mode === 'banquet' : sub === 'rollcall' || sub === 'seats' ? e.mode === 'bus' : true
+    setSettings({ currentEventId: e.id })
+    onClose()
+    nav(`/e/${e.id}${ok && sub ? `/${sub}` : ''}`)
+  }
+  return (
+    <Sheet open={open} onClose={onClose} title="切換活動 Switch Event">
+      {groups.map(([title, list]) =>
+        list.length ? (
+          <div key={title} className="picker-group">
+            <p className="field-label">{title}</p>
+            <div className="list card">
+              {list.map((e) => (
+                <button key={e.id} className={`picker-row ${e.id === current.id ? 'current' : ''}`} data-mode={e.mode} onClick={() => go(e)}>
+                  <span className="event-row-icon">
+                    <ModeIcon mode={e.mode} size={18} />
+                  </span>
+                  <span className="event-row-main">
+                    <strong>{e.name}</strong>
+                    <span className="muted">
+                      {formatDate(e.date)} · {e.startTime} · {typeLabel(e.type)}
+                    </span>
+                  </span>
+                  {e.id === current.id && <span className="muted">目前</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null,
+      )}
+    </Sheet>
   )
 }

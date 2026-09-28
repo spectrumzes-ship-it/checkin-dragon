@@ -26,6 +26,7 @@ export interface EventRec {
     seatsPerTable?: number
     buses?: BusConfig[]
     dinnerTables?: number
+    dinnerSeats?: number
   }
   createdAt: number
   updatedAt: number

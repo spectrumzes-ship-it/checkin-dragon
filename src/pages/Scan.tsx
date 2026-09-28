@@ -35,6 +35,7 @@ export default function Scan() {
   const dq = useDebounced(q, 120)
   const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[] } | null>(null)
   const busy = useRef(false)
+  const vv = useVisibleViewport()
 
   // 掃描目的：入場／點名／紀念品
   const purposeKey = params.get('p') ?? 'checkin'
@@ -106,7 +107,7 @@ export default function Scan() {
   if (!ev) return <div className="scan" />
 
   return (
-    <div className="scan" data-mode={ev.mode}>
+    <div className="scan" data-mode={ev.mode} style={vv ? { height: vv.height, transform: `translateY(${vv.top}px)` } : undefined}>
       <header className="scan-top">
         <button className="scan-icon" aria-label="關閉掃描" onClick={() => nav(`/e/${ev.id}`)}>
           <X size={24} />
@@ -228,6 +229,7 @@ export default function Scan() {
           <div className="manual">
             <SearchBar value={q} onChange={setQ} placeholder="姓名／編號／電話／公司／座位" autoFocus />
             <div className="manual-results">
+              {!dq && <p className="muted pad center">輸入姓名、編號、電話、公司或座位，結果會即時出現</p>}
               {dq && results.length === 0 && <p className="muted pad">找不到「{dq}」</p>}
               {results.map((e) => (
                 <GuestRow key={e.p.id} e={e} onClick={() => run(dq, 'MANUAL', e.p.id)} />
@@ -275,4 +277,25 @@ export default function Scan() {
       )}
     </div>
   )
+}
+
+// iPhone 彈出鍵盤時，畫面可見範圍會縮小；掃描畫面跟隨可見範圍，搜尋欄就不會被推走或留下大片空白
+function useVisibleViewport() {
+  const [vv, setVv] = useState<{ height: number; top: number } | null>(null)
+  useEffect(() => {
+    const v = window.visualViewport
+    if (!v) return
+    const update = () => {
+      setVv({ height: v.height, top: v.offsetTop })
+      if (window.scrollY) window.scrollTo(0, 0)
+    }
+    update()
+    v.addEventListener('resize', update)
+    v.addEventListener('scroll', update)
+    return () => {
+      v.removeEventListener('resize', update)
+      v.removeEventListener('scroll', update)
+    }
+  }, [])
+  return vv
 }

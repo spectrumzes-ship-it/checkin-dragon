@@ -138,7 +138,7 @@ export const seedDemo = async () => {
     // 🍽 今日宴會
     const dinner = buildEvent(
       { name: 'Annual Dinner 2026', mode: 'banquet', type: 'Annual Dinner', date: today, startTime: '18:30', endTime: '22:30',
-        venue: 'Grand Ballroom', notes: '示範資料', status: 'active', code: 'AD26', modeConfig: { tableCount: 20, seatsPerTable: 10 } },
+        venue: 'Grand Ballroom', notes: '示範資料', status: 'active', code: 'AD26', modeConfig: { tableCount: 20, seatsPerTable: 12 } },
       170, 0.62, 80,
     )
     // 固定測試嘉賓：CHAN TAI MAN · VIP-A0265
@@ -148,12 +148,12 @@ export const seedDemo = async () => {
     Object.assign(dinner.tickets[0], { invitationId: 'VIP-A0265', status: 'valid', usedAt: null })
     dinner.checkins = dinner.checkins.filter((c) => c.participantId !== star.id)
     for (let t = 1; t <= 20; t++)
-      dinner.resources.push({ id: uid(), eventId: dinner.event.id, type: 'table', label: String(t).padStart(2, '0'), capacity: 10, purpose: '', sortOrder: t })
+      dinner.resources.push({ id: uid(), eventId: dinner.event.id, type: 'table', label: String(t).padStart(2, '0'), capacity: 12, purpose: '', sortOrder: t })
     let seatCursor = 0
     for (const p of dinner.people) {
-      if ((seatCursor % 10) + p.guestCount > 10) seatCursor += 10 - (seatCursor % 10) // 一票多人不跨桌
-      const table = dinner.resources[Math.floor(seatCursor / 10) % 20]
-      dinner.seats.push({ id: uid(), eventId: dinner.event.id, participantId: p.id, resourceId: table.id, seatLabel: String((seatCursor % 10) + 1) })
+      if ((seatCursor % 12) + p.guestCount > 12) seatCursor += 12 - (seatCursor % 12) // 一票多人不跨席
+      const table = dinner.resources[Math.floor(seatCursor / 12) % 20]
+      dinner.seats.push({ id: uid(), eventId: dinner.event.id, participantId: p.id, resourceId: table.id, seatLabel: String((seatCursor % 12) + 1) })
       seatCursor += p.guestCount
     }
     await save(dinner)
@@ -169,14 +169,14 @@ export const seedDemo = async () => {
     const tour = buildEvent(
       { name: 'Tokyo Tour · Day 3', mode: 'bus', type: 'Tour', date: today, startTime: '08:00', endTime: '20:00',
         venue: 'Hotel Gracery Lobby', notes: '示範資料', status: 'active', code: 'TKY3',
-        modeConfig: { buses: [{ label: 'A', capacity: 45 }, { label: 'B', capacity: 45 }], dinnerTables: 8 } },
+        modeConfig: { buses: [{ label: 'A', capacity: 45 }, { label: 'B', capacity: 45 }], dinnerTables: 8, dinnerSeats: 12 } },
       80, 0.95, 600,
     )
     const busA: Resource = { id: uid(), eventId: tour.event.id, type: 'bus', label: 'A', capacity: 45, purpose: '', sortOrder: 0 }
     const busB: Resource = { id: uid(), eventId: tour.event.id, type: 'bus', label: 'B', capacity: 45, purpose: '', sortOrder: 1 }
     tour.resources.push(busA, busB)
     for (let t = 1; t <= 8; t++)
-      tour.resources.push({ id: uid(), eventId: tour.event.id, type: 'table', label: String(t), capacity: 10, purpose: '晚餐', sortOrder: 100 + t })
+      tour.resources.push({ id: uid(), eventId: tour.event.id, type: 'table', label: String(t), capacity: 12, purpose: '晚餐', sortOrder: 100 + t })
     tour.people.forEach((p, i) => {
       p.guestCount = 1
       if (p.arrivedCount) p.arrivedCount = 1
@@ -212,11 +212,11 @@ export const seedDemo = async () => {
     // 🍽 已完成活動
     const gala = buildEvent(
       { name: 'Spring Gala 2026', mode: 'banquet', type: 'Gala', date: addDays(today, -30), startTime: '19:00', endTime: '23:00',
-        venue: 'Harbour Hotel', notes: '示範資料', status: 'completed', code: 'SG26', modeConfig: { tableCount: 12, seatsPerTable: 10 } },
+        venue: 'Harbour Hotel', notes: '示範資料', status: 'completed', code: 'SG26', modeConfig: { tableCount: 12, seatsPerTable: 12 } },
       110, 0.9, 120,
     )
     for (let t = 1; t <= 12; t++)
-      gala.resources.push({ id: uid(), eventId: gala.event.id, type: 'table', label: String(t).padStart(2, '0'), capacity: 10, purpose: '', sortOrder: t })
+      gala.resources.push({ id: uid(), eventId: gala.event.id, type: 'table', label: String(t).padStart(2, '0'), capacity: 12, purpose: '', sortOrder: t })
     await save(gala)
 
     // 📦 已封存

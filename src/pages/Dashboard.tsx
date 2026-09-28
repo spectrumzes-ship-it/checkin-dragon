@@ -79,7 +79,7 @@ export default function Dashboard() {
     <div className="page">
       {ev.mode === 'banquet' && (
         <div className="banquet-search">
-          <SearchBar large value={q} onChange={setQ} placeholder="搜尋嘉賓姓名／公司／桌號 Search guest" />
+          <SearchBar large value={q} onChange={setQ} placeholder="搜尋嘉賓姓名／公司／席號 Search guest" />
           {dq && (
             <div className="list card search-results">
               {results.length ? (
@@ -99,7 +99,7 @@ export default function Dashboard() {
         <MetricCard zh="出席率" en="Attendance" value={`${stats.rate}%`} tone="mode" sub={<ProgressBar value={stats.arrived} max={stats.total} />} />
         <MetricCard zh="VIP" en="VIP" value={`${stats.vipArrived} / ${stats.vipTotal}`} icon={<Star size={18} />} />
         {ev.mode === 'banquet' && (
-          <MetricCard zh="總桌數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 桌已有人到`} icon={<TableIcon size={18} />} />
+          <MetricCard zh="總席數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 席已有人到`} icon={<TableIcon size={18} />} />
         )}
         {souvenirs.length > 0 && (
           <MetricCard

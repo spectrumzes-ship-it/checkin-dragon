@@ -412,31 +412,35 @@ export interface EventInput {
   seatsPerTable: number
   buses: { label: string; capacity: number }[]
   dinnerTables: number
+  dinnerSeats: number
 }
 
 const makeCode = (name: string) =>
   (name.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase() || 'EV') + Math.floor(Math.random() * 90 + 10)
 
-export const syncResources = async (ev: EventRec) => {
+// prev = 修改前的活動；只更新仍然使用舊預設人數的席，逐席改過的人數會保留
+export const syncResources = async (ev: EventRec, prev?: EventRec) => {
   const existing = await db.resources.where('eventId').equals(ev.id).toArray()
   const want: Omit<Resource, 'id'>[] = []
   if (ev.mode === 'banquet') {
     for (let i = 1; i <= (ev.modeConfig.tableCount ?? 0); i++)
-      want.push({ eventId: ev.id, type: 'table', label: String(i).padStart(2, '0'), capacity: ev.modeConfig.seatsPerTable ?? 10, purpose: '', sortOrder: i })
+      want.push({ eventId: ev.id, type: 'table', label: String(i).padStart(2, '0'), capacity: ev.modeConfig.seatsPerTable ?? 12, purpose: '', sortOrder: i })
   }
   if (ev.mode === 'bus') {
     ;(ev.modeConfig.buses ?? []).forEach((b, i) =>
       want.push({ eventId: ev.id, type: 'bus', label: b.label, capacity: b.capacity, purpose: '', sortOrder: i }),
     )
     for (let i = 1; i <= (ev.modeConfig.dinnerTables ?? 0); i++)
-      want.push({ eventId: ev.id, type: 'table', label: String(i), capacity: 10, purpose: '晚餐', sortOrder: 100 + i })
+      want.push({ eventId: ev.id, type: 'table', label: String(i), capacity: ev.modeConfig.dinnerSeats ?? 12, purpose: '晚餐', sortOrder: 100 + i })
   }
   const key = (r: { type: string; label: string; purpose: string }) => `${r.type}|${r.purpose}|${r.label}`
   const have = new Map(existing.map((r) => [key(r), r]))
   for (const w of want) {
     const h = have.get(key(w))
     if (h) {
-      await db.resources.update(h.id, { capacity: w.capacity, sortOrder: w.sortOrder })
+      const oldDefault = h.type === 'bus' ? h.capacity : h.purpose === '晚餐' ? prev?.modeConfig.dinnerSeats ?? 12 : prev?.modeConfig.seatsPerTable ?? 12
+      const keepCustom = h.type === 'table' && prev && h.capacity !== oldDefault
+      await db.resources.update(h.id, { capacity: keepCustom ? h.capacity : w.capacity, sortOrder: w.sortOrder })
       have.delete(key(w))
     } else await db.resources.add({ ...w, id: uid() })
   }
@@ -465,13 +469,13 @@ export const saveEvent = async (input: EventInput, existing?: EventRec) => {
       input.mode === 'banquet'
         ? { tableCount: input.tableCount, seatsPerTable: input.seatsPerTable }
         : input.mode === 'bus'
-          ? { buses: input.buses.filter((b) => b.label.trim()), dinnerTables: input.dinnerTables }
+          ? { buses: input.buses.filter((b) => b.label.trim()), dinnerTables: input.dinnerTables, dinnerSeats: input.dinnerSeats }
           : {},
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }
   await db.events.put(ev)
-  await syncResources(ev)
+  await syncResources(ev, existing)
   await audit(ev.id, existing ? '修改活動 Edit Event' : '建立活動 New Event', 'event', ev.id)
   return ev
 }
@@ -629,4 +633,12 @@ export const undoRedemption = async (itemId: string, p: Participant) => {
   for (const r of rows) await db.redemptions.update(r.id, { voided: true })
   const item = await db.souvenirs.get(itemId)
   await audit(p.eventId, `取消領取紀念品 ${item?.name ?? ''}`, 'souvenir', itemId, p.englishName || p.name)
+}
+
+// ---------- 席 ----------
+
+export const setTableCapacity = async (r: Resource, capacity: number) => {
+  const c = Math.max(1, Math.min(30, capacity))
+  await db.resources.update(r.id, { capacity: c })
+  await audit(r.eventId, `修改第 ${r.label} 席人數為 ${c}`, 'resource', r.id)
 }

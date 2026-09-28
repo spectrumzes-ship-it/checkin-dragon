@@ -110,10 +110,10 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
               <Row
                 key={i}
                 icon={<TableIcon size={18} />}
-                zh={s.resource.purpose === '晚餐' ? '晚餐桌號' : '桌號'}
+                zh={s.resource.purpose === '晚餐' ? '晚餐席號' : '席號'}
                 value={
                   <Link to={`/e/${ev.id}/tables/${s.resource.id}`}>
-                    第 {s.resource.label} 桌{s.seatLabel && ` · ${s.seatLabel} 號座位`}
+                    第 {s.resource.label} 席{s.seatLabel && ` · ${s.seatLabel} 號座位`}
                   </Link>
                 }
               />

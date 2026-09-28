@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Gift, Pencil, Plus, ScanLine } from 'lucide-react'
+import { ClipboardList, Gift, Pencil, Plus, ScanLine } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem } from '../db/types'
 import { eligibilityLabel, saveSouvenir } from '../lib/actions'
@@ -77,9 +77,14 @@ export default function Souvenirs() {
                   {people} 位嘉賓已領{left !== null && ` · 剩 ${left}`}
                   {low && ' · 庫存不足'}
                 </p>
-                <Link to={`/e/${ev.id}/scan?p=s:${it.id}`} className="btn btn-primary btn-block">
-                  <ScanLine size={18} /> 開始派發
-                </Link>
+                <div className="souvenir-actions">
+                  <Link to={`/e/${ev.id}/scan?p=s:${it.id}`} className="btn btn-primary">
+                    <ScanLine size={18} /> 開始派發
+                  </Link>
+                  <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}`} className="btn btn-ghost">
+                    <ClipboardList size={18} /> 派發紀錄
+                  </Link>
+                </div>
               </section>
             )
           })}
