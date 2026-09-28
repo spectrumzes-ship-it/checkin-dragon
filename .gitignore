@@ -14,3 +14,7 @@ private-data/
 *.csv
 !test-kit/**/*.xlsx
 !test-kit/**/*.csv
+
+# 本機工具設定
+.claude/
+*.tsbuildinfo

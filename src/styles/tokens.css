@@ -1,0 +1,150 @@
+/* ===== 設計代號 Design Tokens =====
+   所有顏色、字體、圓角都在這裏定義一次，全 App 共用。 */
+
+:root {
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --surface-2: #f3f1ec;
+  --surface-3: #ebe8e1;
+  --text: #2c2b29;
+  --text-2: #77736c;
+  --text-3: #a29d94;
+  --border: #d9d6cf;
+  --border-soft: #e8e5de;
+
+  /* 模式色：淺底 + 深一級文字 */
+  --event-bg: #dceaf5;
+  --event-ink: #315b75;
+  --banquet-bg: #f4e3df;
+  --banquet-ink: #7a4a40;
+  --bus-bg: #ddefe6;
+  --bus-ink: #2f6650;
+  --souvenir-bg: #f7efd9;
+  --souvenir-ink: #6e5a22;
+
+  /* 狀態色 */
+  --ok-bg: #ddf3e4;
+  --ok-ink: #245b3a;
+  --bad-bg: #f7d9dd;
+  --bad-ink: #7a3038;
+  --warn-bg: #f6e5c7;
+  --warn-ink: #755520;
+  --info-bg: #dceaf5;
+  --info-ink: #315b75;
+  --vip: #b8892b;
+
+  /* 目前模式（進入活動後由 data-mode 覆寫） */
+  --mode-bg: var(--surface-2);
+  --mode-ink: var(--text);
+
+  --camera: #1f1e1c;
+
+  --r-lg: 20px;
+  --r: 16px;
+  --r-sm: 12px;
+  --r-xs: 8px;
+  --shadow: 0 1px 2px rgba(44, 43, 41, 0.04);
+  --shadow-pop: 0 8px 32px rgba(44, 43, 41, 0.12);
+
+  --font: 'Inter Variable', 'Inter', -apple-system, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei',
+    'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+
+  /* 字級 */
+  --fs-display: 48px;
+  --fs-title: 28px;
+  --fs-heading: 20px;
+  --fs-body: 16px;
+  --fs-label: 14px;
+  --fs-caption: 13px;
+
+  --nav-h: 72px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  color-scheme: light;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --fs-display: 72px;
+  }
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #1c1b19;
+    --surface: #262522;
+    --surface-2: #2f2d2a;
+    --surface-3: #3a3833;
+    --text: #f1efea;
+    --text-2: #a8a39a;
+    --text-3: #7d786f;
+    --border: #3a3833;
+    --border-soft: #312f2b;
+    --event-bg: #22323f;
+    --event-ink: #b9d6ec;
+    --banquet-bg: #3a2b27;
+    --banquet-ink: #f0cfc6;
+    --bus-bg: #1f3329;
+    --bus-ink: #bfe6d2;
+    --souvenir-bg: #3a3322;
+    --souvenir-ink: #eedfae;
+    --ok-bg: #1f3a2a;
+    --ok-ink: #bfe8cc;
+    --bad-bg: #43252a;
+    --bad-ink: #f5c7cd;
+    --warn-bg: #413420;
+    --warn-ink: #f2d9a8;
+    --info-bg: #22323f;
+    --info-ink: #b9d6ec;
+    --vip: #e2b85c;
+    --camera: #0f0f0e;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #1c1b19;
+  --surface: #262522;
+  --surface-2: #2f2d2a;
+  --surface-3: #3a3833;
+  --text: #f1efea;
+  --text-2: #a8a39a;
+  --text-3: #7d786f;
+  --border: #3a3833;
+  --border-soft: #312f2b;
+  --event-bg: #22323f;
+  --event-ink: #b9d6ec;
+  --banquet-bg: #3a2b27;
+  --banquet-ink: #f0cfc6;
+  --bus-bg: #1f3329;
+  --bus-ink: #bfe6d2;
+  --souvenir-bg: #3a3322;
+  --souvenir-ink: #eedfae;
+  --ok-bg: #1f3a2a;
+  --ok-ink: #bfe8cc;
+  --bad-bg: #43252a;
+  --bad-ink: #f5c7cd;
+  --warn-bg: #413420;
+  --warn-ink: #f2d9a8;
+  --info-bg: #22323f;
+  --info-ink: #b9d6ec;
+  --vip: #e2b85c;
+  --camera: #0f0f0e;
+  --shadow: none;
+  color-scheme: dark;
+}
+
+[data-mode='event'] {
+  --mode-bg: var(--event-bg);
+  --mode-ink: var(--event-ink);
+}
+[data-mode='banquet'] {
+  --mode-bg: var(--banquet-bg);
+  --mode-ink: var(--banquet-ink);
+}
+[data-mode='bus'] {
+  --mode-bg: var(--bus-bg);
+  --mode-ink: var(--bus-ink);
+}
