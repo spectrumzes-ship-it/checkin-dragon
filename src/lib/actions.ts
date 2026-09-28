@@ -645,3 +645,81 @@ export const setTableCapacity = async (r: Resource, capacity: number) => {
   await db.resources.update(r.id, { capacity: c })
   await audit(r.eventId, `修改第 ${r.label} 席人數為 ${c}`, 'resource', r.id)
 }
+
+// ---------- 座位編排（拖拉換位） ----------
+
+export interface SeatTarget {
+  resourceId: string
+  seatLabel: string
+}
+
+// 整理一席的座位號：一票多人佔連續座位；座位衝突的嘉賓讓到第一個空位。priority 的嘉賓優先保留原座位。
+const normalizeTable = async (table: Resource, priority: string[]) => {
+  const rows = await db.seats.where('resourceId').equals(table.id).toArray()
+  const ps = await db.participants.bulkGet(rows.map((r) => r.participantId))
+  const items = rows
+    .map((r, i) => ({ r, p: ps[i]! }))
+    .filter((x) => x.p && x.p.status === 'active')
+    .sort((a, b) => Number(priority.includes(b.p.id)) - Number(priority.includes(a.p.id)) || (Number(a.r.seatLabel) || 999) - (Number(b.r.seatLabel) || 999))
+  const size = Math.max(table.capacity, items.reduce((n, x) => n + x.p.guestCount, 0))
+  const taken = new Array<boolean>(size + 1).fill(false)
+  const fits = (start: number, n: number) => start >= 1 && start + n - 1 <= size && Array.from({ length: n }, (_, k) => !taken[start + k]).every(Boolean)
+  for (const { r, p } of items) {
+    const n = Math.min(p.guestCount, size)
+    let start = Number(r.seatLabel)
+    if (!fits(start, n)) start = Array.from({ length: size }, (_, k) => k + 1).find((k) => fits(k, n)) ?? Array.from({ length: size }, (_, k) => k + 1).find((k) => !taken[k]) ?? 1
+    for (let k = 0; k < n; k++) taken[start + k] = true
+    if (String(start) !== r.seatLabel) await db.seats.update(r.id, { seatLabel: String(start) })
+  }
+}
+
+// 把嘉賓移到某一席的某個座位；目標座位已有人就互相對調。target = null 代表移出（未安排）。
+// purpose：'' = 宴會席、'晚餐' = 巴士行程聚餐席。回傳移動前的狀態，用於「復原」。
+export const moveSeat = async (eventId: string, pid: string, purpose: string, target: SeatTarget | null) => {
+  const tables = await db.resources.where('eventId').equals(eventId).filter((r) => r.type === 'table' && r.purpose === purpose).toArray()
+  const ids = new Set(tables.map((t) => t.id))
+  const label = (id: string) => tables.find((t) => t.id === id)?.label ?? ''
+  const mine = await db.seats.where('participantId').equals(pid).filter((s) => ids.has(s.resourceId)).first()
+  const occupant = target
+    ? await db.seats
+        .where('resourceId')
+        .equals(target.resourceId)
+        .filter((s) => s.seatLabel === target.seatLabel && s.participantId !== pid)
+        .first()
+    : undefined
+  const affected = [...new Set([mine?.resourceId, target?.resourceId].filter(Boolean) as string[])]
+  const before = (await db.seats.where('resourceId').anyOf(affected).toArray()).map((s) => ({ ...s }))
+  const pids = [pid, occupant?.participantId].filter(Boolean) as string[]
+  const [p, q] = await db.participants.bulkGet(pids)
+  const nameOf = (x?: Participant) => (x ? x.englishName || x.name : '')
+
+  await db.transaction('rw', db.seats, db.participants, db.auditLogs, async () => {
+    if (occupant) {
+      if (mine) await db.seats.update(occupant.id, { resourceId: mine.resourceId, seatLabel: mine.seatLabel })
+      else await db.seats.delete(occupant.id)
+    }
+    if (target) {
+      if (mine) await db.seats.update(mine.id, { resourceId: target.resourceId, seatLabel: target.seatLabel })
+      else await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: target.resourceId, seatLabel: target.seatLabel })
+    } else if (mine) await db.seats.delete(mine.id)
+    for (const tid of affected) await normalizeTable(tables.find((t) => t.id === tid)!, pids)
+
+    const to = target ? `第 ${label(target.resourceId)} 席 ${target.seatLabel} 號` : '未安排'
+    const from = mine ? `第 ${label(mine.resourceId)} 席 ${mine.seatLabel} 號` : '未安排'
+    await audit(eventId, `調位：${from} → ${to}`, 'participant', pid, nameOf(p))
+    if (occupant) await audit(eventId, `調位（對調）：→ ${from}`, 'participant', occupant.participantId, nameOf(q))
+  })
+  return { pid, affected, before }
+}
+
+export const undoMoveSeat = async (eventId: string, snap: Awaited<ReturnType<typeof moveSeat>>) => {
+  await db.transaction('rw', db.seats, db.auditLogs, async () => {
+    // 還原受影響的席，並移除被移入的嘉賓在其他席的新位置
+    await db.seats.where('resourceId').anyOf(snap.affected).delete()
+    const moved = new Set(snap.before.map((s) => s.participantId).concat(snap.pid))
+    const stray = await db.seats.where('participantId').anyOf([...moved]).filter((s) => snap.affected.includes(s.resourceId)).toArray()
+    await db.seats.bulkDelete(stray.map((s) => s.id))
+    await db.seats.bulkPut(snap.before)
+    await audit(eventId, '復原調位 Undo', 'participant', snap.pid)
+  })
+}

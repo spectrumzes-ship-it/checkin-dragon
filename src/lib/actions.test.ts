@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, allTables } from '../db/db'
 import {
   emptyGuest,
+  moveSeat,
   saveEvent,
+  undoMoveSeat,
   saveGuest,
   saveSouvenir,
   setGuestCancelled,
@@ -140,5 +142,46 @@ describe('文字辨識近似搜尋', () => {
 
     expect(fuzzyMatch(index, 'CHAN').length).toBeGreaterThanOrEqual(2)
     expect(fuzzyMatch(index, 'HELLO WORLD')).toHaveLength(0)
+  })
+})
+
+describe('座位編排', () => {
+  it('移到空位、對調、移出、復原', async () => {
+    const e = await saveEvent(ev('A'))
+    const [t1, t2] = (await db.resources.where('eventId').equals(e.id).sortBy('sortOrder'))
+    const a = await guest(e.id, 'A', 'M1', { tableId: t1.id, tableSeat: '1' })
+    const b = await guest(e.id, 'B', 'M2', { tableId: t2.id, tableSeat: '5' })
+    const seatOf = async (pid: string) => {
+      const s = await db.seats.where('participantId').equals(pid).first()
+      return s ? `${s.resourceId === t1.id ? 1 : 2}-${s.seatLabel}` : 'none'
+    }
+    await moveSeat(e.id, a.id, '', { resourceId: t1.id, seatLabel: '3' })
+    expect(await seatOf(a.id)).toBe('1-3')
+
+    const snap = await moveSeat(e.id, a.id, '', { resourceId: t2.id, seatLabel: '5' })
+    expect(await seatOf(a.id)).toBe('2-5')
+    expect(await seatOf(b.id)).toBe('1-3') // 對調
+
+    await undoMoveSeat(e.id, snap)
+    expect(await seatOf(a.id)).toBe('1-3')
+    expect(await seatOf(b.id)).toBe('2-5')
+
+    await moveSeat(e.id, b.id, '', null)
+    expect(await seatOf(b.id)).toBe('none')
+    expect((await db.auditLogs.toArray()).some((l) => l.action.startsWith('調位'))).toBe(true)
+  })
+  it('一票兩位移入時，旁邊的嘉賓自動讓位並保存；復原後全部還原', async () => {
+    const e = await saveEvent(ev('A'))
+    const [t1, t2] = await db.resources.where('eventId').equals(e.id).sortBy('sortOrder')
+    const pair = await guest(e.id, 'PAIR', 'P1', { tableId: t2.id, tableSeat: '1', guestCount: 2 })
+    const c = await guest(e.id, 'C', 'P2', { tableId: t1.id, tableSeat: '3' })
+    const seat = async (pid: string) => (await db.seats.where('participantId').equals(pid).first())!.seatLabel
+    const snap = await moveSeat(e.id, pair.id, '', { resourceId: t1.id, seatLabel: '2' })
+    expect(await seat(pair.id)).toBe('2')
+    expect(await seat(c.id)).not.toBe('3') // 3 號由同行者佔用，C 讓位
+    await undoMoveSeat(e.id, snap)
+    expect(await seat(c.id)).toBe('3')
+    const back = await db.seats.where('participantId').equals(pair.id).first()
+    expect(back!.resourceId).toBe(t2.id)
   })
 })

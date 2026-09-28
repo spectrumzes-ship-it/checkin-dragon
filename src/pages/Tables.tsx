@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import type { EventRec, Resource } from '../db/types'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, MoveHorizontal, Plus } from 'lucide-react'
 import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
@@ -87,6 +87,11 @@ export default function Tables() {
   const shown = tables.filter((x) => (filter === 'all' ? true : filter === 'full' ? count(x) >= x.t.capacity : count(x) < x.t.capacity))
   return (
     <div className="page">
+      <div className="tables-top">
+        <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-primary">
+          <MoveHorizontal size={18} /> {dinner ? '餐席編排（拖拉換位）' : '座位編排（拖拉換位）'}
+        </Link>
+      </div>
       {dinner && (
         <p className="hint">
           聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
@@ -160,6 +165,9 @@ export function TableDetail() {
         back={`/e/${ev.id}/tables`}
         actions={
           <div className="pager">
+            <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-sm btn-ghost">
+              <MoveHorizontal size={16} /> 調位
+            </Link>
             <button className="btn btn-sm btn-ghost" disabled={!prev} onClick={() => nav(`/e/${ev.id}/tables/${prev.t.id}`, { replace: true })}>
               ‹ 上一席
             </button>
