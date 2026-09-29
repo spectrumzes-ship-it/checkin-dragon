@@ -131,7 +131,11 @@ const extract = (text: string) => {
   return { ids: [...ids], cjk: [...cjk], en: [...en], words }
 }
 
-export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyMatch[] => {
+// loose = 放寬門檻，用於列出「其他近似嘉賓」讓工作人員選擇
+export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5, loose = false): FuzzyMatch[] => {
+  const minId = loose ? 0.5 : 0.72
+  const minZh = loose ? 0.4 : 0.6
+  const minEn = loose ? 0.45 : 0.6
   const { ids, cjk, en, words } = extract(text)
   if (!ids.length && !cjk.length && !en.some((w) => w.length >= 3)) return []
   const out: FuzzyMatch[] = []
@@ -145,7 +149,7 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyM
         const sc = q === g || ocrFold(q) === ocrFold(g) ? 1 : g.length >= 5 ? Math.max(similarity(q, g), similarity(ocrFold(q), ocrFold(g))) * 0.9 : 0
         if (sc > idScore) idScore = sc
       }
-    if (idScore < 0.72) idScore = 0
+    if (idScore < minId) idScore = 0
 
     // 中文姓名
     let zh = 0
@@ -154,7 +158,7 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyM
       const sc = q === gname ? 1 : q.length >= 2 && Math.abs(q.length - gname.length) <= 1 ? similarity(q, gname) * 0.9 : 0
       if (sc > zh) zh = sc
     }
-    if (zh < 0.6) zh = 0
+    if (zh < minZh) zh = 0
 
     // 英文姓名（例如 CHAN TAl MAN 認錯字仍可吻合）；只打姓氏（例如 CHAN）列出多位
     let enS = 0
@@ -168,7 +172,7 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyM
       const surname = e.p.englishName.normalize('NFKC').toUpperCase().trim().split(/\s+/)[0]
       if (words.length === 1 && words[0].length >= 2 && surname === words[0]) enS = Math.max(enS, 0.62)
     }
-    if (enS < 0.6) enS = 0
+    if (enS < minEn) enS = 0
 
     const nameScore = Math.max(zh, enS)
     if (!nameScore && !idScore) continue
@@ -195,6 +199,15 @@ const nameEvidence = (text: string) => {
   const zh = (t.match(CJK) ?? []).filter((r) => r.length >= 2 && r.length <= 4 && !LABELS.has(r) && ![...LABELS].some((l) => r.includes(l)))
   const words = (t.match(/[A-Z]+/g) ?? []).filter((w) => w.length >= 2 && !EN_LABELS.has(w))
   return zh.length > 0 || words.length >= 2
+}
+
+// 由辨識文字估計卡上的姓名（用於預先填入手動搜尋）
+export const guessName = (text: string) => {
+  const t = (text || '').normalize('NFKC').toUpperCase()
+  const zh = (t.match(CJK) ?? []).find((r) => r.length >= 2 && r.length <= 4 && !LABELS.has(r) && ![...LABELS].some((l) => r.includes(l)))
+  if (zh) return zh
+  const words = (t.match(/[A-Z]+/g) ?? []).filter((w) => w.length >= 2 && !EN_LABELS.has(w))
+  return words.slice(0, 3).join(' ')
 }
 
 // 只靠編號配對、但卡上看到的姓名與這位嘉賓不符（例如資料不同步、名牌印錯）

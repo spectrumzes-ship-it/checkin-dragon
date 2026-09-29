@@ -43,7 +43,8 @@ export default function Scan() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [q, setQ] = useState('')
   const dq = useDebounced(q, 120)
-  const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[] } | null>(null)
+  // matches = 較嚴格的吻合（用於「最可能是」）；near = 放寬門檻的近似嘉賓（讓工作人員選擇）
+  const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[]; near: FuzzyMatch[] } | null>(null)
   const busy = useRef(false)
   const vv = useVisibleViewport()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -156,13 +157,14 @@ export default function Scan() {
       if (!ctx) return null
       // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
       const reads = await recognizeText(ctx)
-      let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
+      let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[], near: [] as FuzzyMatch[] }
       for (const r of reads) {
         // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
         const matches = fuzzyMatch(index, r.text)
-        if ((matches[0]?.score ?? 0) > (best.matches[0]?.score ?? 0)) best = { ...r, matches }
+        if ((matches[0]?.score ?? 0) > (best.matches[0]?.score ?? 0) || !best.text) best = { ...r, matches, near: [] }
         if ((matches[0]?.score ?? 0) >= 0.95) break
       }
+      best.near = fuzzyMatch(index, best.text, 8, true)
       return best
     } finally {
       ocrRunning.current = false
@@ -174,9 +176,9 @@ export default function Scan() {
     setOcrBusy(true)
     try {
       const r = await readText()
-      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches })
+      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches, near: r.near })
     } catch {
-      setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [] })
+      setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [], near: [] })
     } finally {
       setOcrBusy(false)
     }
@@ -202,7 +204,7 @@ export default function Scan() {
             if (same) last.misses = 0
             else {
               lastOcrPid.current = { pid: '', text: '', misses: 0 }
-              setOcr({ text: r.text, matches: r.matches })
+              setOcr({ text: r.text, matches: r.matches, near: r.near })
               return
             }
           } else if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
@@ -269,9 +271,18 @@ export default function Scan() {
     return run(t?.qrCode ?? p.memberId, 'QR')
   }
 
+  // 工作人員修改辨識到的文字：稍候片刻後重新比對（避免每打一個字都計算）
+  const editTimer = useRef(0)
+  const editOcr = (text: string) => {
+    setOcr((o) => (o ? { ...o, text } : o))
+    clearTimeout(editTimer.current)
+    editTimer.current = window.setTimeout(() => {
+      setOcr((o) => (o && o.text === text ? { text, matches: fuzzyMatch(index, text), near: fuzzyMatch(index, text, 8, true) } : o))
+    }, 250)
+  }
+
   const demoOcr = (text: string) => {
-    const matches = fuzzyMatch(index, text)
-    setOcr({ text, matches })
+    setOcr({ text, matches: fuzzyMatch(index, text), near: fuzzyMatch(index, text, 8, true) })
   }
 
   if (!ev) return <div className="scan" />
@@ -436,58 +447,75 @@ export default function Scan() {
                   </div>
                 )}
               </>
-            ) : ocr.matches.length === 0 ? (
+            ) : ocr.matches.length === 0 && ocr.near.length === 0 ? (
               <div className="ocr-none">
-                <p>
-                  辨識到「<strong>{ocr.text}</strong>」
-                </p>
+                <OcrEdit value={ocr.text} onChange={editOcr} />
                 <p className="ocr-none-title">找不到相符嘉賓 No matching guest found</p>
+                <p className="hint">可在上面直接修改辨識到的文字，名單會即時更新。</p>
                 <p className="hint">
                   目前活動：{ev.name} · 共 {index.length} 位嘉賓。如嘉賓屬於另一個活動，請按左上角 × 返回後切換活動。
                 </p>
                 <div className="demo-btns">
-                  <button onClick={() => (setOcr(null), setMode('manual'), setQ(ocr.text))}>手動搜尋</button>
                   <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>
                   <button onClick={() => setOcr(null)}>再試</button>
                 </div>
               </div>
             ) : (
-              <div className="ocr-matches">
-                <p className="demo-title">
-                  辨識到「{ocr.text}」·{' '}
-                  {nameMismatch(ocr.matches, ocr.text) ? '編號吻合的嘉賓' : pickShown(ocr.matches).length === 1 ? '最可能是' : '可能的嘉賓 Possible Matches'}
-                </p>
-                {nameIdConflict(ocr.matches) ? (
-                  <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>
-                ) : (
-                  nameMismatch(ocr.matches, ocr.text) && <p className="ocr-warn">⚠ 編號吻合，但卡上姓名與此嘉賓不符，請核對後才簽到</p>
-                )}
-                {pickShown(ocr.matches).map((m) => (
+              (() => {
+                const mismatch = nameMismatch(ocr.matches, ocr.text)
+                const conflict = nameIdConflict(ocr.matches)
+                const primary = ocr.matches.length ? pickShown(ocr.matches) : []
+                const shownIds = new Set(primary.map((m) => m.entry.p.id))
+                const others = ocr.near.filter((m) => !shownIds.has(m.entry.p.id)).slice(0, 5)
+                const pick = (m: FuzzyMatch) => {
+                  lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
+                  run(ocr.text, 'OCR', m.entry.p.id)
+                }
+                const row = (m: FuzzyMatch) => (
                   <GuestRow
                     key={m.entry.p.id}
                     e={m.entry}
-                    onClick={() => {
-                      lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
-                      run(ocr.text, 'OCR', m.entry.p.id)
-                    }}
+                    onClick={() => pick(m)}
                     trailing={
                       <span className="match">
                         {Math.round(m.score * 100)}%<small>{m.field}</small>
                       </span>
                     }
                   />
-                ))}
-                <div className="demo-btns">
-                  <button
-                    onClick={() => {
-                      lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
-                      setOcr(null)
-                    }}
-                  >
-                    都不是，再試
-                  </button>
-                </div>
-              </div>
+                )
+                return (
+                  <div className="ocr-matches">
+                    <OcrEdit value={ocr.text} onChange={editOcr} />
+                    {conflict ? (
+                      <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>
+                    ) : (
+                      mismatch && <p className="ocr-warn">⚠ 編號吻合，但卡上姓名與此嘉賓不符，請核對後才簽到</p>
+                    )}
+                    {primary.length > 0 && (
+                      <>
+                        <p className="ocr-group">{mismatch ? '編號吻合的嘉賓' : primary.length === 1 ? '最可能是 Best match' : '可能的嘉賓 Possible matches'}</p>
+                        <div className={primary.length === 1 && !mismatch && !conflict ? 'ocr-best' : ''}>{primary.map(row)}</div>
+                      </>
+                    )}
+                    {others.length > 0 && (
+                      <>
+                        <p className="ocr-group">{primary.length ? '其他近似嘉賓 · 可選擇' : '找不到完全相符 · 最接近的嘉賓'}</p>
+                        {others.map(row)}
+                      </>
+                    )}
+                    <div className="demo-btns">
+                      <button
+                        onClick={() => {
+                          lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? ocr.near[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
+                          setOcr(null)
+                        }}
+                      >
+                        都不是，再試
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()
             )}
           </div>
         )}
@@ -566,4 +594,14 @@ function useVisibleViewport() {
     }
   }, [])
   return vv
+}
+
+// 辨識到的文字：可直接修改（例如把認錯的字改正）
+function OcrEdit({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="ocr-edit">
+      <span>辨識到的文字 · 可修改</span>
+      <input value={value} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
+    </label>
+  )
 }
