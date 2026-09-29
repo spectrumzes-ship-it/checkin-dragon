@@ -9,7 +9,7 @@ import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, searchGuests, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx } from '../lib/util'
-import { getQrDetector, grabFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
+import { getQrDetector, grabFrame, grabFromFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
@@ -47,6 +47,7 @@ export default function Scan() {
   const vv = useVisibleViewport()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
   const cam = useCamera(videoRef, !!ev)
   const ocrState = useOcrState()
   const [armed, setArmed] = useState(true) // 「連續掃描」關閉時，每次結果後要按「掃描下一張」
@@ -92,7 +93,8 @@ export default function Scan() {
       try {
         const det = await getQrDetector()
         canvasRef.current ??= document.createElement('canvas')
-        const ctx = v && grabFrame(v, 0.75, 1, canvasRef.current, 720)
+        const f = frameRef.current
+        const ctx = v && (f ? grabFromFrame(v, f, canvasRef.current, 720, 0.15) : grabFrame(v, 0.75, 1, canvasRef.current, 720))
         if (ctx && !busy.current && !outcomeRef.current) {
           const codes = await det.detect(canvasRef.current)
           const value = codes[0]?.rawValue?.trim()
@@ -121,30 +123,82 @@ export default function Scan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning, purposeKey])
 
-  // ---- 文字辨識：拍下掃描框內的文字，再近似搜尋嘉賓 ----
-  const doOcr = async () => {
+  // ---- 文字辨識：讀取畫面中央一大片範圍的文字，再近似搜尋嘉賓 ----
+  const ocrRunning = useRef(false)
+  // 剛處理過（或被工作人員否決）的嘉賓，名牌仍在鏡頭前時不會再自動彈出
+  const lastOcrPid = useRef<{ pid: string; misses: number }>({ pid: '', misses: 0 })
+  const [liveText, setLiveText] = useState('')
+
+  const readText = async () => {
     const v = videoRef.current
-    if (!v || ocrBusy) return
-    setOcrBusy(true)
+    if (!v || ocrRunning.current) return null
+    ocrRunning.current = true
     try {
       canvasRef.current ??= document.createElement('canvas')
-      const ctx = grabFrame(v, 0.85, 3.2, canvasRef.current, 1200)
-      if (!ctx) return
-      const { text, lines } = await recognizeText(ctx)
+      const f = frameRef.current
+      const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.1) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
+      if (!ctx) return null
+      const { text, lines, confidence } = await recognizeText(ctx)
       // 每一行及整段文字都試一次，取每位嘉賓最高的吻合度
       const best = new Map<string, FuzzyMatch>()
       for (const t of [...lines, text]) for (const m of fuzzyMatch(index, t)) {
         const cur = best.get(m.entry.p.id)
         if (!cur || m.score > cur.score) best.set(m.entry.p.id, m)
       }
-      const matches = [...best.values()].sort((a, b) => b.score - a.score).slice(0, 5)
-      setOcr({ text: text || '（未能辨識文字）', matches })
+      return { text, confidence, matches: [...best.values()].sort((a, b) => b.score - a.score).slice(0, 5) }
+    } finally {
+      ocrRunning.current = false
+    }
+  }
+
+  // 手動「立即辨識」：不論結果都顯示
+  const doOcr = async () => {
+    setOcrBusy(true)
+    try {
+      const r = await readText()
+      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches })
     } catch {
       setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [] })
     } finally {
       setOcrBusy(false)
     }
   }
+
+  // 自動辨識：文字模式下持續讀取，找到相符嘉賓（吻合度 80% 以上）即列出讓工作人員確認
+  const autoOcr = mode === 'text' && cam.status === 'ready' && !outcome && !ocr
+  useEffect(() => {
+    if (!autoOcr) return
+    let stop = false
+    let timer = 0
+    const loop = async () => {
+      if (stop) return
+      try {
+        const r = await readText()
+        if (r && !stop) {
+          setLiveText(r.confidence >= 65 ? r.text : '') // 亂碼（信心度低）不顯示
+          const top = r.matches[0]
+          const last = lastOcrPid.current
+          if (top && top.score >= 0.8) {
+            if (top.entry.p.id === last.pid) last.misses = 0
+            else {
+              lastOcrPid.current = { pid: '', misses: 0 }
+              setOcr({ text: r.text, matches: r.matches })
+              return
+            }
+          } else if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
+        }
+      } catch {
+        /* 辨識資料未載入等：稍後再試 */
+      }
+      if (!stop) timer = window.setTimeout(loop, 350)
+    }
+    timer = window.setTimeout(loop, 300)
+    return () => {
+      stop = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOcr, index])
 
   const run = async (raw: string, method: ScanMethod, pid?: string) => {
     if (!id || busy.current) return
@@ -277,7 +331,7 @@ export default function Scan() {
           </div>
         )}
         {mode !== 'manual' && cam.status === 'ready' && (
-          <div className={cx('scan-frame', mode === 'text' && 'wide')}>
+          <div ref={frameRef} className={cx('scan-frame', mode === 'text' && 'wide')}>
             <i />
             <i />
             <i />
@@ -287,7 +341,7 @@ export default function Scan() {
         {mode === 'qr' && cam.status === 'ready' && (
           <p className="scan-hint">{noCodeHint ? '掃不到？可改用「文字」或「手動」' : '將 QR Code 放入框內'}</p>
         )}
-        {mode === 'text' && <p className="scan-hint">對準 姓名／會員編號／邀請編號</p>}
+        {mode === 'text' && cam.status === 'ready' && <p className="scan-hint">名牌放入框內，自動辨識</p>}
       </div>
 
       <div className="scan-panel">
@@ -317,16 +371,20 @@ export default function Scan() {
           <div className="demo">
             {!ocr ? (
               <>
-                <button className="btn btn-primary btn-lg btn-block" onClick={doOcr} disabled={ocrBusy || cam.status !== 'ready'}>
-                  {ocrBusy ? (
-                    <>
-                      <Loader2 size={20} className="spin" /> {ocrState.state === 'loading' ? `載入文字辨識 ${Math.round(ocrState.progress * 100)}%` : '辨識中…'}
-                    </>
-                  ) : (
-                    <>
-                      <ScanText size={20} /> 辨識框內文字
-                    </>
-                  )}
+                <div className="ocr-live">
+                  <Loader2 size={18} className="spin" />
+                  <span>
+                    {ocrState.state === 'loading'
+                      ? `正在載入文字辨識 ${Math.round(ocrState.progress * 100)}%…`
+                      : cam.status !== 'ready'
+                        ? '等待相機…'
+                        : liveText
+                          ? <>看到「<b>{liveText.slice(0, 30)}</b>」，未找到相符嘉賓</>
+                          : '自動辨識中 · 把名牌或門票放在框內'}
+                  </span>
+                </div>
+                <button className="btn btn-ghost btn-block" onClick={doOcr} disabled={ocrBusy || cam.status !== 'ready'}>
+                  <ScanText size={18} /> {ocrBusy ? '辨識中…' : '立即辨識'}
                 </button>
                 <p className="hint center">印刷的姓名、會員編號、邀請編號最準確；手寫字未能辨識</p>
                 <button className="demo-toggle" onClick={() => setShowDemo(!showDemo)}>
@@ -362,7 +420,10 @@ export default function Scan() {
                   <GuestRow
                     key={m.entry.p.id}
                     e={m.entry}
-                    onClick={() => run(ocr.text, 'OCR', m.entry.p.id)}
+                    onClick={() => {
+                      lastOcrPid.current = { pid: m.entry.p.id, misses: 0 }
+                      run(ocr.text, 'OCR', m.entry.p.id)
+                    }}
                     trailing={
                       <span className="match">
                         {Math.round(m.score * 100)}%<small>{m.field}</small>
@@ -371,7 +432,14 @@ export default function Scan() {
                   />
                 ))}
                 <div className="demo-btns">
-                  <button onClick={() => setOcr(null)}>都不是，再試</button>
+                  <button
+                    onClick={() => {
+                      lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', misses: 0 }
+                      setOcr(null)
+                    }}
+                  >
+                    都不是，再試
+                  </button>
                 </div>
               </div>
             )}

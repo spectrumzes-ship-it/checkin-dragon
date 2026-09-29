@@ -2154,8 +2154,8 @@ legend {
   transition: all 200ms ease;
 }
 .scan-frame.wide {
-  width: min(82vw, 440px);
-  aspect-ratio: 3.2;
+  width: min(88vw, 560px);
+  aspect-ratio: 1.8;
 }
 .scan-frame i {
   position: absolute;
@@ -3405,4 +3405,25 @@ legend {
   .kit-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.ocr-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: var(--info-bg);
+  color: var(--info-ink);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  min-height: 48px;
+}
+.ocr-live span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ocr-live b {
+  color: var(--text);
 }

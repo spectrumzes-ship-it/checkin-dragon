@@ -37,8 +37,11 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement | null>, enabled:
         await v.play().catch(() => {})
       }
       const track = stream.getVideoTracks()[0]
-      const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean }
+      const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean; focusMode?: string[] }
       setTorchSupported(!!caps.torch)
+      // 自動對焦（裝置支援時）：近距離的名牌、門票較清楚
+      if (caps.focusMode?.includes('continuous'))
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {})
       setStatus('ready')
     } catch (e) {
       const name = (e as DOMException).name
@@ -80,6 +83,36 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement | null>, enabled:
   }, [])
 
   return { status, retry: start, torchSupported, torch, setTorch }
+}
+
+// 截取「畫面上掃描框」對應的相機影像範圍：相機影像以填滿方式顯示（四邊可能被裁走），
+// 這裏按顯示比例換算，確保讀取的正是使用者在框內看到的內容（外加少許邊位）
+export const grabFromFrame = (video: HTMLVideoElement, frame: HTMLElement, canvas: HTMLCanvasElement, maxW = 1280, pad = 0.12) => {
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  if (!vw || !vh) return null
+  const vr = video.getBoundingClientRect()
+  const fr = frame.getBoundingClientRect()
+  const scale = Math.max(vr.width / vw, vr.height / vh)
+  const offX = (vr.width - vw * scale) / 2
+  const offY = (vr.height - vh * scale) / 2
+  const px = fr.width * pad
+  const py = fr.height * pad
+  let sx = (fr.left - vr.left - offX - px) / scale
+  let sy = (fr.top - vr.top - offY - py) / scale
+  let sw = (fr.width + px * 2) / scale
+  let sh = (fr.height + py * 2) / scale
+  sx = Math.max(0, sx)
+  sy = Math.max(0, sy)
+  sw = Math.min(vw - sx, sw)
+  sh = Math.min(vh - sy, sh)
+  if (sw < 20 || sh < 20) return null
+  const k = Math.min(1, maxW / sw)
+  canvas.width = Math.round(sw * k)
+  canvas.height = Math.round(sh * k)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  return ctx
 }
 
 // 截取畫面中央指定比例的區域（只處理掃描框內的影像，速度較快）
