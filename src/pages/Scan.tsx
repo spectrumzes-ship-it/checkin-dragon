@@ -462,20 +462,14 @@ export default function Scan() {
                   <GuestRow
                     key={e.p.id}
                     e={e}
-                    onClick={() => run(dq, 'MANUAL', e.p.id)}
+                    // 簽到用途：左邊圓圈 = 簽到／取消簽到（需確認）；按名字或右邊按鈕 = 賓客資料
+                    onClick={() => (canToggle ? nav(`/e/${ev.id}/guests/${e.p.id}`) : run(dq, 'MANUAL', e.p.id))}
                     onMarkClick={canToggle ? () => (arrived ? setUndoP(e.p) : run(dq, 'MANUAL', e.p.id)) : undefined}
                     trailing={
                       canToggle ? (
-                        <button
-                          className={`btn btn-sm ${arrived ? 'btn-ghost' : 'btn-primary'}`}
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            if (arrived) setUndoP(e.p)
-                            else run(dq, 'MANUAL', e.p.id)
-                          }}
-                        >
-                          {arrived ? '取消簽到' : '簽到'}
-                        </button>
+                        <span className="btn btn-sm btn-ghost" aria-hidden>
+                          賓客資料 ›
+                        </span>
                       ) : undefined
                     }
                   />
