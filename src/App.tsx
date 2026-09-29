@@ -38,9 +38,11 @@ const useTheme = () => {
 
 export default function App() {
   useTheme()
+  // 更改姓名顯示次序後，重新繪畫整個畫面
+  const { nameOrder } = useSettings()
   return (
     <HashRouter>
-      <Routes>
+      <Routes key={nameOrder}>
         <Route path="/e/:id/scan" element={<Scan />} />
         <Route element={<AppShell />}>
           <Route index element={<Home />} />

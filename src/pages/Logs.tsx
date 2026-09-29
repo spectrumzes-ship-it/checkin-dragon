@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import type { EventRec, ScanResultType } from '../db/types'
 import { formatDateTime } from '../lib/util'
 import { PageHeader } from '../components/ui'
+import { names } from '../lib/names'
 
 const RESULT: Record<ScanResultType, [string, string]> = {
   valid: ['ok', '✓ 有效'],
@@ -22,9 +23,9 @@ export default function Logs() {
   const [tab, setTab] = useState<'audit' | 'scan'>('audit')
   const audit = useLiveQuery(() => db.auditLogs.where('eventId').equals(ev.id).reverse().sortBy('time'), [ev.id]) ?? []
   const scans = useLiveQuery(() => db.scanLogs.where('eventId').equals(ev.id).reverse().sortBy('time'), [ev.id]) ?? []
-  const names = useLiveQuery(async () => {
+  const nameMap = useLiveQuery(async () => {
     const ps = await db.participants.where('eventId').equals(ev.id).toArray()
-    return new Map(ps.map((p) => [p.id, p.englishName || p.name]))
+    return new Map(ps.map((p) => [p.id, names(p).full]))
   }, [ev.id])
 
   return (
@@ -91,7 +92,7 @@ export default function Logs() {
                   <td>
                     <code>{l.rawValue}</code>
                   </td>
-                  <td>{l.participantId ? names?.get(l.participantId) : <span className="muted">{l.reason}</span>}</td>
+                  <td>{l.participantId ? nameMap?.get(l.participantId) : <span className="muted">{l.reason}</span>}</td>
                 </tr>
               ))}
             </tbody>

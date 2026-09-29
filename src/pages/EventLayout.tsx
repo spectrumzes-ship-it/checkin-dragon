@@ -43,7 +43,7 @@ export default function EventLayout() {
   const tabs = [
     { to: base, icon: <ChartPie size={18} />, zh: '統計', en: 'Dashboard', end: true },
     { to: `${base}/guests`, icon: <Users size={18} />, zh: '嘉賓', en: 'Guests' },
-    ...(ev.mode === 'banquet' ? [{ to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '席號', en: 'Tables' }] : []),
+    ...(ev.mode === 'banquet' ? [{ to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '圍席座位', en: 'Tables' }] : []),
     ...(ev.mode === 'bus'
       ? [
           { to: `${base}/rollcall`, icon: <ListChecks size={18} />, zh: '點名', en: 'Roll Call' },

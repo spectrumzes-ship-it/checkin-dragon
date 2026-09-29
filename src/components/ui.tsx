@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Cloud, CloudOff, Search, Star, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Cloud, CloudOff, Search, Star, X } from 'lucide-react'
 import type { EventRec, Mode } from '../db/types'
 import type { Stats } from '../lib/hooks'
 import { useOnline } from '../lib/hooks'
@@ -145,6 +145,7 @@ export const MetricCard = ({
   sub,
   tone = 'plain',
   icon,
+  to,
 }: {
   zh: string
   en: string
@@ -152,16 +153,27 @@ export const MetricCard = ({
   sub?: ReactNode
   tone?: Tone
   icon?: ReactNode
-}) => (
-  <div className={cx('metric', `tone-${tone}`)}>
-    <div className="metric-label">
-      {icon}
-      <Bi zh={zh} en={en} />
-    </div>
-    <div className="metric-value">{value}</div>
-    {sub && <div className="metric-sub">{sub}</div>}
-  </div>
-)
+  to?: string // 有連結時整張卡可按，打開對應名單
+}) => {
+  const body = (
+    <>
+      <div className="metric-label">
+        {icon}
+        <Bi zh={zh} en={en} />
+        {to && <ChevronRight size={16} className="metric-go" />}
+      </div>
+      <div className="metric-value">{value}</div>
+      {sub && <div className="metric-sub">{sub}</div>}
+    </>
+  )
+  return to ? (
+    <Link to={to} className={cx('metric', 'metric-link', `tone-${tone}`)}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cx('metric', `tone-${tone}`)}>{body}</div>
+  )
+}
 
 export const ProgressBar = ({ value, max, tone = 'mode' }: { value: number; max: number; tone?: Tone }) => (
   <div className={cx('progress', `tone-${tone}`)} role="progressbar" aria-valuenow={value} aria-valuemax={max}>

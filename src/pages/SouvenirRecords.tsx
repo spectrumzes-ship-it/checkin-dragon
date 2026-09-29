@@ -10,6 +10,7 @@ import { formatTime } from '../lib/util'
 import { GiftArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, toast } from '../components/ui'
+import { nameOf } from '../lib/names'
 
 // 派發紀錄：哪些嘉賓已領／未領紀念品
 export default function SouvenirRecords() {
@@ -90,7 +91,7 @@ export default function SouvenirRecords() {
               <GuestRow
                 key={e.p.id}
                 e={e}
-                onClick={() => setUndo({ pid: e.p.id, name: e.p.englishName || e.p.name })}
+                onClick={() => setUndo({ pid: e.p.id, name: nameOf(e.p) })}
                 trailing={
                   <span className="record-meta">
                     <strong>×{r.qty}</strong>

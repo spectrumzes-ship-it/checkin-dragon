@@ -3,6 +3,7 @@ import { Gift } from 'lucide-react'
 import type { GuestEntry } from '../lib/search'
 import { cx, formatTime } from '../lib/util'
 import { SoftTag, VipBadge } from './ui'
+import { names } from '../lib/names'
 
 export const seatText = (e: GuestEntry) =>
   e.seats
@@ -46,21 +47,22 @@ export const GuestRow = ({
   selected,
   souvenir,
   trailing,
+  onMarkClick,
 }: {
   e: GuestEntry
   onClick?: () => void
   selected?: boolean
   souvenir?: boolean
   trailing?: ReactNode
+  onMarkClick?: () => void // 按左邊狀態圓圈：快速入場／取消入場
 }) => {
   const p = e.p
-  return (
-    <button type="button" className={cx('guest-row', selected && 'selected', p.status === 'cancelled' && 'cancelled')} onClick={onClick}>
-      <StatusMark e={e} />
+  const row = (
+    <>
       <span className="guest-row-main">
         <span className="guest-row-name">
-          <strong>{p.englishName || p.name}</strong>
-          {p.englishName && p.name && <span className="muted">{p.name}</span>}
+          <strong>{names(p).primary}</strong>
+          {names(p).secondary && <span className="muted">{names(p).secondary}</span>}
           {p.vip && <VipBadge />}
           {p.guestCount > 1 && <SoftTag>{p.attendance === 'partial' ? `${p.arrivedCount}/` : ''}{p.guestCount} 位</SoftTag>}
         </span>
@@ -79,6 +81,29 @@ export const GuestRow = ({
       <span className="guest-row-end">
         {trailing ?? (p.checkedInAt && p.attendance !== 'not_arrived' ? <span className="muted">{formatTime(p.checkedInAt)}</span> : null)}
       </span>
-    </button>
+    </>
+  )
+  const cls = cx('guest-row', selected && 'selected', p.status === 'cancelled' && 'cancelled')
+  if (!onMarkClick || p.status === 'cancelled')
+    return (
+      <button type="button" className={cls} onClick={onClick}>
+        <StatusMark e={e} />
+        {row}
+      </button>
+    )
+  return (
+    <div className={cx(cls, 'split')}>
+      <button
+        type="button"
+        className="mark-btn"
+        onClick={onMarkClick}
+        aria-label={p.attendance === 'not_arrived' ? `${names(p).primary} 入場` : `${names(p).primary} 取消入場`}
+      >
+        <StatusMark e={e} />
+      </button>
+      <button type="button" className="guest-row-btn" onClick={onClick}>
+        {row}
+      </button>
+    </div>
   )
 }

@@ -11,6 +11,7 @@ import type { GuestEntry } from '../lib/search'
 import { cx, pct } from '../lib/util'
 import { BusArt } from '../illustrations'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
+import { nameOf, names } from '../lib/names'
 
 const TEMPLATES = [
   ['酒店出發 Hotel Departure', '08:00'],
@@ -173,13 +174,13 @@ export function RollCallSession() {
             {isHere ? '✓' : warn ? '!' : '○'}
           </span>
           <span className="rc-name">
-            <strong>{e.p.englishName || e.p.name}</strong>
-            <span className="muted">{e.p.name}</span>
+            <strong>{names(e.p).primary}</strong>
+            <span className="muted">{names(e.p).secondary}</span>
           </span>
           <span className="rc-seat">{bs ? `${bs.resource.label}-${bs.seatLabel}` : ''}</span>
         </button>
         {warn && e.p.phone && (
-          <a className="icon-btn" href={`tel:${e.p.phone}`} aria-label={`致電 ${e.p.englishName}`}>
+          <a className="icon-btn" href={`tel:${e.p.phone}`} aria-label={`致電 ${nameOf(e.p)}`}>
             <Phone size={18} />
           </a>
         )}
@@ -309,10 +310,10 @@ export function BusSeats() {
                         key={k}
                         className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived')}
                         onClick={() => e && nav(`/e/${ev.id}/guests/${e.p.id}`)}
-                        title={e ? e.p.englishName : `${n} 號空位`}
+                        title={e ? names(e.p).full : `${n} 號空位`}
                       >
                         <small>{n}</small>
-                        <span>{e ? (e.p.englishName || e.p.name).split(' ')[0] : ''}</span>
+                        <span>{e ? nameOf(e.p) : ''}</span>
                       </button>
                     )
                   })}

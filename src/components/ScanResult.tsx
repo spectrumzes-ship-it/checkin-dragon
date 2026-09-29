@@ -4,6 +4,7 @@ import type { ScanOutcome } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useSettings } from '../lib/settings'
 import { formatTime } from '../lib/util'
+import { names } from '../lib/names'
 
 // 全螢幕驗證結果：顏色 + 符號 + 文字三重提示（色盲亦可分辨）
 const LOOK = {
@@ -75,8 +76,8 @@ export const ScanResult = ({
 
         {p && (
           <div className="result-guest">
-            <div className="result-name">{p.englishName || p.name}</div>
-            {p.englishName && p.name && <div className="result-name-2">{p.name}</div>}
+            <div className="result-name">{names(p).primary}</div>
+            {names(p).secondary && <div className="result-name-2">{names(p).secondary}</div>}
             <div className="result-meta">
               {p.vip && (
                 <span className="result-vip">

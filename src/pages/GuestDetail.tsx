@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X } from 'lucide-react'
+import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import { setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
 import { TableIcon } from '../components/icons'
-import { ConfirmSheet, SoftTag, StatusBadge, VipBadge, toast } from '../components/ui'
+import { ConfirmSheet, SoftTag, StatusBadge, toast } from '../components/ui'
+import { nameOf, names } from '../lib/names'
 
 const METHOD = { QR: 'QR 掃描', OCR: '文字辨識', MANUAL: '手動', SEARCH: '搜尋' }
 
@@ -37,11 +38,20 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
     <div className="guest-detail card">
       <div className="guest-detail-head">
         <div>
-          <h2>{p.englishName || p.name}</h2>
-          {p.englishName && p.name && <p className="muted">{p.name}</p>}
+          <h2>{names(p).primary}</h2>
+          {names(p).secondary && <p className="muted">{names(p).secondary}</p>}
           <div className="tag-row">
             <StatusBadge status={status} />
-            {p.vip && <VipBadge />}
+            <button
+              className={`vip-toggle ${p.vip ? 'on' : ''}`}
+              aria-pressed={p.vip}
+              onClick={async () => {
+                await setVip(p, !p.vip)
+                toast(p.vip ? '已取消 VIP' : `⭐ ${nameOf(p)} 已設為 VIP`)
+              }}
+            >
+              <Star size={14} fill={p.vip ? 'currentColor' : 'none'} /> {p.vip ? 'VIP' : '設為 VIP'}
+            </button>
             {p.guestCount > 1 && <SoftTag>{p.guestCount} 位</SoftTag>}
             {p.tags.map((x) => (
               <SoftTag key={x}>{x}</SoftTag>
@@ -61,7 +71,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
               onClick={async () => {
                 await checkIn(p, 'SEARCH', 'checkin', '', t)
                 feedback('valid')
-                toast(`✓ ${p.englishName || p.name} 已入場`)
+                toast(`✓ ${nameOf(p)} 已入場`)
               }}
             >
               ✓ 入場 Check-In
@@ -95,7 +105,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
       )}
 
       <div className="detail-section">
-        <Row icon={<UserRound size={18} />} zh="姓名" value={[p.name, p.englishName].filter(Boolean).join(' · ')} />
+        <Row icon={<UserRound size={18} />} zh="姓名" value={[names(p).primary, names(p).secondary].filter(Boolean).join(' · ')} />
         <Row icon={<Ticket size={18} />} zh="邀請編號" value={t?.invitationId} />
         <Row icon={<IdCard size={18} />} zh="會員編號" value={p.memberId} />
         <Row icon={<Ticket size={18} />} zh="QR 內容" value={t?.qrCode && <code>{t.qrCode}</code>} />
@@ -220,7 +230,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
           toast('已取消入場')
         }}
         title="取消入場"
-        message={<p>把 {p.englishName || p.name} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        message={<p>把 {nameOf(p)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
         confirmText="取消入場"
       />
       <ConfirmSheet

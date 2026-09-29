@@ -9,8 +9,12 @@ import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
-import { EmptyState, FilterChip, SearchBar } from '../components/ui'
+import { ConfirmSheet, EmptyState, FilterChip, SearchBar, toast } from '../components/ui'
+import { checkIn, undoCheckIn } from '../lib/actions'
+import { feedback } from '../lib/feedback'
+import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
+import { nameOf } from '../lib/names'
 
 type Filter = 'all' | 'arrived' | 'not_arrived' | 'vip' | 'cancelled' | 'manual' | 'souvenir' | 'no_souvenir'
 type Sort = 'name' | 'seat' | 'time' | 'status'
@@ -28,6 +32,7 @@ export default function Guests() {
   const filter = (params.get('filter') as Filter) || 'all'
   const [sort, setSort] = useState<Sort>('name')
   const [q, setQ] = useState('')
+  const [undoP, setUndoP] = useState<Participant | null>(null)
   const dq = useDebounced(q, 150)
   const wide = useMediaQuery('(min-width: 1024px)')
   const { data, index } = useEventData(ev.id)
@@ -78,7 +83,7 @@ export default function Guests() {
       }
     })
     if (dq) return f // 搜尋時按吻合度排序
-    const byName = (a: GuestEntry, b: GuestEntry) => (a.p.englishName || a.p.name).localeCompare(b.p.englishName || b.p.name)
+    const byName = (a: GuestEntry, b: GuestEntry) => nameOf(a.p).localeCompare(nameOf(b.p), 'zh-Hant')
     const cmp: Record<Sort, (a: GuestEntry, b: GuestEntry) => number> = {
       name: byName,
       seat: (a, b) => seatKey(a).localeCompare(seatKey(b)) || byName(a, b),
@@ -187,6 +192,12 @@ export default function Guests() {
                       selected={e.p.id === gid}
                       souvenir={collected.has(e.p.id)}
                       onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}${params.size ? `?${params}` : ''}`)}
+                      onMarkClick={async () => {
+                        if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
+                        await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
+                        feedback('valid')
+                        toast(`✓ ${nameOf(e.p)} 已入場`)
+                      }}
                     />
                   </div>
                 )
@@ -200,6 +211,17 @@ export default function Guests() {
           <GuestDetail ev={ev} gid={gid} entry={index.find((e) => e.p.id === gid)} onClose={() => nav(`/e/${ev.id}/guests${params.size ? `?${params}` : ''}`)} />
         </aside>
       )}
+      <ConfirmSheet
+        open={!!undoP}
+        onClose={() => setUndoP(null)}
+        onConfirm={async () => {
+          if (undoP) await undoCheckIn(undoP)
+          toast('已取消入場')
+        }}
+        title="取消入場"
+        message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        confirmText="取消入場"
+      />
       {!gid && wide && index.length > 0 && (
         <aside className="guests-detail placeholder">
           <p className="muted center">點選左邊嘉賓查看詳情</p>

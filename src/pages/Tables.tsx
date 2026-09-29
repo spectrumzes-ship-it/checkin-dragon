@@ -73,7 +73,7 @@ export default function Tables() {
       <div className="page">
         <EmptyState
           art={<TableArt />}
-          zh={dinner ? '這個行程未設定聚餐餐席。' : '還沒有設定席號。'}
+          zh={dinner ? '這個行程未設定聚餐餐席。' : '還沒有設定圍席座位。'}
           en={dinner ? 'No dinner tables yet.' : 'No tables yet.'}
           action={
             <Link to={`/e/${ev.id}/edit`} className="btn btn-primary">
@@ -87,11 +87,16 @@ export default function Tables() {
   const shown = tables.filter((x) => (filter === 'all' ? true : filter === 'full' ? count(x) >= x.t.capacity : count(x) < x.t.capacity))
   return (
     <div className="page">
-      <div className="tables-top">
-        <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-primary">
-          <MoveHorizontal size={18} /> {dinner ? '餐席編排（拖拉換位）' : '座位編排（拖拉換位）'}
-        </Link>
-      </div>
+      <Link to={`/e/${ev.id}/tables/plan`} className="plan-banner">
+        <span className="plan-banner-icon">
+          <MoveHorizontal size={22} />
+        </span>
+        <span className="plan-banner-text">
+          <strong>{dinner ? '餐席調位' : '座位調位'}</strong>
+          <span>拖拉名字即可換位，目標有人會自動對調</span>
+        </span>
+        <span className="btn btn-primary btn-sm">開始調位 →</span>
+      </Link>
       {dinner && (
         <p className="hint">
           聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
@@ -164,19 +169,19 @@ export function TableDetail() {
         en={`Table ${t.label}`}
         back={`/e/${ev.id}/tables`}
         actions={
-          <div className="pager">
-            <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-sm btn-ghost">
-              <MoveHorizontal size={16} /> 調位
-            </Link>
-            <button className="btn btn-sm btn-ghost" disabled={!prev} onClick={() => nav(`/e/${ev.id}/tables/${prev.t.id}`, { replace: true })}>
-              ‹ 上一席
-            </button>
-            <button className="btn btn-sm btn-ghost" disabled={!next} onClick={() => nav(`/e/${ev.id}/tables/${next.t.id}`, { replace: true })}>
-              下一席 ›
-            </button>
-          </div>
+          <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-sm btn-plan">
+            <MoveHorizontal size={16} /> 調位
+          </Link>
         }
       />
+      <div className="pager">
+        <button className="btn btn-sm btn-ghost" disabled={!prev} onClick={() => nav(`/e/${ev.id}/tables/${prev.t.id}`, { replace: true })}>
+          ‹ 上一席
+        </button>
+        <button className="btn btn-sm btn-ghost" disabled={!next} onClick={() => nav(`/e/${ev.id}/tables/${next.t.id}`, { replace: true })}>
+          下一席 ›
+        </button>
+      </div>
       <div className="card table-summary">
         <RoundTable capacity={t.capacity} arrived={arrived} seated={seated} />
         <div>
@@ -197,8 +202,9 @@ export function TableDetail() {
               <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可入場</p>
             </>
           )}
-          <div className="stepper compact">
-            <span>此席人數（一圍）</span>
+        </div>
+        <div className="stepper compact">
+            <span>每圍人數</span>
             <button className="icon-btn" aria-label="減少一位" onClick={() => setTableCapacity(t, t.capacity - 1)} disabled={t.capacity <= 1}>
               <Minus size={18} />
             </button>
@@ -207,7 +213,6 @@ export function TableDetail() {
               <Plus size={18} />
             </button>
           </div>
-        </div>
       </div>
       {guests.length === 0 ? (
         <p className="muted pad center">此席未安排嘉賓</p>

@@ -15,6 +15,7 @@ import type {
 } from '../db/types'
 import { getSettings } from './settings'
 import { normalize, uid } from './util'
+import { names } from './names'
 
 // 所有會改動資料的操作都集中在這裏：每個操作同時寫入操作紀錄（Audit Log）。
 
@@ -205,7 +206,7 @@ export const checkIn = async (
     await db.participants.put(next)
     if (ticket && ticket.status === 'valid') await db.tickets.update(ticket.id, { status: 'used', usedAt: now })
     const label = kind === 'checkin' ? '入場 Check-In' : kind === 'reentry' ? '再入場 Re-entry' : '手動確認 Manual Override'
-    await audit(p.eventId, label, 'participant', p.id, p.englishName || p.name, reason)
+    await audit(p.eventId, label, 'participant', p.id, names(p).full, reason)
   })
   return next
 }
@@ -217,7 +218,7 @@ export const updateArrivedCount = async (p: Participant, count: number) => {
     attendance: c >= p.guestCount ? 'arrived' : 'partial',
     updatedAt: Date.now(),
   })
-  await audit(p.eventId, `修改到達人數 ${c}/${p.guestCount}`, 'participant', p.id, p.englishName || p.name)
+  await audit(p.eventId, `修改到達人數 ${c}/${p.guestCount}`, 'participant', p.id, names(p).full)
 }
 
 export const undoCheckIn = async (p: Participant) => {
@@ -250,7 +251,7 @@ export const undoCheckIn = async (p: Participant) => {
     })
     const tickets = await db.tickets.where('participantId').equals(p.id).toArray()
     for (const t of tickets) if (t.status === 'used') await db.tickets.update(t.id, { status: 'valid', usedAt: null })
-    await audit(p.eventId, '取消入場 Undo Check-In', 'participant', p.id, p.englishName || p.name)
+    await audit(p.eventId, '取消入場 Undo Check-In', 'participant', p.id, names(p).full)
   })
 }
 
@@ -348,7 +349,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     }
     await db.tickets.put(ticket)
     await writeSeats(eventId, pid, g)
-    await audit(eventId, existing ? '修改嘉賓 Edit Guest' : '新增嘉賓 Add Guest', 'participant', pid, p.englishName || p.name)
+    await audit(eventId, existing ? '修改嘉賓 Edit Guest' : '新增嘉賓 Add Guest', 'participant', pid, names(p).full)
   })
   return p
 }
@@ -387,7 +388,7 @@ export const setGuestCancelled = async (p: Participant, cancelled: boolean) => {
   const tickets = await db.tickets.where('participantId').equals(p.id).toArray()
   for (const t of tickets)
     await db.tickets.update(t.id, { status: cancelled ? 'cancelled' : t.usedAt ? 'used' : 'valid' })
-  await audit(p.eventId, cancelled ? '取消嘉賓 Cancel Guest' : '恢復嘉賓 Restore Guest', 'participant', p.id, p.englishName || p.name)
+  await audit(p.eventId, cancelled ? '取消嘉賓 Cancel Guest' : '恢復嘉賓 Restore Guest', 'participant', p.id, names(p).full)
 }
 
 export const deleteGuestPermanently = async (p: Participant) => {
@@ -396,7 +397,7 @@ export const deleteGuestPermanently = async (p: Participant) => {
     await db.tickets.where('participantId').equals(p.id).delete()
     await db.seats.where('participantId').equals(p.id).delete()
     await db.attendance.where('participantId').equals(p.id).delete()
-    await audit(p.eventId, '永久刪除嘉賓 Delete Guest', 'participant', p.id, p.englishName || p.name)
+    await audit(p.eventId, '永久刪除嘉賓 Delete Guest', 'participant', p.id, names(p).full)
   })
 }
 
@@ -534,7 +535,7 @@ export const setAttendance = async (sessionId: string, eventId: string, p: Parti
     deviceId,
     operator,
   })
-  await audit(eventId, present ? '點名：已到' : '點名：取消', 'attendance', sessionId, p.englishName || p.name)
+  await audit(eventId, present ? '點名：已到' : '點名：取消', 'attendance', sessionId, names(p).full)
 }
 
 export const deleteSession = async (sessionId: string, eventId: string, name: string) => {
@@ -626,7 +627,7 @@ export const verifySouvenir = async (eventId: string, itemId: string, raw: strin
   }
   const { operator, deviceId } = who()
   await db.redemptions.add({ id: uid(), eventId, itemId: item.id, participantId: p.id, quantity: qty, time: now, deviceId, operator, kind: 'redeem', voided: false })
-  await audit(eventId, `領取紀念品 ${item.name} ×${qty}`, 'souvenir', item.id, p.englishName || p.name)
+  await audit(eventId, `領取紀念品 ${item.name} ×${qty}`, 'souvenir', item.id, names(p).full)
   await log('valid', '', p.id)
   return { result: 'valid', participant: p, seats, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
 }
@@ -635,7 +636,7 @@ export const undoRedemption = async (itemId: string, p: Participant) => {
   const rows = await db.redemptions.where('participantId').equals(p.id).filter((r) => r.itemId === itemId && !r.voided).toArray()
   for (const r of rows) await db.redemptions.update(r.id, { voided: true })
   const item = await db.souvenirs.get(itemId)
-  await audit(p.eventId, `取消領取紀念品 ${item?.name ?? ''}`, 'souvenir', itemId, p.englishName || p.name)
+  await audit(p.eventId, `取消領取紀念品 ${item?.name ?? ''}`, 'souvenir', itemId, names(p).full)
 }
 
 // ---------- 席 ----------
@@ -722,4 +723,9 @@ export const undoMoveSeat = async (eventId: string, snap: Awaited<ReturnType<typ
     await db.seats.bulkPut(snap.before)
     await audit(eventId, '復原調位 Undo', 'participant', snap.pid)
   })
+}
+
+export const setVip = async (p: Participant, vip: boolean) => {
+  await db.participants.update(p.id, { vip, updatedAt: Date.now() })
+  await audit(p.eventId, vip ? '設為 VIP' : '取消 VIP', 'participant', p.id, names(p).full)
 }

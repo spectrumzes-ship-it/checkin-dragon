@@ -50,6 +50,13 @@ export default function Settings() {
         <Item zh="語言" en="Language" hint="English、日本語 將在第 5 階段加入">
           <Seg value="zh" options={[['zh', '繁體中文']]} onChange={() => {}} />
         </Item>
+        <Item zh="姓名顯示" en="Name Order" hint="例：陳大文 CHAN TAI MAN／CHAN TAI MAN 陳大文">
+          <Seg
+            value={s.nameOrder}
+            options={[['auto', '跟隨語言'], ['zh', '中文名先'], ['en', '英文名先']]}
+            onChange={(v) => set({ nameOrder: v })}
+          />
+        </Item>
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />
         </Item>
@@ -57,12 +64,23 @@ export default function Settings() {
 
       <SectionTitle zh="掃描" en="Scan" />
       <div className="card set-group">
-        <Item zh="自動返回相機" en="Auto Return">
-          <Seg
-            value={s.autoReturn}
-            options={[[1000, '1 秒'], [1500, '1.5 秒'], [2000, '2 秒'], [0, '關閉']]}
-            onChange={(v) => set({ autoReturn: v })}
-          />
+        <Item zh="掃描結果顯示時間" en="Result Display Time" hint="之後自動返回相機；「重複」「無效」會多顯示 1 秒；選「不自動返回」要點一下畫面才返回">
+          <select className="set-input set-select" value={s.autoReturn} onChange={(e) => set({ autoReturn: Number(e.target.value) })}>
+            {[
+              [1000, '1 秒'],
+              [1500, '1.5 秒'],
+              [2000, '2 秒'],
+              [3000, '3 秒'],
+              [5000, '5 秒'],
+              [8000, '8 秒'],
+              [10000, '10 秒'],
+              [0, '不自動返回'],
+            ].map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
         </Item>
         <Item zh="提示音" en="Scan Sound">
           <Toggle

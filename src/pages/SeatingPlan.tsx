@@ -20,11 +20,12 @@ import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
 import { PageHeader, SearchBar, SoftTag, toast } from '../components/ui'
+import { nameOf, names } from '../lib/names'
 
 type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
 type Snap = Awaited<ReturnType<typeof moveSeat>>
 
-const shortName = (e: GuestEntry) => e.p.englishName || e.p.name
+const shortName = (e: GuestEntry) => nameOf(e.p)
 
 // 座位編排：拖拉名字換位（目標有人即對調）；亦可「點名字 → 點座位」
 export default function SeatingPlan() {
@@ -199,7 +200,7 @@ export default function SeatingPlan() {
 const Chip = ({ e, selected, children }: { e: GuestEntry; selected: boolean; children?: ReactNode }) => {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `g:${e.p.id}` })
   return (
-    <span ref={setNodeRef} {...listeners} {...attributes} title={e.p.englishName + (e.p.name ? ' ' + e.p.name : '')} className={cx('guest-chip', selected && 'selected', isDragging && 'ghost', e.p.vip && 'vip')}>
+    <span ref={setNodeRef} {...listeners} {...attributes} title={names(e.p).full} className={cx('guest-chip', selected && 'selected', isDragging && 'ghost', e.p.vip && 'vip')}>
       <span className="guest-chip-name">{shortName(e)}</span>
       {e.p.guestCount > 1 && <span className="guest-chip-plus">+{e.p.guestCount - 1}</span>}
       {children}

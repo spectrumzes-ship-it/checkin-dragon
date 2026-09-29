@@ -4,7 +4,8 @@ import { uid } from './util'
 // 裝置設定：保存在這部裝置的瀏覽器內。
 export interface Settings {
   theme: 'light' | 'dark' | 'system'
-  autoReturn: 0 | 1000 | 1500 | 2000 // 0 = 關閉
+  autoReturn: number // 毫秒；0 = 關閉
+  nameOrder: 'auto' | 'zh' | 'en'
   sound: boolean
   vibration: boolean
   continuousScan: boolean
@@ -21,6 +22,7 @@ const KEY = 'ckd-settings'
 const defaults = (): Settings => ({
   theme: 'light',
   autoReturn: 1500,
+  nameOrder: 'auto',
   sound: true,
   vibration: true,
   continuousScan: true,

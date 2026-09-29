@@ -93,13 +93,13 @@ export default function Dashboard() {
       )}
 
       <div className="metrics">
-        <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} 張邀請`} icon={<Users size={18} />} />
-        <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} />
-        <MetricCard zh="未到" en="Not Arrived" value={stats.notArrived} icon={<UserX size={18} />} />
+        <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} 張邀請`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
+        <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} to={`/e/${ev.id}/guests?filter=arrived`} />
+        <MetricCard zh="未到" en="Not Arrived" value={stats.notArrived} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=not_arrived`} />
         <MetricCard zh="出席率" en="Attendance" value={`${stats.rate}%`} tone="mode" sub={<ProgressBar value={stats.arrived} max={stats.total} />} />
-        <MetricCard zh="VIP" en="VIP" value={`${stats.vipArrived} / ${stats.vipTotal}`} icon={<Star size={18} />} />
+        <MetricCard zh="VIP" en="VIP" value={`${stats.vipArrived} / ${stats.vipTotal}`} icon={<Star size={18} />} to={`/e/${ev.id}/guests?filter=vip`} />
         {ev.mode === 'banquet' && (
-          <MetricCard zh="總席數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 席已有人到`} icon={<TableIcon size={18} />} />
+          <MetricCard zh="總席數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 席已有人到`} icon={<TableIcon size={18} />} to={`/e/${ev.id}/tables`} />
         )}
         {souvenirs.length > 0 && (
           <MetricCard
@@ -108,6 +108,7 @@ export default function Dashboard() {
             value={redemptions.filter((r) => !r.voided).reduce((a, r) => a + r.quantity, 0)}
             tone="warn"
             icon={<Gift size={18} />}
+            to={`/e/${ev.id}/souvenirs/records`}
           />
         )}
       </div>
