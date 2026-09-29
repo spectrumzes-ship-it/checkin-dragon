@@ -3479,7 +3479,9 @@ legend {
   color: var(--text-2);
   font-weight: 600;
 }
-.ocr-edit input {
+.ocr-edit textarea {
+  resize: none;
+  line-height: 1.4;
   min-height: 44px;
   padding: 8px 12px;
   border: 1.5px solid var(--border);
@@ -3488,7 +3490,7 @@ legend {
   font-size: 16px;
   font-weight: 600;
 }
-.ocr-edit input:focus {
+.ocr-edit textarea:focus {
   outline: none;
   border-color: var(--info-ink);
 }

@@ -17,14 +17,6 @@ import { SearchBar } from '../components/ui'
 
 type ScanMode = 'qr' | 'text' | 'manual'
 
-// 文字辨識結果：最高分明顯拋離其他人（≥95% 且比第二名高 10% 以上）只顯示一位；否則列出與最高分相差 20% 以內的人
-const pickShown = (ms: FuzzyMatch[]) => {
-  if (!ms.length) return ms
-  if (nameIdConflict(ms)) return ms.filter((m) => m.nameScore >= 0.9 || m.idScore >= 0.95)
-  const top = ms[0].score
-  if (top >= 0.95 && (ms[1]?.score ?? 0) <= top - 0.1) return ms.slice(0, 1)
-  return ms.filter((m) => m.score >= top - 0.2)
-}
 
 // 萬用掃描：QR／文字／手動三合一，全程不離開相機畫面
 export default function Scan() {
@@ -153,7 +145,7 @@ export default function Scan() {
     try {
       canvasRef.current ??= document.createElement('canvas')
       const f = frameRef.current
-      const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.1) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
+      const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.2) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
       if (!ctx) return null
       // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
       const reads = await recognizeText(ctx)
@@ -464,9 +456,12 @@ export default function Scan() {
               (() => {
                 const mismatch = nameMismatch(ocr.matches, ocr.text)
                 const conflict = nameIdConflict(ocr.matches)
-                const primary = ocr.matches.length ? pickShown(ocr.matches) : []
-                const shownIds = new Set(primary.map((m) => m.entry.p.id))
-                const others = ocr.near.filter((m) => !shownIds.has(m.entry.p.id)).slice(0, 5)
+                // 單一名單：嚴格吻合在前，再補上近似嘉賓，按吻合度排列，最多 5 位
+                const seen = new Set<string>()
+                const list = [...ocr.matches, ...ocr.near]
+                  .filter((m) => (seen.has(m.entry.p.id) ? false : (seen.add(m.entry.p.id), true)))
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 5)
                 const pick = (m: FuzzyMatch) => {
                   lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
                   run(ocr.text, 'OCR', m.entry.p.id)
@@ -491,18 +486,8 @@ export default function Scan() {
                     ) : (
                       mismatch && <p className="ocr-warn">⚠ 編號吻合，但卡上姓名與此嘉賓不符，請核對後才簽到</p>
                     )}
-                    {primary.length > 0 && (
-                      <>
-                        <p className="ocr-group">{mismatch ? '編號吻合的嘉賓' : primary.length === 1 ? '最可能是 Best match' : '可能的嘉賓 Possible matches'}</p>
-                        <div className={primary.length === 1 && !mismatch && !conflict ? 'ocr-best' : ''}>{primary.map(row)}</div>
-                      </>
-                    )}
-                    {others.length > 0 && (
-                      <>
-                        <p className="ocr-group">{primary.length ? '其他近似嘉賓 · 可選擇' : '找不到完全相符 · 最接近的嘉賓'}</p>
-                        {others.map(row)}
-                      </>
-                    )}
+                    <p className="ocr-group">可能的嘉賓 Possible matches · 點選以簽到</p>
+                    {list.map(row)}
                     <div className="demo-btns">
                       <button
                         onClick={() => {
@@ -598,10 +583,12 @@ function useVisibleViewport() {
 
 // 辨識到的文字：可直接修改（例如把認錯的字改正）
 function OcrEdit({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // 多行顯示，完整看到辨識到的內容
+  const rows = Math.min(4, Math.max(2, Math.ceil(value.length / 24)))
   return (
     <label className="ocr-edit">
       <span>辨識到的文字 · 可修改</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
+      <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
     </label>
   )
 }
