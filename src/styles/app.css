@@ -3717,28 +3717,6 @@ legend {
   font-size: var(--fs-label);
   padding: 0 4px;
 }
-.seatlist-grip {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  width: 48px;
-  align-self: stretch;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  color: var(--text-3);
-  cursor: grab;
-  touch-action: none;
-}
-.seatlist-grip:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-.seatlist-anchor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
 
 .seatlist-companion {
   flex: 1;
@@ -3774,10 +3752,6 @@ legend {
   place-items: center;
   background: var(--mode-bg);
   color: var(--mode-ink);
-}
-.seatlist-grip-space {
-  width: 48px;
-  flex-shrink: 0;
 }
 
 /* 席位名單 */
@@ -3976,4 +3950,17 @@ legend {
   background: var(--surface);
   color: var(--mode-ink);
   flex-shrink: 0;
+}
+
+/* 席位名單：整個姓名框可拖拉 */
+.seatlist-guest.draggable {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  margin-right: 8px;
+}
+.seatlist-guest.draggable:active {
+  cursor: grabbing;
 }

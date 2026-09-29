@@ -5,7 +5,7 @@ import TableSeatList from '../components/TableSeatList'
 import { TableIcon } from '../components/icons'
 import type { EventRec, Resource } from '../db/types'
 import { List, Minus, MoveHorizontal, Plus, Printer } from 'lucide-react'
-import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
+import { setTableCapacity, type ScanOutcome } from '../lib/actions'
 import { normalize } from '../lib/util'
 import { useDebounced, useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
@@ -118,7 +118,7 @@ function TablesList() {
       <div className="toolbar">
         <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號，看看坐在哪一席" />
       </div>
-      <p className="hint">按住右邊 ⠿ 上下拖拉可調整座位，目標有人會對調；按未到的嘉賓即簽到。</p>
+      <p className="hint">拖拉姓名可調整座位（手機：按住約半秒），目標有人會對調；點勾號簽到，點姓名看詳情。</p>
       {shown.length === 0 && <p className="muted pad center">找不到「{dq}」</p>}
       {shown.map(({ t, guests, arrived, seated }) => (
         <section key={t.id} className="table-list-card">
@@ -130,16 +130,7 @@ function TablesList() {
               {dinner ? `${seated} / ${t.capacity} 已安排` : `${arrived} / ${t.capacity} 已到`} ›
             </span>
           </Link>
-          <TableSeatList
-            ev={ev}
-            table={t}
-            guests={guests}
-            compact
-            onTap={async (e) => {
-              if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
-              else nav(`/e/${ev.id}/guests/${e.p.id}`)
-            }}
-          />
+          <TableSeatList ev={ev} table={t} guests={guests} compact allowCheckIn={!dinner} onOpen={(e) => nav(`/e/${ev.id}/guests/${e.p.id}`)} />
         </section>
       ))}
       <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} eventId={ev.id} />
@@ -333,15 +324,7 @@ export function TableDetail() {
             </button>
           </div>
       </div>
-      <TableSeatList
-        ev={ev}
-        table={t}
-        guests={guests}
-        onTap={async (e) => {
-          if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
-          else nav(`/e/${ev.id}/guests/${e.p.id}`)
-        }}
-      />
+      <TableSeatList ev={ev} table={t} guests={guests} allowCheckIn={!dinner} onOpen={(e) => nav(`/e/${ev.id}/guests/${e.p.id}`)} />
       <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} eventId={ev.id} tableId={t.id} />
       {outcome && <ScanResult outcome={outcome} purpose="checkin" onDone={() => setOutcome(null)} />}
     </div>

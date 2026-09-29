@@ -3,7 +3,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   rectIntersection,
   type CollisionDetection,
@@ -13,14 +14,15 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { GripVertical, Undo2, Users } from 'lucide-react'
-import type { EventRec, Resource } from '../db/types'
-import { moveSeat, splitCompanion, undoMoveSeat } from '../lib/actions'
+import { Undo2, Users } from 'lucide-react'
+import type { EventRec, Participant, Resource } from '../db/types'
+import { checkIn, moveSeat, splitCompanion, undoCheckIn, undoMoveSeat } from '../lib/actions'
+import { feedback } from '../lib/feedback'
 import { nameOf, names } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
 import { GuestRow } from './GuestRow'
-import { SoftTag, toast } from './ui'
+import { ConfirmSheet, SoftTag, toast } from './ui'
 
 export type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
 
@@ -57,26 +59,45 @@ export default function TableSeatList({
   ev,
   table,
   guests,
-  onTap,
+  onOpen,
+  allowCheckIn = true,
   compact,
 }: {
   ev: EventRec
   table: Resource
   guests: { seat: string; e: GuestEntry }[]
-  onTap: (e: GuestEntry) => void
+  onOpen: (e: GuestEntry) => void // 點名字：打開嘉賓詳細資料
+  allowCheckIn?: boolean // 點勾號圓圈：簽到／取消簽到（巴士聚餐餐席不適用）
   compact?: boolean // 席位名單內使用：不重複顯示說明，只在有調位時顯示「復原」
 }) {
   const purpose = table.purpose
   const history = useRef<Snap[]>([])
   const [, force] = useState(0)
   const [dragging, setDragging] = useState<GuestEntry | null>(null)
-  // 只用把手「⠿」拖拉：把手不會用來捲動畫面，所以手指一按下移動即開始拖拉（電腦滑鼠及手機觸控共用）
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }), useSensor(KeyboardSensor))
+  // 拖拉整個姓名框：電腦按住移動即拖；手機按住約 0.3 秒才開始（手指快速掃動仍是捲動畫面）
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  )
+  // 拖拉放手後的一刻不當作「點一下」（避免誤開詳情或誤簽到）
+  const lastDrag = useRef(0)
+  const guard = (fn: () => void) => () => {
+    if (Date.now() - lastDrag.current > 400) fn()
+  }
+  const [undoP, setUndoP] = useState<Participant | null>(null)
+  const toggle = async (e: GuestEntry) => {
+    if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
+    await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
+    feedback('valid')
+    toast(`✓ ${nameOf(e.p)} 已簽到`)
+  }
 
   const slots = useMemo(() => buildSlots(table.capacity, guests), [guests, table.capacity])
 
   const onDragEnd = async (evt: DragEndEvent) => {
     setDragging(null)
+    lastDrag.current = Date.now()
     if (!evt.over) return
     const pid = String(evt.active.id).slice(2)
     const seat = String(evt.over.id).slice(5)
@@ -105,12 +126,15 @@ export default function TableSeatList({
       collisionDetection={byPointer}
       onDragStart={(e) => setDragging(slots.find((s) => s.owner?.p.id === String(e.active.id).slice(2))?.owner ?? null)}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setDragging(null)}
+      onDragCancel={() => {
+        setDragging(null)
+        lastDrag.current = Date.now()
+      }}
       autoScroll
     >
       {!compact ? (
         <div className="seatlist-head">
-          <span className="muted">按住右邊 ⠿ 上下拖拉可調整座位，目標有人會對調</span>
+          <span className="muted">拖拉姓名可調整座位（手機：按住約半秒），目標有人會對調；點勾號簽到，點姓名看詳情</span>
           <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
             <Undo2 size={16} /> 復原
           </button>
@@ -130,17 +154,41 @@ export default function TableSeatList({
             key={s.seat}
             slot={s}
             over={Number(s.seat) > table.capacity}
-            onTap={onTap}
+            onOpen={(e) => guard(() => onOpen(e))()}
+            onToggle={allowCheckIn ? (e) => guard(() => toggle(e))() : undefined}
             seatLine={(n) => `${table.purpose === '晚餐' ? '晚餐 ' : ''}第 ${table.label} 席 · ${n} 號`}
           />
         ))}
       </div>
+      <ConfirmSheet
+        open={!!undoP}
+        onClose={() => setUndoP(null)}
+        onConfirm={async () => {
+          if (undoP) await undoCheckIn(undoP)
+          toast('已取消簽到')
+        }}
+        title="取消簽到"
+        message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        confirmText="取消簽到"
+      />
       <DragOverlay dropAnimation={null}>{dragging ? <div className="guest-chip dragging">{nameOf(dragging.p)}</div> : null}</DragOverlay>
     </DndContext>
   )
 }
 
-function SeatRow({ slot, over, onTap, seatLine }: { slot: Slot; over: boolean; onTap: (e: GuestEntry) => void; seatLine: (n: string) => string }) {
+function SeatRow({
+  slot,
+  over,
+  onOpen,
+  onToggle,
+  seatLine,
+}: {
+  slot: Slot
+  over: boolean
+  onOpen: (e: GuestEntry) => void
+  onToggle?: (e: GuestEntry) => void
+  seatLine: (n: string) => string
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: `seat:${slot.seat}` })
   const e = slot.owner
   const drag = useDraggable({ id: `g:${e?.p.id ?? 'none-' + slot.seat}`, disabled: !e })
@@ -149,19 +197,10 @@ function SeatRow({ slot, over, onTap, seatLine }: { slot: Slot; over: boolean; o
       <span className="seatlist-no">{slot.seat}</span>
       {e ? (
         <>
-          <div className="seatlist-guest">
-            <GuestRow e={e} onClick={() => onTap(e)} trailing={<span />} />
+          {/* 整個姓名框可拖拉；點姓名 = 詳情；點勾號 = 簽到 */}
+          <div ref={drag.setNodeRef} {...drag.listeners} {...drag.attributes} role="group" aria-roledescription="可拖拉" className="seatlist-guest draggable">
+            <GuestRow e={e} onClick={() => onOpen(e)} onMarkClick={onToggle ? () => onToggle(e) : undefined} trailing={<span />} />
           </div>
-          <button
-            ref={drag.setActivatorNodeRef}
-            {...drag.listeners}
-            {...drag.attributes}
-            className="seatlist-grip"
-            aria-label={`拖拉 ${nameOf(e.p)} 到其他座位`}
-          >
-            <GripVertical size={20} />
-          </button>
-          <span ref={drag.setNodeRef} className="seatlist-anchor" />
         </>
       ) : slot.companionOf ? (
         <>
