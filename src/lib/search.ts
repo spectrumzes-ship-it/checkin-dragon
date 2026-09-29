@@ -120,15 +120,23 @@ const extract = (text: string) => {
     const c = m.replace(/[^A-Z0-9]/g, '')
     if (/\d/.test(c) && c.length >= 3) ids.add(c)
   }
-  const cjk = new Set<string>()
+  // 中文：先移除標籤字（例如「姓名何浩然」→「何浩然」），每段文字記下是否「完整一段」
+  const cjk = new Map<string, boolean>()
   for (const run of t.match(CJK) ?? []) {
-    const r = run.slice(0, 12)
-    for (let len = 2; len <= 4; len++) for (let i = 0; i + len <= r.length; i++) cjk.add(r.slice(i, i + len))
+    let r = run.slice(0, 16)
+    for (const l of [...LABELS].sort((a, b) => b.length - a.length)) r = r.split(l).join('|')
+    for (const seg of r.split('|').filter((x) => x.length >= 2)) {
+      for (let len = 2; len <= 4; len++)
+        for (let i = 0; i + len <= seg.length; i++) {
+          const sub = seg.slice(i, i + len)
+          cjk.set(sub, cjk.get(sub) || sub === seg)
+        }
+    }
   }
   const words = t.match(/[A-Z]+/g) ?? []
   const en = new Set<string>()
   for (let len = 1; len <= 4; len++) for (let i = 0; i + len <= words.length; i++) en.add(words.slice(i, i + len).join(''))
-  return { ids: [...ids], cjk: [...cjk], en: [...en], words }
+  return { ids: [...ids], cjk: [...cjk.entries()], en: [...en], words }
 }
 
 // loose = 放寬門檻，用於列出「其他近似嘉賓」讓工作人員選擇
@@ -154,8 +162,9 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5, loose =
     // 中文姓名
     let zh = 0
     const gname = normalize(e.p.name)
-    if (gname) for (const q of cjk) {
-      const sc = q === gname ? 1 : q.length >= 2 && Math.abs(q.length - gname.length) <= 1 ? similarity(q, gname) * 0.9 : 0
+    // 整段完全相同 = 100%；只是較長名字的一部分（例如「馮敏儀」中的「馮敏」）最多 85%
+    if (gname) for (const [q, whole] of cjk) {
+      const sc = q === gname ? (whole ? 1 : 0.85) : whole && q.length >= 2 && Math.abs(q.length - gname.length) <= 1 ? similarity(q, gname) * 0.9 : 0
       if (sc > zh) zh = sc
     }
     if (zh < minZh) zh = 0

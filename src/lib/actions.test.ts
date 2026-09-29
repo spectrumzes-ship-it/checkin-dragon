@@ -248,4 +248,15 @@ describe('文字辨識：姓名與編號', () => {
     const ok = '取消簽到 林健偉 LAM KIN WAI INV-E0016'
     expect(nameMismatch(fuzzyMatch(idx, ok), ok)).toBe(false)
   })
+  it('名字的一部分剛好是另一位嘉賓的名字時，完整吻合的人排第一', async () => {
+    const e = await saveEvent(ev('E'))
+    await guest(e.id, 'FUNG MAN', 'P1', { name: '馮敏' })
+    await guest(e.id, 'FUNG MAN YEE', 'P2', { name: '馮敏儀' })
+    const [ps, ts] = await Promise.all([db.participants.where('eventId').equals(e.id).toArray(), db.tickets.toArray()])
+    const idx = buildIndex(ps, ts, [], [])
+    const m = fuzzyMatch(idx, '姓名 馮敏儀')
+    expect(m[0].entry.p.name).toBe('馮敏儀')
+    expect(m[0].score).toBe(1)
+    expect(m.find((x) => x.entry.p.name === '馮敏')!.score).toBeLessThan(1)
+  })
 })
