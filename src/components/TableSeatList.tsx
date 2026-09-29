@@ -14,7 +14,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { GripVertical, Undo2 } from 'lucide-react'
+import { GripVertical, Undo2, Users } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
 import { moveSeat, undoMoveSeat } from '../lib/actions'
 import { nameOf } from '../lib/names'
@@ -148,7 +148,9 @@ function SeatRow({ slot, over, onTap }: { slot: Slot; over: boolean; onTap: (e: 
           <span ref={drag.setNodeRef} className="seatlist-anchor" />
         </>
       ) : slot.companionOf ? (
-        <span className="seatlist-empty">{nameOf(slot.companionOf.p)} 同行</span>
+        <span className="seatlist-companion">
+          <Users size={16} /> {nameOf(slot.companionOf.p)} <em>同行</em>
+        </span>
       ) : (
         <span className="seatlist-empty">空位</span>
       )}
