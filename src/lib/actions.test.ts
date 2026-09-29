@@ -280,3 +280,21 @@ describe('文字辨識：按類型嚴格比對', () => {
     expect(names('HO TAI MAN')).toEqual([]) // 英文名只有部分相同：不計
   })
 })
+
+describe('示範資料', () => {
+  it('每次產生的名單完全相同（不同裝置重設後名單一致）', async () => {
+    const { resetDemo } = await import('../db/seed')
+    const snapshot = async () => {
+      const [evs, ps, ts] = await Promise.all([db.events.toArray(), db.participants.toArray(), db.tickets.toArray()])
+      const code = new Map(evs.map((e) => [e.id, e.code]))
+      const tBy = new Map(ts.map((t) => [t.participantId, t]))
+      return ps.map((p) => `${code.get(p.eventId)}|${p.name}|${p.englishName}|${p.memberId}|${tBy.get(p.id)?.qrCode}|${tBy.get(p.id)?.invitationId}`).sort()
+    }
+    await resetDemo()
+    const a = await snapshot()
+    await resetDemo()
+    const b = await snapshot()
+    expect(a.length).toBeGreaterThan(800)
+    expect(b).toEqual(a)
+  })
+})

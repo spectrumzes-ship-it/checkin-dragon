@@ -12,7 +12,7 @@ import type {
   Ticket,
 } from './types'
 import { addDays, todayKey, uid } from '../lib/util'
-import { getSettings } from '../lib/settings'
+import { getSettings, setSettings } from '../lib/settings'
 
 // 示範資料：全部是虛構人物。用固定亂數種子，每次產生的資料都一樣，方便測試。
 let seed = 20260929
@@ -249,17 +249,46 @@ export const seedDemo = async () => {
   })
 }
 
-export const ensureSeeded = async () => {
+// 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
+export const DEMO_VERSION = 4
+const DEMO_KEY = 'ckd-demo-version'
+
+export const demoVersionOnDevice = () => {
   try {
-    if (localStorage.getItem('ckd-seeded')) return
+    return Number(localStorage.getItem(DEMO_KEY) || 0)
   } catch {
-    /* ignore */
+    return 0
   }
-  if ((await db.events.count()) === 0) await seedDemo()
+}
+const markDemo = () => {
   try {
+    localStorage.setItem(DEMO_KEY, String(DEMO_VERSION))
     localStorage.setItem('ckd-seeded', '1')
   } catch {
     /* ignore */
+  }
+}
+// 裝置內是否只有示範活動（沒有使用者自己建立的活動）
+export const onlyDemoData = async () => {
+  const events = await db.events.toArray()
+  return events.every((e) => e.notes.startsWith('示範資料'))
+}
+
+export const ensureSeeded = async () => {
+  let seeded = false
+  try {
+    seeded = !!localStorage.getItem('ckd-seeded')
+  } catch {
+    /* ignore */
+  }
+  if (!seeded) {
+    if ((await db.events.count()) === 0) await seedDemo()
+    return markDemo()
+  }
+  // 示範名單已更新：只有裝置內全部都是示範活動時才自動重設，使用者建立的活動永不清除
+  if (demoVersionOnDevice() !== DEMO_VERSION && (await onlyDemoData())) {
+    await resetDemo()
+    setSettings({ currentEventId: null })
   }
 }
 
@@ -268,6 +297,7 @@ export const resetDemo = async () => {
     for (const t of allTables()) await t.clear()
   })
   await seedDemo()
+  markDemo()
 }
 
 export const clearAll = async () => {

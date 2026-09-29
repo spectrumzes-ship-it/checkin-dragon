@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useOcrState, warmUpOcr } from '../lib/scanner'
 import { Sheet } from '../components/ui'
-import { clearAll, resetDemo } from '../db/seed'
+import { clearAll, DEMO_VERSION, demoVersionOnDevice, resetDemo } from '../db/seed'
 import { setSettings, useSettings, type Settings as S } from '../lib/settings'
 import { feedback } from '../lib/feedback'
 import { cx } from '../lib/util'
@@ -188,6 +188,10 @@ export default function Settings() {
           <p className="muted">活動・宴會・巴士出席管理</p>
           <p className="muted">版本 0.3.0 · 核心功能（第 3 階段）</p>
           <p className="muted">更新時間 {__BUILD_TIME__}</p>
+          <p className="muted">
+            示範資料版本 v{demoVersionOnDevice() || '—'}
+            {demoVersionOnDevice() !== DEMO_VERSION && ` · 最新為 v${DEMO_VERSION}，可按「重設示範資料」更新`}
+          </p>
         </div>
       </div>
 
