@@ -14,7 +14,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Undo2, Users } from 'lucide-react'
+import { GripVertical, Undo2, Users } from 'lucide-react'
 import type { EventRec, Participant, Resource } from '../db/types'
 import { checkIn, moveSeat, splitCompanion, undoCheckIn, undoMoveSeat } from '../lib/actions'
 import { feedback } from '../lib/feedback'
@@ -200,6 +200,10 @@ function SeatRow({
           {/* 整個姓名框可拖拉；點姓名 = 詳情；點勾號 = 簽到 */}
           <div ref={drag.setNodeRef} {...drag.listeners} {...drag.attributes} role="group" aria-roledescription="可拖拉" className="seatlist-guest draggable">
             <GuestRow e={e} onClick={() => onOpen(e)} onMarkClick={onToggle ? () => onToggle(e) : undefined} trailing={<span />} />
+            {/* 小把手只作提示「這裏可以移動」；整個姓名框（包括把手）都可拖拉 */}
+            <span className="seatlist-grip" aria-hidden="true">
+              <GripVertical size={20} />
+            </span>
           </div>
         </>
       ) : slot.companionOf ? (
