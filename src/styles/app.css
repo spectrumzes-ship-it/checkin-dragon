@@ -3718,6 +3718,9 @@ legend {
   padding: 0 4px;
 }
 .seatlist-grip {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   width: 48px;
   align-self: stretch;
   flex-shrink: 0;

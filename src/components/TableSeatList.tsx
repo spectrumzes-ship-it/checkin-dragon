@@ -3,11 +3,10 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  MouseSensor,
+  PointerSensor,
   pointerWithin,
   rectIntersection,
   type CollisionDetection,
-  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -71,11 +70,8 @@ export default function TableSeatList({
   const history = useRef<Snap[]>([])
   const [, force] = useState(0)
   const [dragging, setDragging] = useState<GuestEntry | null>(null)
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
-    useSensor(KeyboardSensor),
-  )
+  // 只用把手「⠿」拖拉：把手不會用來捲動畫面，所以手指一按下移動即開始拖拉（電腦滑鼠及手機觸控共用）
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }), useSensor(KeyboardSensor))
 
   const slots = useMemo(() => buildSlots(table.capacity, guests), [guests, table.capacity])
 
