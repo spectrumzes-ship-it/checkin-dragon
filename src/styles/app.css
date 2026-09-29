@@ -3529,3 +3529,65 @@ legend {
 .detail-value a.phone-link:active {
   background: var(--ok-bg);
 }
+
+/* ===== 文字模式：貼合文字的框 ===== */
+.text-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.text-guide {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 22%;
+  bottom: 22%;
+  border: 2px dashed rgba(255, 255, 255, 0.45);
+  border-radius: 16px;
+}
+.text-outer {
+  position: absolute;
+  transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease;
+}
+.text-outer i {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 3.5px solid var(--mode-bg);
+}
+.text-outer i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 10px 0 0 0;
+}
+.text-outer i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 0 10px 0 0;
+}
+.text-outer i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-radius: 0 0 0 10px;
+}
+.text-outer i:nth-child(4) {
+  bottom: 0;
+  right: 0;
+  border-left: 0;
+  border-top: 0;
+  border-radius: 0 0 10px 0;
+}
+.text-line {
+  position: absolute;
+  background: rgba(221, 243, 228, 0.22);
+  border-bottom: 2px solid rgba(221, 243, 228, 0.85);
+  border-radius: 3px;
+  transition: all 180ms ease;
+}

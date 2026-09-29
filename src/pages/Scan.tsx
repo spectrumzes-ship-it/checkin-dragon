@@ -10,7 +10,7 @@ import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, typ
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, normalize } from '../lib/util'
 import { nameOf } from '../lib/names'
-import { getQrDetector, grabFrame, grabFromFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
+import { getQrDetector, grabFrame, grabFromFrame, grabView, recognizeText, videoToView, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
@@ -137,6 +137,38 @@ export default function Scan() {
   // 剛處理過（或被工作人員否決）的嘉賓，名牌仍在鏡頭前時不會再自動彈出
   const lastOcrPid = useRef<{ pid: string; text: string; misses: number }>({ pid: '', text: '', misses: 0 })
   const [liveText, setLiveText] = useState('')
+  const [sameCard, setSameCard] = useState(false) // 已處理的名牌仍在鏡頭前
+  // 貼合文字的框：記錄文字在相機影像上的位置；畫面大小改變（例如結果面板展開）時即時重新換算，框一直貼住文字
+  const [textBoxes, setTextBoxes] = useState<{ x0: number; y0: number; x1: number; y1: number }[]>([])
+  const [, setViewTick] = useState(0)
+  useEffect(() => {
+    if (mode !== 'text') setTextBoxes([])
+  }, [mode])
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const ro = new ResizeObserver(() => setViewTick((n) => n + 1))
+    ro.observe(v)
+    return () => ro.disconnect()
+  })
+  const lineRects =
+    videoRef.current && textBoxes.length
+      ? textBoxes.map((b) => {
+          const a = videoToView(videoRef.current!, b.x0, b.y0)
+          const z = videoToView(videoRef.current!, b.x1, b.y1)
+          return { x: a.x, y: a.y, w: z.x - a.x, h: z.y - a.y }
+        })
+      : []
+  const outer = lineRects.length
+    ? (() => {
+        const pad = 10
+        const x0 = Math.min(...lineRects.map((b) => b.x)) - pad
+        const y0 = Math.min(...lineRects.map((b) => b.y)) - pad
+        const x1 = Math.max(...lineRects.map((b) => b.x + b.w)) + pad
+        const y1 = Math.max(...lineRects.map((b) => b.y + b.h)) + pad
+        return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 }
+      })()
+    : null
 
   const readText = async () => {
     const v = videoRef.current
@@ -144,11 +176,20 @@ export default function Scan() {
     ocrRunning.current = true
     try {
       canvasRef.current ??= document.createElement('canvas')
-      const f = frameRef.current
-      const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.2) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
-      if (!ctx) return null
+      // 讀取整個看得見的畫面，找出文字位置（不再限制於固定框）
+      const view = grabView(v, canvasRef.current, 1280)
+      if (!view) return null
       // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
-      const reads = await recognizeText(ctx)
+      const reads = await recognizeText(view.ctx)
+      // 把文字位置換算到畫面上，畫出貼合文字的框
+      const shown = reads.find((r) => r.boxes.length) ?? reads[0]
+      setTextBoxes(
+        (shown?.boxes ?? []).map((b) => {
+          const a = view.toVideo(b.x0, b.y0)
+          const z = view.toVideo(b.x1, b.y1)
+          return { x0: a.x, y0: a.y, x1: z.x, y1: z.y }
+        }),
+      )
       let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
       for (const r of reads) {
         // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
@@ -192,13 +233,17 @@ export default function Scan() {
           if (top && top.score >= 0.8) {
             // 同一位嘉賓而且文字大致相同 = 同一張名牌仍在鏡頭前：不再彈出
             const same = top.entry.p.id === last.pid && similarity(normalize(r.text), last.text) >= 0.8
+            setSameCard(same)
             if (same) last.misses = 0
             else {
               lastOcrPid.current = { pid: '', text: '', misses: 0 }
               setOcr({ text: r.text, matches: r.matches })
               return
             }
-          } else if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
+          } else {
+            setSameCard(false)
+            if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
+          }
         }
       } catch {
         /* 辨識資料未載入等：稍後再試 */
@@ -316,18 +361,37 @@ export default function Scan() {
             )}
           </div>
         )}
-        {mode !== 'manual' && cam.status === 'ready' && (
-          <div ref={frameRef} className={cx('scan-frame', mode === 'text' && 'wide')}>
+        {mode === 'qr' && cam.status === 'ready' && (
+          <div ref={frameRef} className="scan-frame">
             <i />
             <i />
             <i />
             <i />
           </div>
         )}
+        {mode === 'text' && cam.status === 'ready' && (
+          <div className="text-overlay" aria-hidden>
+            {outer ? (
+              <>
+                <div className="text-outer" style={outer}>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                {lineRects.map((b, i) => (
+                  <div key={i} className="text-line" style={{ left: b.x, top: b.y, width: b.w, height: b.h }} />
+                ))}
+              </>
+            ) : (
+              <div className="text-guide" />
+            )}
+          </div>
+        )}
         {mode === 'qr' && cam.status === 'ready' && (
           <p className="scan-hint">{noCodeHint ? '掃不到？可改用「文字」或「手動」' : '將 QR Code 放入框內'}</p>
         )}
-        {mode === 'text' && cam.status === 'ready' && <p className="scan-hint">名牌放入框內，自動辨識</p>}
+        {mode === 'text' && cam.status === 'ready' && !outer && <p className="scan-hint">對準名牌或門票，會自動找出文字</p>}
       </div>
 
       <div className="scan-panel">
@@ -375,7 +439,9 @@ export default function Scan() {
                       ? `正在載入文字辨識 ${Math.round(ocrState.progress * 100)}%…`
                       : cam.status !== 'ready'
                         ? '等待相機…'
-                        : liveText
+                        : sameCard
+                          ? '已處理這張名牌，請換下一張'
+                          : liveText
                           ? <>看到「<b>{liveText.slice(0, 30)}</b>」，未找到相符嘉賓</>
                           : '自動辨識中 · 把名牌或門票放在框內'}
                   </span>

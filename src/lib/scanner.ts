@@ -115,6 +115,44 @@ export const grabFromFrame = (video: HTMLVideoElement, frame: HTMLElement, canva
   return ctx
 }
 
+// 截取整個「看得見的」相機畫面（文字模式用）；回傳換算函數，把辨識到的文字位置換算回畫面位置，用來畫出貼合文字的框
+export const grabView = (video: HTMLVideoElement, canvas: HTMLCanvasElement, maxW = 1280, keepW = 0.96, keepH = 0.86) => {
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  if (!vw || !vh) return null
+  const vr = video.getBoundingClientRect()
+  const scale = Math.max(vr.width / vw, vr.height / vh)
+  const offX = (vr.width - vw * scale) / 2
+  const offY = (vr.height - vh * scale) / 2
+  // 看得見的範圍（中央部分，略去四邊少許）
+  const viewW = vr.width * keepW
+  const viewH = vr.height * keepH
+  const left = (vr.width - viewW) / 2
+  const top = (vr.height - viewH) / 2
+  const sx = Math.max(0, (left - offX) / scale)
+  const sy = Math.max(0, (top - offY) / scale)
+  const sw = Math.min(vw - sx, viewW / scale)
+  const sh = Math.min(vh - sy, viewH / scale)
+  const k = Math.min(1, maxW / sw)
+  canvas.width = Math.round(sw * k)
+  canvas.height = Math.round(sh * k)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  // 截圖座標 → 相機影像座標（畫面大小改變時，再按當時比例換算到畫面上）
+  const toVideo = (x: number, y: number) => ({ x: sx + x / k, y: sy + y / k })
+  return { ctx, toVideo }
+}
+
+// 相機影像座標 → 畫面座標（相機影像以填滿方式顯示）
+export const videoToView = (video: HTMLVideoElement, x: number, y: number) => {
+  const vw = video.videoWidth || 1
+  const vh = video.videoHeight || 1
+  const w = video.clientWidth
+  const h = video.clientHeight
+  const scale = Math.max(w / vw, h / vh)
+  return { x: (w - vw * scale) / 2 + x * scale, y: (h - vh * scale) / 2 + y * scale }
+}
+
 // 截取畫面中央指定比例的區域（只處理掃描框內的影像，速度較快）
 export const grabFrame = (video: HTMLVideoElement, widthRatio: number, aspect: number, canvas: HTMLCanvasElement, maxW = 960) => {
   const vw = video.videoWidth
@@ -277,17 +315,30 @@ const clean = (text: string) =>
     .filter((l) => l.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
 
 // 回傳一至兩個辨識版本：原圖，以及（原圖不清楚時）整理成黑白後的版本
+export interface TextBox {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+type OcrData = { text: string; confidence: number; blocks?: { paragraphs: { lines: { text: string; confidence: number; bbox: TextBox }[] }[] }[] | null }
+// 每一行文字的位置（只取可信的行），用來畫出貼合文字的框
+const lineBoxes = (d: OcrData): TextBox[] =>
+  (d.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines))
+    .filter((l) => l.confidence >= 40 && l.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
+    .map((l) => l.bbox)
+
 export const recognizeText = async (ctx: CanvasRenderingContext2D, alwaysBoth = false) => {
   const worker = await getOcr()
-  const out: { text: string; lines: string[]; confidence: number }[] = []
-  const first = await worker.recognize(ctx.canvas)
-  const l1 = clean(first.data.text)
-  out.push({ text: l1.join(' '), lines: l1, confidence: first.data.confidence })
-  if (alwaysBoth || !l1.length || first.data.confidence < 80) {
+  const out: { text: string; lines: string[]; confidence: number; boxes: TextBox[] }[] = []
+  const first = (await worker.recognize(ctx.canvas, {}, { text: true, blocks: true })).data as OcrData
+  const l1 = clean(first.text)
+  out.push({ text: l1.join(' '), lines: l1, confidence: first.confidence, boxes: lineBoxes(first) })
+  if (alwaysBoth || !l1.length || first.confidence < 80) {
     binarize(ctx)
-    const second = await worker.recognize(ctx.canvas)
-    const l2 = clean(second.data.text)
-    if (l2.length) out.push({ text: l2.join(' '), lines: l2, confidence: second.data.confidence })
+    const second = (await worker.recognize(ctx.canvas, {}, { text: true, blocks: true })).data as OcrData
+    const l2 = clean(second.text)
+    if (l2.length) out.push({ text: l2.join(' '), lines: l2, confidence: second.confidence, boxes: lineBoxes(second) })
   }
   return out.filter((r) => r.text).sort((a, b) => b.confidence - a.confidence)
 }
