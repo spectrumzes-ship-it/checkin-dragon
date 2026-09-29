@@ -59,7 +59,7 @@ export default function App() {
             <Route path="guests/:gid" element={<Guests />} />
             <Route path="guests/:gid/edit" element={<GuestForm />} />
             <Route path="tables" element={<Tables />} />
-            <Route path="tables/plan" element={<Navigate to=".." relative="path" replace />} />
+            <Route path="tables/plan" element={<Navigate to={{ pathname: "..", search: "?view=plan" }} relative="path" replace />} />
             <Route path="tables/:tid" element={<TableDetail />} />
             <Route path="rollcall" element={<RollCall />} />
             <Route path="rollcall/:sid" element={<RollCallSession />} />

@@ -3776,3 +3776,37 @@ legend {
   width: 48px;
   flex-shrink: 0;
 }
+
+/* 席位名單 */
+.table-list-card {
+  padding: 0;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.table-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--mode-bg);
+}
+.table-list-head span {
+  font-weight: 700;
+  color: var(--mode-ink);
+  font-variant-numeric: tabular-nums;
+}
+.table-list-head span.full {
+  color: var(--ok-ink);
+}
+.table-list-row {
+  display: flex;
+  align-items: center;
+}
+.table-list-row + .table-list-row {
+  border-top: 1px solid var(--border-soft);
+}
+.view-toggle {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}

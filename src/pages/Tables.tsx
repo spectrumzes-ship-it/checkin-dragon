@@ -3,15 +3,18 @@ import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 
 import SeatingPlan from './SeatingPlan'
 import TableSeatList from '../components/TableSeatList'
 import { TableIcon } from '../components/icons'
-import type { EventRec, Resource } from '../db/types'
-import { Minus, MoveHorizontal, Plus } from 'lucide-react'
-import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
-import { useEventData } from '../lib/hooks'
+import type { EventRec, Participant, Resource } from '../db/types'
+import { List, Minus, MoveHorizontal, Plus } from 'lucide-react'
+import { checkIn, setTableCapacity, undoCheckIn, verifyCheckIn, type ScanOutcome } from '../lib/actions'
+import { feedback } from '../lib/feedback'
+import { nameOf } from '../lib/names'
+import { normalize } from '../lib/util'
+import { useDebounced, useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
 import { TableArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
-import { EmptyState, FilterChip, PageHeader, ProgressBar, SectionTitle } from '../components/ui'
+import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, SearchBar, SectionTitle, toast } from '../components/ui'
 
 // 圓桌圖形：中間是席號，外圍小圓點 = 座位（實心 = 已到）
 const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: number; seated: number }) => {
@@ -61,22 +64,114 @@ const useTables = (ev: EventRec) => {
   }, [data, index])
 }
 
-// 切換「座位表（可拖拉）」與「圓桌總覽」
-export const TablesViewToggle = ({ eventId, view, dinner }: { eventId: string; view: 'plan' | 'overview'; dinner: boolean }) => (
-  <div className="seg view-toggle" role="tablist">
-    <Link to={`/e/${eventId}/tables`} replace role="tab" aria-selected={view === 'plan'} className={view === 'plan' ? 'active' : ''}>
-      <MoveHorizontal size={16} /> {dinner ? '餐席表' : '座位表'}（可拖拉）
-    </Link>
-    <Link to={`/e/${eventId}/tables?view=overview`} replace role="tab" aria-selected={view === 'overview'} className={view === 'overview' ? 'active' : ''}>
-      <TableIcon size={16} /> 圓桌總覽
-    </Link>
-  </div>
-)
+// 圍席座位三個板塊：圓桌總覽 → 席位名單 → 座位分配（可拖拉）
+export type TablesView = 'overview' | 'list' | 'plan'
+export const TablesViewToggle = ({ eventId, view }: { eventId: string; view: TablesView; dinner?: boolean }) => {
+  const tabs: [TablesView, string, React.ReactNode][] = [
+    ['overview', '圓桌總覽', <TableIcon size={16} />],
+    ['list', '席位名單', <List size={16} />],
+    ['plan', '座位分配', <MoveHorizontal size={16} />],
+  ]
+  return (
+    <div className="seg view-toggle" role="tablist">
+      {tabs.map(([v, label, icon]) => (
+        <Link
+          key={v}
+          to={`/e/${eventId}/tables${v === 'overview' ? '' : `?view=${v}`}`}
+          replace
+          role="tab"
+          aria-selected={view === v}
+          className={view === v ? 'active' : ''}
+        >
+          {icon} {label}
+        </Link>
+      ))}
+    </div>
+  )
+}
 
-// 圍席座位：預設直接顯示可拖拉的座位表；「圓桌總覽」為第二種顯示
 export default function Tables() {
   const [params] = useSearchParams()
-  return params.get('view') === 'overview' ? <TablesOverview /> : <SeatingPlan />
+  const v = params.get('view')
+  return v === 'plan' ? <SeatingPlan /> : v === 'list' ? <TablesList /> : <TablesOverview />
+}
+
+// 席位名單：逐席列出座位號、嘉賓及簽到狀態；可搜尋；按圓圈即可簽到（取消簽到需確認）
+function TablesList() {
+  const ev = useOutletContext<EventRec>()
+  const nav = useNavigate()
+  const tables = useTables(ev)
+  const [q, setQ] = useState('')
+  const dq = useDebounced(q, 150)
+  const [undoP, setUndoP] = useState<Participant | null>(null)
+  const dinner = ev.mode === 'bus'
+  if (!tables) return <div className="page" />
+  const nq = normalize(dq)
+  const shown = tables
+    .map((x) => ({ ...x, guests: nq ? x.guests.filter((g) => g.e.hay.includes(nq)) : x.guests }))
+    .filter((x) => !nq || x.guests.length)
+  return (
+    <div className="page">
+      <div className="tables-head">
+        <TablesViewToggle eventId={ev.id} view="list" />
+      </div>
+      <div className="toolbar">
+        <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號，看看坐在哪一席" />
+      </div>
+      {shown.length === 0 && <p className="muted pad center">找不到「{dq}」</p>}
+      {shown.map(({ t, guests, arrived }) => (
+        <section key={t.id} className="card table-list-card">
+          <Link to={`/e/${ev.id}/tables/${t.id}`} className="table-list-head">
+            <strong>
+              {t.purpose === '晚餐' ? '晚餐 ' : ''}第 {t.label} 席
+            </strong>
+            <span className={arrived >= t.capacity ? 'full' : ''}>
+              {dinner ? `${guests.reduce((a, g) => a + g.e.p.guestCount, 0)} / ${t.capacity} 已安排` : `${arrived} / ${t.capacity} 已到`} ›
+            </span>
+          </Link>
+          {guests.length ? (
+            <div className="list">
+              {guests.map(({ seat, e }) => (
+                <div key={e.p.id} className="table-list-row">
+                  <span className="seatlist-no">{seat || '—'}</span>
+                  <div className="seatlist-guest">
+                    <GuestRow
+                      e={e}
+                      trailing={<span />}
+                      onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}`)}
+                      onMarkClick={
+                        dinner
+                          ? undefined
+                          : async () => {
+                              if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
+                              await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
+                              feedback('valid')
+                              toast(`✓ ${nameOf(e.p)} 已簽到`)
+                            }
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted pad">此席未安排嘉賓</p>
+          )}
+        </section>
+      ))}
+      <ConfirmSheet
+        open={!!undoP}
+        onClose={() => setUndoP(null)}
+        onConfirm={async () => {
+          if (undoP) await undoCheckIn(undoP)
+          toast('已取消簽到')
+        }}
+        title="取消簽到"
+        message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        confirmText="取消簽到"
+      />
+    </div>
+  )
 }
 
 function TablesOverview() {
@@ -109,7 +204,7 @@ function TablesOverview() {
   return (
     <div className="page">
       <div className="tables-head">
-        <TablesViewToggle eventId={ev.id} view="overview" dinner={dinner} />
+        <TablesViewToggle eventId={ev.id} view="overview" />
       </div>
       {dinner && (
         <p className="hint">
@@ -181,9 +276,9 @@ export function TableDetail() {
       <PageHeader
         zh={`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 席`}
         en={`Table ${t.label}`}
-        back={`/e/${ev.id}/tables?view=overview`}
+        back={`/e/${ev.id}/tables`}
         actions={
-          <Link to={`/e/${ev.id}/tables`} className="btn btn-sm btn-plan">
+          <Link to={`/e/${ev.id}/tables?view=plan`} className="btn btn-sm btn-plan">
             <MoveHorizontal size={16} /> 調位
           </Link>
         }
