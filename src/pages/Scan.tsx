@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X, Zap } from 'lucide-react'
+import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
-import type { Participant, ScanMethod } from '../db/types'
-import { checkIn, eligible, redeemedQty, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
+import type { ScanMethod } from '../db/types'
+import { checkIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
@@ -46,7 +46,6 @@ export default function Scan() {
   const ocrState = useOcrState()
   const [armed, setArmed] = useState(true) // 「連續掃描」關閉時，每次結果後要按「掃描下一張」
   const [ocrBusy, setOcrBusy] = useState(false)
-  const [showDemo, setShowDemo] = useState(false)
   const [noCodeHint, setNoCodeHint] = useState(false)
   // iPhone／iPad：相機權限仍是「每次詢問」時，提示可改為永久允許
   const [permTip, setPermTip] = useState(false)
@@ -72,7 +71,6 @@ export default function Scan() {
   const purposeKey = params.get('p') ?? 'checkin'
   const purpose: 'checkin' | 'rollcall' | 'souvenir' = purposeKey.startsWith('s:') ? 'souvenir' : purposeKey.startsWith('r:') ? 'rollcall' : 'checkin'
   const targetId = purposeKey.slice(2)
-  const target = purpose === 'souvenir' ? souvenirs.find((s) => s.id === targetId) : purpose === 'rollcall' ? sessions.find((s) => s.id === targetId) : null
 
   useEffect(() => setSettings({ lastScanMode: mode }), [mode])
   // 背景預先下載文字辨識資料（有網絡時），之後離線亦可用；不會阻礙 QR 掃描
@@ -229,40 +227,6 @@ export default function Scan() {
     }
   }
 
-  // ---- 原型用：模擬掃描不同類型的票 ----
-  const demo = async (kind: 'valid' | 'duplicate' | 'invalid' | 'cancelled' | 'wrong') => {
-    if (!id) return
-    const ps = await db.participants.where('eventId').equals(id).toArray()
-    const randomOf = (xs: Participant[]) => xs[Math.floor(Math.random() * xs.length)]
-    let p: Participant | undefined
-    if (kind === 'invalid') return run('XYZ-00000', 'QR')
-    if (kind === 'wrong') {
-      const other = await db.tickets.filter((t) => t.eventId !== id).first()
-      return run(other?.qrCode ?? 'NONE', 'QR')
-    }
-    if (kind === 'cancelled') p = randomOf(ps.filter((x) => x.status === 'cancelled'))
-    else {
-      const active = ps.filter((x) => x.status === 'active')
-      let done: Set<string>
-      if (purpose === 'souvenir' && target && 'eligibility' in target) {
-        const rs = await db.redemptions.where('itemId').equals(target.id).filter((r) => !r.voided).toArray()
-        done = new Set(rs.map((r) => r.participantId))
-        const pool = active.filter((x) => eligible(target, x))
-        p = randomOf(kind === 'valid' ? pool.filter((x) => !done.has(x.id)) : pool.filter((x) => done.has(x.id)))
-        if (p && kind === 'valid' && (await redeemedQty(target.id, p.id)) > 0) p = undefined
-      } else if (purpose === 'rollcall') {
-        const rs = await db.attendance.where('sessionId').equals(targetId).filter((a) => a.status === 'present').toArray()
-        done = new Set(rs.map((r) => r.participantId))
-        p = randomOf(kind === 'valid' ? active.filter((x) => !done.has(x.id)) : active.filter((x) => done.has(x.id)))
-      } else {
-        p = randomOf(kind === 'valid' ? active.filter((x) => x.attendance === 'not_arrived') : active.filter((x) => x.attendance !== 'not_arrived'))
-      }
-    }
-    if (!p) return run('NO-SAMPLE', 'QR')
-    const t = await db.tickets.where('participantId').equals(p.id).first()
-    return run(t?.qrCode ?? p.memberId, 'QR')
-  }
-
   // 工作人員修改辨識到的文字：稍候片刻後重新比對（避免每打一個字都計算）
   const editTimer = useRef(0)
   const editOcr = (text: string) => {
@@ -271,10 +235,6 @@ export default function Scan() {
     editTimer.current = window.setTimeout(() => {
       setOcr((o) => (o && o.text === text ? { text, matches: fuzzyMatch(index, text), near: fuzzyMatch(index, text, 8, true) } : o))
     }, 250)
-  }
-
-  const demoOcr = (text: string) => {
-    setOcr({ text, matches: fuzzyMatch(index, text), near: fuzzyMatch(index, text, 8, true) })
   }
 
   if (!ev) return <div className="scan" />
@@ -392,17 +352,11 @@ export default function Scan() {
                 <QrCode size={20} /> 掃描下一張
               </button>
             )}
-            <button className="demo-toggle" onClick={() => setShowDemo(!showDemo)}>
-              <Zap size={14} /> 沒有測試 QR？模擬掃描 {showDemo ? '▴' : '▾'}
-            </button>
-            {showDemo && (
-            <div className="demo-btns">
-              <button onClick={() => demo('valid')}>有效票</button>
-              <button onClick={() => demo('duplicate')}>{purpose === 'checkin' ? '已簽到的票' : purpose === 'souvenir' ? '已領取的票' : '已點名的票'}</button>
-              <button onClick={() => demo('invalid')}>無效票</button>
-              {purpose === 'checkin' && <button onClick={() => demo('cancelled')}>已取消的票</button>}
-              {purpose === 'checkin' && <button onClick={() => demo('wrong')}>其他活動的票</button>}
-            </div>
+            {armed && (
+              <div className="ocr-live">
+                {cam.status === 'ready' ? <QrCode size={18} /> : <Loader2 size={18} className="spin" />}
+                <span>{cam.status === 'ready' ? '自動掃描中 · 將 QR Code 放入框內' : '等待相機…'}</span>
+              </div>
             )}
           </div>
         )}
@@ -427,17 +381,6 @@ export default function Scan() {
                   <ScanText size={18} /> {ocrBusy ? '辨識中…' : '立即辨識'}
                 </button>
                 <p className="hint center">印刷的姓名、會員編號、邀請編號最準確；手寫字未能辨識</p>
-                <button className="demo-toggle" onClick={() => setShowDemo(!showDemo)}>
-                  <Zap size={14} /> 模擬文字辨識 {showDemo ? '▴' : '▾'}
-                </button>
-                {showDemo && (
-                  <div className="demo-btns">
-                    <button onClick={() => demoOcr('VIP-A0265')}>VIP-A0265</button>
-                    <button onClick={() => demoOcr('CHAN TAl MAN')}>CHAN TAl MAN（認錯字）</button>
-                    <button onClick={() => demoOcr('CHAN')}>CHAN（多人）</button>
-                    <button onClick={() => demoOcr('HELLO WORLD')}>隨意文字</button>
-                  </div>
-                )}
               </>
             ) : ocr.matches.length === 0 && ocr.near.length === 0 ? (
               <div className="ocr-none">
