@@ -96,7 +96,7 @@ const lev = (a: string, b: string) => {
 const ocrFold = (s: string) =>
   s.replace(/O/g, '0').replace(/[IL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2')
 
-const similarity = (a: string, b: string) => {
+export const similarity = (a: string, b: string) => {
   if (!a || !b) return 0
   return 1 - lev(a, b) / Math.max(a.length, b.length)
 }
@@ -104,36 +104,90 @@ const similarity = (a: string, b: string) => {
 export interface FuzzyMatch {
   entry: GuestEntry
   score: number // 0–1
-  field: string
+  field: string // 吻合的部分：姓名／英文名／編號／姓名＋編號
+  nameScore: number
+  idScore: number
+}
+
+const CJK = /[\u3400-\u9fff]+/g
+
+// 由辨識到的文字抽出可比對的片段：中文姓名、英文姓名（連續 1–4 個英文字）、編號（含數字）
+// 「姓名」「邀請編號」等標籤字不會影響結果，因為只會逐段比對
+const extract = (text: string) => {
+  const t = (text || '').normalize('NFKC').toUpperCase()
+  const ids = new Set<string>()
+  for (const m of t.match(/[A-Z0-9][A-Z0-9\-_/.]{2,}/g) ?? []) {
+    const c = m.replace(/[^A-Z0-9]/g, '')
+    if (/\d/.test(c) && c.length >= 3) ids.add(c)
+  }
+  const cjk = new Set<string>()
+  for (const run of t.match(CJK) ?? []) {
+    const r = run.slice(0, 12)
+    for (let len = 2; len <= 4; len++) for (let i = 0; i + len <= r.length; i++) cjk.add(r.slice(i, i + len))
+  }
+  const words = t.match(/[A-Z]+/g) ?? []
+  const en = new Set<string>()
+  for (let len = 1; len <= 4; len++) for (let i = 0; i + len <= words.length; i++) en.add(words.slice(i, i + len).join(''))
+  return { ids: [...ids], cjk: [...cjk], en: [...en], words }
 }
 
 export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyMatch[] => {
-  const q = normalize(text).replace(/[^\p{L}\p{N}]/gu, '')
-  if (q.length < 2) return []
-  const qFold = ocrFold(q)
+  const { ids, cjk, en, words } = extract(text)
+  if (!ids.length && !cjk.length && !en.some((w) => w.length >= 3)) return []
   const out: FuzzyMatch[] = []
   for (const e of index) {
-    let best = 0
-    let field = ''
-    const names: [string, string][] = [
-      [normalize(e.p.englishName).replace(/[^\p{L}\p{N}]/gu, ''), '英文名'],
-      [normalize(e.p.name), '姓名'],
-    ]
-    for (const [n, f] of names) {
-      if (!n) continue
-      let s = similarity(q, n)
-      if (n.includes(q) && q.length >= 3) s = Math.max(s, 0.6 + 0.3 * (q.length / n.length))
-      if (s > best) [best, field] = [s, f]
+    // 編號：完全相同（包括常見認錯字）= 100%；長編號差一兩個字元給較低分
+    let idScore = 0
+    const gids = e.ids.map((x) => x.replace(/[^\p{L}\p{N}]/gu, ''))
+    for (const q of ids)
+      for (const g of gids) {
+        if (!g) continue
+        const sc = q === g || ocrFold(q) === ocrFold(g) ? 1 : g.length >= 5 ? Math.max(similarity(q, g), similarity(ocrFold(q), ocrFold(g))) * 0.9 : 0
+        if (sc > idScore) idScore = sc
+      }
+    if (idScore < 0.72) idScore = 0
+
+    // 中文姓名
+    let zh = 0
+    const gname = normalize(e.p.name)
+    if (gname) for (const q of cjk) {
+      const sc = q === gname ? 1 : q.length >= 2 && Math.abs(q.length - gname.length) <= 1 ? similarity(q, gname) * 0.9 : 0
+      if (sc > zh) zh = sc
     }
-    for (const id of e.ids) {
-      const clean = id.replace(/[^\p{L}\p{N}]/gu, '')
-      const s = Math.max(similarity(q, clean), similarity(qFold, ocrFold(clean)))
-      if (s > best) [best, field] = [s, '編號']
+    if (zh < 0.6) zh = 0
+
+    // 英文姓名（例如 CHAN TAl MAN 認錯字仍可吻合）；只打姓氏（例如 CHAN）列出多位
+    let enS = 0
+    const gen = normalize(e.p.englishName).replace(/[^A-Z]/g, '')
+    if (gen) {
+      for (const q of en) {
+        if (q.length < 3) continue
+        const sc = similarity(q, gen) * (q.length >= gen.length - 2 ? 1 : 0.9)
+        if (sc > enS) enS = sc
+      }
+      const surname = e.p.englishName.normalize('NFKC').toUpperCase().trim().split(/\s+/)[0]
+      if (words.length === 1 && words[0].length >= 2 && surname === words[0]) enS = Math.max(enS, 0.62)
     }
-    if (best >= 0.6) out.push({ entry: e, score: best, field })
+    if (enS < 0.6) enS = 0
+
+    const nameScore = Math.max(zh, enS)
+    if (!nameScore && !idScore) continue
+    // 姓名與編號都吻合同一人：最可信
+    const both = nameScore >= 0.8 && idScore >= 0.9
+    const score = both ? 1 : Math.max(nameScore, idScore)
+    const field = both ? '姓名＋編號' : idScore >= nameScore ? '編號' : zh >= enS ? '姓名' : '英文名'
+    out.push({ entry: e, score, field, nameScore, idScore })
   }
-  out.sort((a, b) => b.score - a.score)
+  // 同分時「姓名＋編號」優先
+  out.sort((a, b) => b.score - a.score || Number(b.field === '姓名＋編號') - Number(a.field === '姓名＋編號'))
   return out.slice(0, limit)
+}
+
+// 姓名與編號指向不同的人（例如名牌印錯或資料不同步）：需要工作人員核對
+export const nameIdConflict = (ms: FuzzyMatch[]) => {
+  const byName = ms.find((m) => m.nameScore >= 0.9)
+  const byId = ms.find((m) => m.idScore >= 0.95)
+  return !!byName && !!byId && byName.entry.p.id !== byId.entry.p.id
 }
 
 export { searchNorm }

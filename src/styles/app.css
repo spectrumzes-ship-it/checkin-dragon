@@ -3427,3 +3427,13 @@ legend {
 .ocr-live b {
   color: var(--text);
 }
+
+.ocr-warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-weight: 700;
+  font-size: var(--fs-label);
+  padding: 8px 12px;
+  border-radius: var(--r-xs);
+  margin-bottom: 6px;
+}

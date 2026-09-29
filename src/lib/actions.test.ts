@@ -15,7 +15,7 @@ import {
   verifySouvenir,
   type EventInput,
 } from './actions'
-import { buildIndex, fuzzyMatch } from './search'
+import { buildIndex, fuzzyMatch, nameIdConflict } from './search'
 import { uid } from './util'
 
 const ev = (name: string): EventInput => ({
@@ -202,5 +202,38 @@ describe('不記名門票', () => {
     expect((await verifyCheckIn(e.id, 'ABC-0007', 'QR')).result).toBe('duplicate')
     const { names } = await import('./names')
     expect(names(ok.participant!).primary).toBe('門票 ABC-0007')
+  })
+})
+
+describe('文字辨識：姓名與編號', () => {
+  const setup = async () => {
+    const e = await saveEvent(ev('D'))
+    await guest(e.id, 'HO HO YIN', 'N1', { name: '何浩然', invitationId: 'INV-E0064', memberId: '1064' })
+    await guest(e.id, 'LAM KIN WAI', 'N2', { name: '林健偉', invitationId: 'INV-E0016', memberId: '1016' })
+    await guest(e.id, 'TSANG PUI YEE', 'N3', { name: '曾佩儀', invitationId: 'INV-E0046', memberId: '1046' })
+    const [ps, ts] = await Promise.all([db.participants.toArray(), db.tickets.toArray()])
+    return buildIndex(ps, ts, [], [])
+  }
+
+  it('連標籤一起辨識（例如「邀請編號 INV-E0064」）仍找到正確嘉賓', async () => {
+    const idx = await setup()
+    const m = fuzzyMatch(idx, '姓名 何浩然 · HO HO YIN 邀請編號 INV-E0064')
+    expect(m[0].entry.p.name).toBe('何浩然')
+    expect(m[0].field).toBe('姓名＋編號')
+    expect(m[1]?.score ?? 0).toBeLessThan(0.9)
+    expect(nameIdConflict(m)).toBe(false)
+  })
+
+  it('中文名連在標籤後面（沒有空格）亦可辨識', async () => {
+    const idx = await setup()
+    expect(fuzzyMatch(idx, '姓名何浩然')[0].entry.p.name).toBe('何浩然')
+  })
+
+  it('姓名與編號指向不同的人時提示核對', async () => {
+    const idx = await setup()
+    const m = fuzzyMatch(idx, '何浩然 HO HO YIN INV-E0016')
+    expect(nameIdConflict(m)).toBe(true)
+    const who = m.slice(0, 2).map((x) => x.entry.p.name).sort()
+    expect(who).toEqual(['何浩然', '林健偉'].sort())
   })
 })

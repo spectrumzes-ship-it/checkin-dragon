@@ -6,9 +6,9 @@ import { db } from '../db/db'
 import type { Participant, ScanMethod } from '../db/types'
 import { checkIn, eligible, redeemedQty, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
-import { fuzzyMatch, searchGuests, type FuzzyMatch } from '../lib/search'
+import { fuzzyMatch, nameIdConflict, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
-import { cx } from '../lib/util'
+import { cx, normalize } from '../lib/util'
 import { getQrDetector, grabFrame, grabFromFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
@@ -20,6 +20,7 @@ type ScanMode = 'qr' | 'text' | 'manual'
 // 文字辨識結果：最高分明顯拋離其他人（≥95% 且比第二名高 10% 以上）只顯示一位；否則列出與最高分相差 20% 以內的人
 const pickShown = (ms: FuzzyMatch[]) => {
   if (!ms.length) return ms
+  if (nameIdConflict(ms)) return ms.filter((m) => m.nameScore >= 0.9 || m.idScore >= 0.95)
   const top = ms[0].score
   if (top >= 0.95 && (ms[1]?.score ?? 0) <= top - 0.1) return ms.slice(0, 1)
   return ms.filter((m) => m.score >= top - 0.2)
@@ -126,7 +127,7 @@ export default function Scan() {
   // ---- 文字辨識：讀取畫面中央一大片範圍的文字，再近似搜尋嘉賓 ----
   const ocrRunning = useRef(false)
   // 剛處理過（或被工作人員否決）的嘉賓，名牌仍在鏡頭前時不會再自動彈出
-  const lastOcrPid = useRef<{ pid: string; misses: number }>({ pid: '', misses: 0 })
+  const lastOcrPid = useRef<{ pid: string; text: string; misses: number }>({ pid: '', text: '', misses: 0 })
   const [liveText, setLiveText] = useState('')
 
   const readText = async () => {
@@ -138,14 +139,9 @@ export default function Scan() {
       const f = frameRef.current
       const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.1) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
       if (!ctx) return null
-      const { text, lines, confidence } = await recognizeText(ctx)
-      // 每一行及整段文字都試一次，取每位嘉賓最高的吻合度
-      const best = new Map<string, FuzzyMatch>()
-      for (const t of [...lines, text]) for (const m of fuzzyMatch(index, t)) {
-        const cur = best.get(m.entry.p.id)
-        if (!cur || m.score > cur.score) best.set(m.entry.p.id, m)
-      }
-      return { text, confidence, matches: [...best.values()].sort((a, b) => b.score - a.score).slice(0, 5) }
+      const { text, confidence } = await recognizeText(ctx)
+      // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
+      return { text, confidence, matches: fuzzyMatch(index, text) }
     } finally {
       ocrRunning.current = false
     }
@@ -179,9 +175,11 @@ export default function Scan() {
           const top = r.matches[0]
           const last = lastOcrPid.current
           if (top && top.score >= 0.8) {
-            if (top.entry.p.id === last.pid) last.misses = 0
+            // 同一位嘉賓而且文字大致相同 = 同一張名牌仍在鏡頭前：不再彈出
+            const same = top.entry.p.id === last.pid && similarity(normalize(r.text), last.text) >= 0.8
+            if (same) last.misses = 0
             else {
-              lastOcrPid.current = { pid: '', misses: 0 }
+              lastOcrPid.current = { pid: '', text: '', misses: 0 }
               setOcr({ text: r.text, matches: r.matches })
               return
             }
@@ -416,12 +414,13 @@ export default function Scan() {
                 <p className="demo-title">
                   辨識到「{ocr.text}」· {pickShown(ocr.matches).length === 1 ? '最可能是' : '可能的嘉賓 Possible Matches'}
                 </p>
+                {nameIdConflict(ocr.matches) && <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>}
                 {pickShown(ocr.matches).map((m) => (
                   <GuestRow
                     key={m.entry.p.id}
                     e={m.entry}
                     onClick={() => {
-                      lastOcrPid.current = { pid: m.entry.p.id, misses: 0 }
+                      lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
                       run(ocr.text, 'OCR', m.entry.p.id)
                     }}
                     trailing={
@@ -434,7 +433,7 @@ export default function Scan() {
                 <div className="demo-btns">
                   <button
                     onClick={() => {
-                      lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', misses: 0 }
+                      lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
                       setOcr(null)
                     }}
                   >
