@@ -183,6 +183,26 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyM
   return out.slice(0, limit)
 }
 
+// 常見標籤／按鈕字眼，不當作姓名
+const LABELS = new Set(
+  ['姓名', '英文姓名', '中文姓名', '邀請編號', '會員編號', '門票', '票號', '取消簽到', '取消入場', '簽到', '入場', '電話', '公司', '座位', '席號', '晚餐', '巴士', '紀念品', '內容', '編號', '嘉賓', '貴賓', '已到', '未到', '修改', '備註'].map((x) => x),
+)
+const EN_LABELS = new Set(['VIP', 'QR', 'UNDO', 'CHECK', 'IN', 'TABLE', 'SEAT', 'BUS', 'NO', 'ID', 'INV', 'MEMBER', 'NAME', 'TICKET', 'CODE', 'THE', 'AND', 'MR', 'MS', 'MRS', 'DR'])
+
+// 卡上是否看到「像姓名」的文字（中文 2–4 字，或兩個以上英文字），用來核實編號配對到的嘉賓
+const nameEvidence = (text: string) => {
+  const t = (text || '').normalize('NFKC').toUpperCase()
+  const zh = (t.match(CJK) ?? []).filter((r) => r.length >= 2 && r.length <= 4 && !LABELS.has(r) && ![...LABELS].some((l) => r.includes(l)))
+  const words = (t.match(/[A-Z]+/g) ?? []).filter((w) => w.length >= 2 && !EN_LABELS.has(w))
+  return zh.length > 0 || words.length >= 2
+}
+
+// 只靠編號配對、但卡上看到的姓名與這位嘉賓不符（例如資料不同步、名牌印錯）
+export const nameMismatch = (ms: FuzzyMatch[], text: string) => {
+  const top = ms[0]
+  return !!top && top.idScore >= 0.95 && top.nameScore < 0.6 && nameEvidence(text)
+}
+
 // 姓名與編號指向不同的人（例如名牌印錯或資料不同步）：需要工作人員核對
 export const nameIdConflict = (ms: FuzzyMatch[]) => {
   const byName = ms.find((m) => m.nameScore >= 0.9)

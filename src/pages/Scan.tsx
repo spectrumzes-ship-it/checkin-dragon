@@ -6,7 +6,7 @@ import { db } from '../db/db'
 import type { Participant, ScanMethod } from '../db/types'
 import { checkIn, eligible, redeemedQty, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
-import { fuzzyMatch, nameIdConflict, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
+import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, normalize } from '../lib/util'
 import { getQrDetector, grabFrame, grabFromFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
@@ -454,9 +454,14 @@ export default function Scan() {
             ) : (
               <div className="ocr-matches">
                 <p className="demo-title">
-                  辨識到「{ocr.text}」· {pickShown(ocr.matches).length === 1 ? '最可能是' : '可能的嘉賓 Possible Matches'}
+                  辨識到「{ocr.text}」·{' '}
+                  {nameMismatch(ocr.matches, ocr.text) ? '編號吻合的嘉賓' : pickShown(ocr.matches).length === 1 ? '最可能是' : '可能的嘉賓 Possible Matches'}
                 </p>
-                {nameIdConflict(ocr.matches) && <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>}
+                {nameIdConflict(ocr.matches) ? (
+                  <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>
+                ) : (
+                  nameMismatch(ocr.matches, ocr.text) && <p className="ocr-warn">⚠ 編號吻合，但卡上姓名與此嘉賓不符，請核對後才簽到</p>
+                )}
                 {pickShown(ocr.matches).map((m) => (
                   <GuestRow
                     key={m.entry.p.id}

@@ -15,7 +15,7 @@ import {
   verifySouvenir,
   type EventInput,
 } from './actions'
-import { buildIndex, fuzzyMatch, nameIdConflict } from './search'
+import { buildIndex, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
 import { uid } from './util'
 
 const ev = (name: string): EventInput => ({
@@ -235,5 +235,17 @@ describe('文字辨識：姓名與編號', () => {
     expect(nameIdConflict(m)).toBe(true)
     const who = m.slice(0, 2).map((x) => x.entry.p.name).sort()
     expect(who).toEqual(['何浩然', '林健偉'].sort())
+  })
+  it('編號吻合但卡上姓名屬於名單以外的人：提示姓名不符', async () => {
+    const idx = await setup()
+    const text = '> 取消入場 Undo 何小明.HO SIU MING INV-E0016 1016 AD26-0016'
+    const m = fuzzyMatch(idx, text)
+    expect(m[0].entry.p.name).toBe('林健偉')
+    expect(nameMismatch(m, text)).toBe(true)
+    // 只有編號、沒有姓名的門票：不需提示
+    expect(nameMismatch(fuzzyMatch(idx, 'INV-E0016'), 'INV-E0016')).toBe(false)
+    // 姓名與編號都吻合：不需提示
+    const ok = '取消簽到 林健偉 LAM KIN WAI INV-E0016'
+    expect(nameMismatch(fuzzyMatch(idx, ok), ok)).toBe(false)
   })
 })
