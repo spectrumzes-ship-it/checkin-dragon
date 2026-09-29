@@ -3,17 +3,18 @@ import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
-import type { ScanMethod } from '../db/types'
-import { checkIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
+import type { Participant, ScanMethod } from '../db/types'
+import { checkIn, undoCheckIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, normalize } from '../lib/util'
+import { nameOf } from '../lib/names'
 import { getQrDetector, grabFrame, grabFromFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
-import { SearchBar } from '../components/ui'
+import { ConfirmSheet, SearchBar, toast } from '../components/ui'
 
 type ScanMode = 'qr' | 'text' | 'manual'
 
@@ -37,6 +38,7 @@ export default function Scan() {
   const dq = useDebounced(q, 120)
   const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[] } | null>(null)
   const busy = useRef(false)
+  const [undoP, setUndoP] = useState<Participant | null>(null)
   const vv = useVisibleViewport()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -452,9 +454,33 @@ export default function Scan() {
             <div className="manual-results">
               {!dq && <p className="muted pad center">輸入姓名、編號、電話、公司或座位，結果會即時出現</p>}
               {dq && results.length === 0 && <p className="muted pad">找不到「{dq}」</p>}
-              {results.map((e) => (
-                <GuestRow key={e.p.id} e={e} onClick={() => run(dq, 'MANUAL', e.p.id)} />
-              ))}
+              {results.map((e) => {
+                // 簽到用途：每行可直接「簽到」或「取消簽到」
+                const canToggle = purpose === 'checkin' && e.p.status === 'active'
+                const arrived = e.p.attendance !== 'not_arrived'
+                return (
+                  <GuestRow
+                    key={e.p.id}
+                    e={e}
+                    onClick={() => run(dq, 'MANUAL', e.p.id)}
+                    onMarkClick={canToggle ? () => (arrived ? setUndoP(e.p) : run(dq, 'MANUAL', e.p.id)) : undefined}
+                    trailing={
+                      canToggle ? (
+                        <button
+                          className={`btn btn-sm ${arrived ? 'btn-ghost' : 'btn-primary'}`}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            if (arrived) setUndoP(e.p)
+                            else run(dq, 'MANUAL', e.p.id)
+                          }}
+                        >
+                          {arrived ? '取消簽到' : '簽到'}
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                )
+              })}
             </div>
           </div>
         )}
@@ -475,6 +501,17 @@ export default function Scan() {
         </div>
       </div>
 
+      <ConfirmSheet
+        open={!!undoP}
+        onClose={() => setUndoP(null)}
+        onConfirm={async () => {
+          if (undoP) await undoCheckIn(undoP)
+          toast('已取消簽到')
+        }}
+        title="取消簽到"
+        message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        confirmText="取消簽到"
+      />
       {outcome && (
         <ScanResult
           outcome={outcome}
