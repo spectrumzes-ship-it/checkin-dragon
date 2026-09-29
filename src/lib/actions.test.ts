@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, allTables } from '../db/db'
 import {
   emptyGuest,
+  generateTickets,
   moveSeat,
   saveEvent,
   undoMoveSeat,
@@ -31,6 +32,7 @@ const ev = (name: string): EventInput => ({
   buses: [],
   dinnerTables: 0,
   dinnerSeats: 12,
+  anonymous: false,
 })
 
 const guest = (eventId: string, name: string, qr: string, extra: Partial<ReturnType<typeof emptyGuest>> = {}) =>
@@ -183,5 +185,22 @@ describe('座位編排', () => {
     expect(await seat(c.id)).toBe('3')
     const back = await db.seats.where('participantId').equals(pair.id).first()
     expect(back!.resourceId).toBe(t2.id)
+  })
+})
+
+describe('不記名門票', () => {
+  it('批量產生、以票號入場、重複票號會略過', async () => {
+    const e = await saveEvent({ ...ev('C'), mode: 'event', anonymous: true })
+    const r = await generateTickets(e.id, { prefix: 'abc', start: 1, count: 50, guestCount: 1 })
+    expect(r).toMatchObject({ created: 50, skipped: 0, first: 'ABC-0001', last: 'ABC-0050' })
+    const again = await generateTickets(e.id, { prefix: 'ABC', start: 45, count: 10, guestCount: 1 })
+    expect(again).toMatchObject({ created: 4, skipped: 6 })
+
+    const ok = await verifyCheckIn(e.id, 'abc-0007', 'QR')
+    expect(ok.result).toBe('valid')
+    expect(ok.participant!.ticketLabel).toBe('ABC-0007')
+    expect((await verifyCheckIn(e.id, 'ABC-0007', 'QR')).result).toBe('duplicate')
+    const { names } = await import('./names')
+    expect(names(ok.participant!).primary).toBe('門票 ABC-0007')
   })
 })

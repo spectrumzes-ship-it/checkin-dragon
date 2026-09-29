@@ -2,15 +2,15 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus } from 'lucide-react'
+import { Plus, Ticket } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
-import { ConfirmSheet, EmptyState, FilterChip, SearchBar, toast } from '../components/ui'
-import { checkIn, undoCheckIn } from '../lib/actions'
+import { ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
+import { checkIn, generateTickets, undoCheckIn } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
@@ -33,9 +33,17 @@ export default function Guests() {
   const [sort, setSort] = useState<Sort>('name')
   const [q, setQ] = useState('')
   const [undoP, setUndoP] = useState<Participant | null>(null)
+  const anonymous = !!ev.modeConfig.anonymous
+  const [gen, setGen] = useState<null | { prefix: string; start: number; count: number; guestCount: number }>(null)
+  // 預設由現有最大票號的下一號開始，避免重複
+  const openGen = () => {
+    const nums = index.map((e) => Number(/(\d+)$/.exec(e.p.ticketLabel ?? '')?.[1] ?? 0))
+    setGen({ prefix: ev.code, start: Math.max(0, ...nums) + 1, count: 100, guestCount: 1 })
+  }
   const dq = useDebounced(q, 150)
   const wide = useMediaQuery('(min-width: 1024px)')
   const { data, index } = useEventData(ev.id)
+  const hasSeating = (data?.resources.length ?? 0) > 0
   const redemptions = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
   const hasSouvenirs = (useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).count(), [ev.id]) ?? 0) > 0
   const collected = useMemo(() => new Set(redemptions.filter((r) => !r.voided).map((r) => r.participantId)), [redemptions])
@@ -133,8 +141,13 @@ export default function Guests() {
           <div className="toolbar sticky-toolbar">
             <div className="toolbar-row">
               <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號／電話／公司／座位" autoFocus={focus} />
+              {anonymous && (
+                <button className="btn btn-ghost" onClick={openGen}>
+                  <Ticket size={18} /> <span className="hide-sm">產生門票</span>
+                </button>
+              )}
               <Link to={`/e/${ev.id}/guests/new`} className="btn btn-primary">
-                <Plus size={18} /> <span className="hide-sm">嘉賓</span>
+                <Plus size={18} /> <span className="hide-sm">{anonymous ? '門票' : '嘉賓'}</span>
               </Link>
             </div>
             <div className="chips scroll-x">
@@ -164,12 +177,18 @@ export default function Guests() {
             <div className="card">
               <EmptyState
                 art={<GuestsArt />}
-                zh="還沒有嘉賓。"
-                en="No guests yet."
+                zh={anonymous ? '還沒有門票。' : '還沒有嘉賓。'}
+                en={anonymous ? 'No tickets yet.' : 'No guests yet.'}
                 action={
-                  <Link to={`/e/${ev.id}/guests/new`} className="btn btn-primary">
-                    <Plus size={18} /> 新增嘉賓
-                  </Link>
+                  anonymous ? (
+                    <button className="btn btn-primary" onClick={openGen}>
+                      <Ticket size={18} /> 產生門票
+                    </button>
+                  ) : (
+                    <Link to={`/e/${ev.id}/guests/new`} className="btn btn-primary">
+                      <Plus size={18} /> 新增嘉賓
+                    </Link>
+                  )
                 }
               />
             </div>
@@ -191,6 +210,7 @@ export default function Guests() {
                       e={e}
                       selected={e.p.id === gid}
                       souvenir={collected.has(e.p.id)}
+                      seating={hasSeating}
                       onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}${params.size ? `?${params}` : ''}`)}
                       onMarkClick={async () => {
                         if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
@@ -211,6 +231,67 @@ export default function Guests() {
           <GuestDetail ev={ev} gid={gid} entry={index.find((e) => e.p.id === gid)} onClose={() => nav(`/e/${ev.id}/guests${params.size ? `?${params}` : ''}`)} />
         </aside>
       )}
+      <Sheet
+        open={!!gen}
+        onClose={() => setGen(null)}
+        title="產生不記名門票"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setGen(null)}>
+              取消
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                if (!gen) return
+                const r = await generateTickets(ev.id, gen)
+                setGen(null)
+                toast(r.created ? `已產生 ${r.created} 張門票（${r.first} – ${r.last}）${r.skipped ? `，略過 ${r.skipped} 張重複票號` : ''}` : '全部票號已存在，未有新增')
+              }}
+            >
+              產生
+            </button>
+          </>
+        }
+      >
+        {gen && (
+          <>
+            <div className="field-row">
+              <label className="field">
+                <span>票號前綴 Prefix</span>
+                <input value={gen.prefix} onChange={(e) => setGen({ ...gen, prefix: e.target.value })} autoCapitalize="characters" />
+              </label>
+              <label className="field">
+                <span>由幾號開始 Start</span>
+                <input type="number" min={1} value={gen.start} onChange={(e) => setGen({ ...gen, start: Number(e.target.value) })} />
+              </label>
+            </div>
+            <div className="field-row">
+              <label className="field">
+                <span>數量 Quantity（最多 5000）</span>
+                <input type="number" min={1} max={5000} value={gen.count} onChange={(e) => setGen({ ...gen, count: Number(e.target.value) })} />
+              </label>
+              <label className="field">
+                <span>每張票人數 Persons / Ticket</span>
+                <input type="number" min={1} max={20} value={gen.guestCount} onChange={(e) => setGen({ ...gen, guestCount: Number(e.target.value) })} />
+              </label>
+            </div>
+            <p className="hint">
+              票號示例：
+              <code>
+                {gen.prefix ? `${gen.prefix.toUpperCase()}-` : ''}
+                {String(gen.start).padStart(Math.max(4, String(gen.start + gen.count - 1).length), '0')}
+              </code>{' '}
+              至{' '}
+              <code>
+                {gen.prefix ? `${gen.prefix.toUpperCase()}-` : ''}
+                {String(gen.start + gen.count - 1).padStart(Math.max(4, String(gen.start + gen.count - 1).length), '0')}
+              </code>
+              。QR Code 內容即票號。列印 QR 門票將在第 4 階段加入。
+            </p>
+          </>
+        )}
+      </Sheet>
       <ConfirmSheet
         open={!!undoP}
         onClose={() => setUndoP(null)}

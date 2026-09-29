@@ -27,6 +27,7 @@ export interface EventRec {
     buses?: BusConfig[]
     dinnerTables?: number
     dinnerSeats?: number
+    anonymous?: boolean // 不記名門票：名單以票號顯示
   }
   createdAt: number
   updatedAt: number
@@ -53,6 +54,7 @@ export interface Participant {
   checkedInAt: number | null
   checkInMethod: ScanMethod | null
   manual: boolean
+  ticketLabel?: string // 不記名門票的票號（沒有姓名時用作顯示名稱）
   createdAt: number
   updatedAt: number
 }

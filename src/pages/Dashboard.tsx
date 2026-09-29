@@ -93,7 +93,7 @@ export default function Dashboard() {
       )}
 
       <div className="metrics">
-        <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} 張邀請`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
+        <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} ${ev.modeConfig.anonymous ? '張門票' : '張邀請'}`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
         <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} to={`/e/${ev.id}/guests?filter=arrived`} />
         <MetricCard zh="未到" en="Not Arrived" value={stats.notArrived} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=not_arrived`} />
         <MetricCard zh="出席率" en="Attendance" value={`${stats.rate}%`} tone="mode" sub={<ProgressBar value={stats.arrived} max={stats.total} />} />

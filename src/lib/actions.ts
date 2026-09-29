@@ -276,6 +276,7 @@ export interface GuestInput {
   busSeat: string
   dinnerTableId: string
   dinnerSeat: string
+  ticketNumber: string
 }
 
 export const emptyGuest = (): GuestInput => ({
@@ -297,6 +298,7 @@ export const emptyGuest = (): GuestInput => ({
   busSeat: '',
   dinnerTableId: '',
   dinnerSeat: '',
+  ticketNumber: '',
 })
 
 const writeSeats = async (eventId: string, pid: string, g: GuestInput) => {
@@ -331,6 +333,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     checkedInAt: existing?.checkedInAt ?? null,
     checkInMethod: existing?.checkInMethod ?? null,
     manual: existing?.manual ?? false,
+    ticketLabel: normalize(g.ticketNumber) || existing?.ticketLabel || undefined,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }
@@ -343,7 +346,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
       participantId: pid,
       qrCode: normalize(g.qrCode) || t?.qrCode || normalize(`Q-${pid.slice(0, 8)}`),
       invitationId: normalize(g.invitationId),
-      ticketNumber: t?.ticketNumber ?? '',
+      ticketNumber: normalize(g.ticketNumber) || t?.ticketNumber || '',
       status: t?.status ?? 'valid',
       usedAt: t?.usedAt ?? null,
     }
@@ -380,6 +383,7 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     busSeat: bus?.seatLabel ?? '',
     dinnerTableId: dinner?.resource.id ?? '',
     dinnerSeat: dinner?.seatLabel ?? '',
+    ticketNumber: t?.ticketNumber ?? '',
   }
 }
 
@@ -417,6 +421,7 @@ export interface EventInput {
   buses: { label: string; capacity: number }[]
   dinnerTables: number
   dinnerSeats: number
+  anonymous: boolean
 }
 
 const makeCode = (name: string) =>
@@ -471,10 +476,10 @@ export const saveEvent = async (input: EventInput, existing?: EventRec) => {
     code: existing?.code ?? makeCode(input.name),
     modeConfig:
       input.mode === 'banquet'
-        ? { tableCount: input.tableCount, seatsPerTable: input.seatsPerTable }
+        ? { tableCount: input.tableCount, seatsPerTable: input.seatsPerTable, anonymous: input.anonymous }
         : input.mode === 'bus'
           ? { buses: input.buses.filter((b) => b.label.trim()), dinnerTables: input.dinnerTables, dinnerSeats: input.dinnerSeats }
-          : {},
+          : { anonymous: input.anonymous },
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }
@@ -728,4 +733,38 @@ export const undoMoveSeat = async (eventId: string, snap: Awaited<ReturnType<typ
 export const setVip = async (p: Participant, vip: boolean) => {
   await db.participants.update(p.id, { vip, updatedAt: Date.now() })
   await audit(p.eventId, vip ? '設為 VIP' : '取消 VIP', 'participant', p.id, names(p).full)
+}
+
+// ---------- 不記名門票：批量產生 ----------
+
+export const generateTickets = async (eventId: string, opts: { prefix: string; start: number; count: number; guestCount: number }) => {
+  const prefix = normalize(opts.prefix)
+  const count = Math.max(1, Math.min(5000, Math.floor(opts.count)))
+  const width = Math.max(4, String(opts.start + count - 1).length)
+  const existing = new Set((await db.tickets.where('eventId').equals(eventId).toArray()).flatMap((t) => [t.qrCode, t.ticketNumber]))
+  const now = Date.now()
+  const people: Participant[] = []
+  const tickets: Ticket[] = []
+  let skipped = 0
+  for (let n = opts.start; n < opts.start + count; n++) {
+    const code = `${prefix ? prefix + '-' : ''}${String(n).padStart(width, '0')}`
+    if (existing.has(code)) {
+      skipped++
+      continue
+    }
+    const pid = uid()
+    people.push({
+      id: pid, eventId, name: '', englishName: '', memberId: '', phone: '', company: '', vip: false,
+      guestCount: Math.max(1, opts.guestCount || 1), tags: [], dietary: '', remarks: '', status: 'active',
+      attendance: 'not_arrived', arrivedCount: 0, checkedInAt: null, checkInMethod: null, manual: false,
+      ticketLabel: code, createdAt: now, updatedAt: now,
+    })
+    tickets.push({ id: uid(), eventId, participantId: pid, qrCode: code, invitationId: '', ticketNumber: code, status: 'valid', usedAt: null })
+  }
+  await db.transaction('rw', db.participants, db.tickets, db.auditLogs, async () => {
+    await db.participants.bulkAdd(people)
+    await db.tickets.bulkAdd(tickets)
+    await audit(eventId, `產生不記名門票 ${people.length} 張`, 'event', eventId, '', people.length ? `${tickets[0].ticketNumber} – ${tickets[tickets.length - 1].ticketNumber}` : '')
+  })
+  return { created: people.length, skipped, first: tickets[0]?.ticketNumber, last: tickets[tickets.length - 1]?.ticketNumber }
 }

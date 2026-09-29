@@ -23,6 +23,7 @@ const blank = (mode: Mode): EventInput => ({
   buses: [{ label: 'A', capacity: 45 }],
   dinnerTables: 0,
   dinnerSeats: 12,
+  anonymous: false,
 })
 
 export default function EventForm() {
@@ -49,6 +50,7 @@ export default function EventForm() {
       buses: existing.modeConfig.buses ?? [{ label: 'A', capacity: 45 }],
       dinnerTables: existing.modeConfig.dinnerTables ?? 0,
       dinnerSeats: existing.modeConfig.dinnerSeats ?? 12,
+      anonymous: existing.modeConfig.anonymous ?? false,
     })
   }, [existing])
 
@@ -128,6 +130,15 @@ export default function EventForm() {
             <span>備註 Notes</span>
             <textarea rows={3} value={f.notes} onChange={(e) => up('notes', e.target.value)} />
           </label>
+          {f.mode !== 'bus' && (
+            <label className="toggle-row">
+              <input type="checkbox" checked={f.anonymous} onChange={(e) => up('anonymous', e.target.checked)} />
+              <span>
+                <strong>不記名門票 Unnamed Tickets</strong>
+                <small>門票只有票號／QR Code，不記錄嘉賓姓名；名單及掃描結果以票號顯示。個別門票仍可補上姓名（例如 VIP）。</small>
+              </span>
+            </label>
+          )}
         </fieldset>
 
         {f.mode === 'banquet' && (

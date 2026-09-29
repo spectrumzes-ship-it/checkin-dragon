@@ -35,7 +35,7 @@ export const buildIndex = (
   const nameCount = new Map<string, number>()
   for (const p of participants) {
     const k = normalize(p.name) || normalize(p.englishName)
-    nameCount.set(k, (nameCount.get(k) ?? 0) + 1)
+    if (k) nameCount.set(k, (nameCount.get(k) ?? 0) + 1) // 不記名門票沒有姓名，不計同名
   }
   return participants.map((p) => {
     const ts = tByP.get(p.id) ?? []
@@ -53,7 +53,8 @@ export const buildIndex = (
     const hay = normalize(
       [p.name, p.englishName, p.phone, p.company, ...ids, ...seatWords].join('|'),
     )
-    const sameName = (nameCount.get(normalize(p.name) || normalize(p.englishName)) ?? 0) > 1
+    const nk = normalize(p.name) || normalize(p.englishName)
+    const sameName = !!nk && (nameCount.get(nk) ?? 0) > 1
     return { p, tickets: ts, seats: ss, hay, ids, sameName }
   })
 }

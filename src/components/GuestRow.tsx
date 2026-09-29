@@ -3,7 +3,7 @@ import { Gift } from 'lucide-react'
 import type { GuestEntry } from '../lib/search'
 import { cx, formatTime } from '../lib/util'
 import { SoftTag, VipBadge } from './ui'
-import { names } from '../lib/names'
+import { isAnonymous, names } from '../lib/names'
 
 export const seatText = (e: GuestEntry) =>
   e.seats
@@ -48,6 +48,7 @@ export const GuestRow = ({
   souvenir,
   trailing,
   onMarkClick,
+  seating = true,
 }: {
   e: GuestEntry
   onClick?: () => void
@@ -55,6 +56,7 @@ export const GuestRow = ({
   souvenir?: boolean
   trailing?: ReactNode
   onMarkClick?: () => void // 按左邊狀態圓圈：快速入場／取消入場
+  seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
 }) => {
   const p = e.p
   const row = (
@@ -68,7 +70,7 @@ export const GuestRow = ({
           {p.guestCount > 1 && <SoftTag>{p.attendance === 'partial' ? `${p.arrivedCount}/` : ''}{p.guestCount} 位</SoftTag>}
         </span>
         <span className="guest-row-sub">
-          {seatText(e) || <span className="muted">未安排座位</span>}
+          {seatText(e) || (isAnonymous(p) ? <span className="muted">不記名</span> : seating ? <span className="muted">未安排座位</span> : null)}
           {p.tags.map((t) => (
             <SoftTag key={t}>{t}</SoftTag>
           ))}

@@ -218,9 +218,15 @@ export const seedDemo = async () => {
     // 🎭 下星期活動（未開始）
     const concert = buildEvent(
       { name: 'ABC Concert 2026', mode: 'event', type: 'Concert', date: addDays(today, 13), startTime: '19:30', endTime: '22:00',
-        venue: 'Star Hall', notes: '示範資料', status: 'active', code: 'ABC26', modeConfig: {} },
+        venue: 'Star Hall', notes: '示範資料（不記名門票）', status: 'active', code: 'ABC26', modeConfig: { anonymous: true } },
       500, 0, 0,
     )
+    // 不記名門票：只有頭 8 張（VIP）記名，其餘只顯示票號
+    concert.people.forEach((p, i) => {
+      if (i < 8) return Object.assign(p, { vip: true })
+      Object.assign(p, { name: '', englishName: '', memberId: '', phone: '', company: '', vip: false, tags: [], dietary: '', ticketLabel: concert.tickets[i].qrCode })
+      concert.tickets[i].invitationId = ''
+    })
     await save(concert)
 
     // 🍽 已完成活動

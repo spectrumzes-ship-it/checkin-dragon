@@ -28,8 +28,9 @@ export default function GuestForm() {
   const dinner = resources.filter((r) => r.type === 'table' && r.purpose === '晚餐')
   const buses = resources.filter((r) => r.type === 'bus')
 
+  const anonymous = !!ev.modeConfig.anonymous
   const submit = async (andCheckIn: boolean) => {
-    if (!g.name.trim() && !g.englishName.trim()) return toast('請輸入姓名')
+    if (!g.name.trim() && !g.englishName.trim() && !(anonymous && g.ticketNumber.trim())) return toast(anonymous ? '請輸入票號或姓名' : '請輸入姓名')
     const p = await saveGuest(ev.id, g, existing ?? undefined)
     if (andCheckIn) {
       const t = await db.tickets.where('participantId').equals(p.id).first()
@@ -51,10 +52,16 @@ export default function GuestForm() {
         }}
       >
         <fieldset className="card">
+          {anonymous && (
+            <label className="field">
+              <span>票號 Ticket No.（不記名門票只需填票號）</span>
+              <input value={g.ticketNumber} onChange={(e) => up('ticketNumber', e.target.value)} autoFocus={!gid} autoCapitalize="characters" />
+            </label>
+          )}
           <div className="field-row">
             <label className="field">
-              <span>中文姓名 Name</span>
-              <input value={g.name} onChange={(e) => up('name', e.target.value)} autoFocus={!gid} />
+              <span>中文姓名 Name{anonymous && '（可留空）'}</span>
+              <input value={g.name} onChange={(e) => up('name', e.target.value)} autoFocus={!gid && !anonymous} />
             </label>
             <label className="field">
               <span>英文姓名 English Name</span>

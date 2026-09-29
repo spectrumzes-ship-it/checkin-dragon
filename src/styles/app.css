@@ -3179,3 +3179,29 @@ legend {
   grid-column: 1 / -1;
   margin-top: 0;
 }
+
+.toggle-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.toggle-row input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--text);
+  flex-shrink: 0;
+}
+.toggle-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.toggle-row small {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
