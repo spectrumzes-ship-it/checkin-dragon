@@ -1654,6 +1654,7 @@ legend {
   animation: fade 150ms ease;
 }
 .sheet {
+  color: var(--text); /* 在深色的掃描畫面內打開時，文字仍然清楚 */
   width: 100%;
   max-width: 560px;
   max-height: 88dvh;
