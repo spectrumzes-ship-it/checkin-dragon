@@ -8,7 +8,7 @@ import { createSession, deleteSession, setAttendance } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
-import { cx, pct } from '../lib/util'
+import { cx, pct, telHref } from '../lib/util'
 import { StatusIcon } from '../components/StatusIcon'
 import { BusArt } from '../illustrations'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
@@ -184,7 +184,7 @@ export function RollCallSession() {
           <span className="rc-seat">{bs ? `${bs.resource.label}-${bs.seatLabel}` : ''}</span>
         </button>
         {warn && e.p.phone && (
-          <a className="icon-btn" href={`tel:${e.p.phone}`} aria-label={`致電 ${nameOf(e.p)}`}>
+          <a className="icon-btn" href={telHref(e.p.phone)} aria-label={`致電 ${nameOf(e.p)}`}>
             <Phone size={18} />
           </a>
         )}

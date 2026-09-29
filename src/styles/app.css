@@ -3515,3 +3515,15 @@ legend {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.phone-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-call {
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+  text-decoration: none !important;
+}

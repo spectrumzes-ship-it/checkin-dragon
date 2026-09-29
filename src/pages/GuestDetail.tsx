@@ -7,7 +7,7 @@ import type { EventRec, Participant } from '../db/types'
 import { setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
-import { formatDateTime, formatTime } from '../lib/util'
+import { formatDateTime, formatTime, telHref } from '../lib/util'
 import { TableIcon } from '../components/icons'
 import { StatusIcon } from '../components/StatusIcon'
 import { ConfirmSheet, SoftTag, StatusBadge, toast } from '../components/ui'
@@ -110,7 +110,20 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<Ticket size={18} />} zh="邀請編號" value={t?.invitationId} />
         <Row icon={<IdCard size={18} />} zh="會員編號" value={p.memberId} />
         <Row icon={<Ticket size={18} />} zh="QR 內容" value={t?.qrCode && <code>{t.qrCode}</code>} />
-        <Row icon={<Phone size={18} />} zh="電話" value={p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>} />
+        <Row
+          icon={<Phone size={18} />}
+          zh="電話"
+          value={
+            p.phone && (
+              <span className="phone-line">
+                <a href={telHref(p.phone)}>{p.phone}</a>
+                <a className="btn btn-sm btn-call" href={telHref(p.phone)} aria-label={`撥打 ${p.phone}`}>
+                  <Phone size={14} /> 撥打
+                </a>
+              </span>
+            )
+          }
+        />
         <Row icon={<Building2 size={18} />} zh="公司" value={p.company} />
       </div>
 

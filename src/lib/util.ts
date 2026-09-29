@@ -56,3 +56,12 @@ export const randomCode = (len = 8, rng?: () => number) => {
   for (let i = 0; i < len; i++) out += CODE_CHARS[Math.floor((rng ?? Math.random)() * CODE_CHARS.length)]
   return out
 }
+
+// 撥號連結：8 位香港號碼自動加 +852（在外地亦可正確撥出）；已有國際碼的號碼保持不變
+export const telHref = (phone: string) => {
+  const digits = (phone || '').replace(/[^\d+]/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('+')) return `tel:${digits}`
+  if (/^[235679]\d{7}$/.test(digits)) return `tel:+852${digits}`
+  return `tel:${digits}`
+}
