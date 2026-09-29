@@ -3613,3 +3613,102 @@ legend {
 .ocr-clear:active {
   filter: brightness(0.95);
 }
+
+/* 圍席座位：座位表／圓桌總覽切換 */
+.tables-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.view-toggle a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.view-toggle a.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* 單一席：上下拖拉調整座位 */
+.seatlist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 8px;
+  font-size: var(--fs-caption);
+}
+.seatlist.card {
+  padding: 0;
+}
+.seatlist-row {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  position: relative;
+}
+.seatlist-row + .seatlist-row {
+  border-top: 1px solid var(--border-soft);
+}
+.seatlist-row.drop {
+  background: var(--mode-bg);
+  box-shadow: inset 0 0 0 2px var(--mode-ink);
+}
+.seatlist-row.extra .seatlist-no {
+  color: var(--warn-ink);
+}
+.seatlist-row.ghost {
+  opacity: 0.4;
+}
+.seatlist-no {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.seatlist-guest {
+  flex: 1;
+  min-width: 0;
+}
+.seatlist-guest .guest-row {
+  padding-left: 0;
+}
+.seatlist-empty {
+  flex: 1;
+  color: var(--text-3);
+  font-size: var(--fs-label);
+  padding: 0 4px;
+}
+.seatlist-grip {
+  width: 48px;
+  align-self: stretch;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  cursor: grab;
+  touch-action: none;
+}
+.seatlist-grip:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.seatlist-anchor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

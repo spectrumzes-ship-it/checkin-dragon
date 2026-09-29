@@ -6,6 +6,9 @@ import {
   MouseSensor,
   TouchSensor,
   KeyboardSensor,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
   useDraggable,
   useDroppable,
   useSensor,
@@ -19,10 +22,15 @@ import { moveSeat, undoMoveSeat } from '../lib/actions'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
-import { PageHeader, SearchBar, SoftTag, toast } from '../components/ui'
+import { SearchBar, SoftTag, toast } from '../components/ui'
+import { TablesViewToggle } from './Tables'
 import { nameOf, names } from '../lib/names'
 
 type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
+const byPointer: CollisionDetection = (args) => {
+  const hits = pointerWithin(args)
+  return hits.length ? hits : rectIntersection(args)
+}
 type Snap = Awaited<ReturnType<typeof moveSeat>>
 
 const shortName = (e: GuestEntry) => nameOf(e.p)
@@ -134,18 +142,14 @@ export default function SeatingPlan() {
   const sel = selected ? byId.get(selected) : null
 
   return (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)} autoScroll>
+    <DndContext sensors={sensors} collisionDetection={byPointer} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)} autoScroll>
       <div className="page seating">
-        <PageHeader
-          zh={purpose ? '餐席編排' : '座位編排'}
-          en="Seating Plan"
-          back={`/e/${ev.id}/tables`}
-          actions={
-            <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
-              <Undo2 size={16} /> 復原
-            </button>
-          }
-        />
+        <div className="tables-head">
+          <TablesViewToggle eventId={ev.id} view="plan" dinner={!!purpose} />
+          <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
+            <Undo2 size={16} /> 復原
+          </button>
+        </div>
         <p className={cx('seating-hint', sel && 'active')}>
           {sel ? (
             <>

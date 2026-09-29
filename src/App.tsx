@@ -16,7 +16,6 @@ import Tables, { TableDetail } from './pages/Tables'
 import RollCall, { BusSeats, RollCallSession } from './pages/RollCall'
 import Souvenirs from './pages/Souvenirs'
 import SouvenirRecords from './pages/SouvenirRecords'
-import SeatingPlan from './pages/SeatingPlan'
 import TestKit from './pages/TestKit'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
@@ -60,7 +59,7 @@ export default function App() {
             <Route path="guests/:gid" element={<Guests />} />
             <Route path="guests/:gid/edit" element={<GuestForm />} />
             <Route path="tables" element={<Tables />} />
-            <Route path="tables/plan" element={<SeatingPlan />} />
+            <Route path="tables/plan" element={<Navigate to=".." relative="path" replace />} />
             <Route path="tables/:tid" element={<TableDetail />} />
             <Route path="rollcall" element={<RollCall />} />
             <Route path="rollcall/:sid" element={<RollCallSession />} />

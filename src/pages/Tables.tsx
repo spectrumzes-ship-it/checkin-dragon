@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
+import SeatingPlan from './SeatingPlan'
+import TableSeatList from '../components/TableSeatList'
+import { TableIcon } from '../components/icons'
 import type { EventRec, Resource } from '../db/types'
 import { Minus, MoveHorizontal, Plus } from 'lucide-react'
 import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
@@ -58,7 +61,25 @@ const useTables = (ev: EventRec) => {
   }, [data, index])
 }
 
+// 切換「座位表（可拖拉）」與「圓桌總覽」
+export const TablesViewToggle = ({ eventId, view, dinner }: { eventId: string; view: 'plan' | 'overview'; dinner: boolean }) => (
+  <div className="seg view-toggle" role="tablist">
+    <Link to={`/e/${eventId}/tables`} replace role="tab" aria-selected={view === 'plan'} className={view === 'plan' ? 'active' : ''}>
+      <MoveHorizontal size={16} /> {dinner ? '餐席表' : '座位表'}（可拖拉）
+    </Link>
+    <Link to={`/e/${eventId}/tables?view=overview`} replace role="tab" aria-selected={view === 'overview'} className={view === 'overview' ? 'active' : ''}>
+      <TableIcon size={16} /> 圓桌總覽
+    </Link>
+  </div>
+)
+
+// 圍席座位：預設直接顯示可拖拉的座位表；「圓桌總覽」為第二種顯示
 export default function Tables() {
+  const [params] = useSearchParams()
+  return params.get('view') === 'overview' ? <TablesOverview /> : <SeatingPlan />
+}
+
+function TablesOverview() {
   const ev = useOutletContext<EventRec>()
   const nav = useNavigate()
   const tables = useTables(ev)
@@ -87,16 +108,9 @@ export default function Tables() {
   const shown = tables.filter((x) => (filter === 'all' ? true : filter === 'full' ? count(x) >= x.t.capacity : count(x) < x.t.capacity))
   return (
     <div className="page">
-      <Link to={`/e/${ev.id}/tables/plan`} className="plan-banner">
-        <span className="plan-banner-icon">
-          <MoveHorizontal size={22} />
-        </span>
-        <span className="plan-banner-text">
-          <strong>{dinner ? '餐席調位' : '座位調位'}</strong>
-          <span>拖拉名字即可換位，目標有人會自動對調</span>
-        </span>
-        <span className="btn btn-primary btn-sm">開始調位 →</span>
-      </Link>
+      <div className="tables-head">
+        <TablesViewToggle eventId={ev.id} view="overview" dinner={dinner} />
+      </div>
       {dinner && (
         <p className="hint">
           聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
@@ -167,9 +181,9 @@ export function TableDetail() {
       <PageHeader
         zh={`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 席`}
         en={`Table ${t.label}`}
-        back={`/e/${ev.id}/tables`}
+        back={`/e/${ev.id}/tables?view=overview`}
         actions={
-          <Link to={`/e/${ev.id}/tables/plan`} className="btn btn-sm btn-plan">
+          <Link to={`/e/${ev.id}/tables`} className="btn btn-sm btn-plan">
             <MoveHorizontal size={16} /> 調位
           </Link>
         }
@@ -214,23 +228,15 @@ export function TableDetail() {
             </button>
           </div>
       </div>
-      {guests.length === 0 ? (
-        <p className="muted pad center">此席未安排嘉賓</p>
-      ) : (
-        <div className="list card">
-          {guests.map(({ seat, e }) => (
-            <GuestRow
-              key={e.p.id}
-              e={e}
-              onClick={async () => {
-                if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
-                else nav(`/e/${ev.id}/guests/${e.p.id}`)
-              }}
-              trailing={<span className="seat-no">{seat ? `${seat} 號` : '—'}</span>}
-            />
-          ))}
-        </div>
-      )}
+      <TableSeatList
+        ev={ev}
+        table={t}
+        guests={guests}
+        onTap={async (e) => {
+          if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
+          else nav(`/e/${ev.id}/guests/${e.p.id}`)
+        }}
+      />
       {outcome && <ScanResult outcome={outcome} purpose="checkin" onDone={() => setOutcome(null)} />}
     </div>
   )
