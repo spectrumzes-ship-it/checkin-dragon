@@ -8,6 +8,7 @@ export interface GuestEntry {
   seats: { resource: Resource; seatLabel: string }[]
   hay: string // 已整理、無空格
   ids: string[] // 已整理的各種編號
+  sameName: boolean // 同一活動內有同名的人（顯示編號分辨）
 }
 
 export const buildIndex = (
@@ -31,6 +32,11 @@ export const buildIndex = (
     arr.push({ resource: r, seatLabel: s.seatLabel })
     sByP.set(s.participantId, arr)
   }
+  const nameCount = new Map<string, number>()
+  for (const p of participants) {
+    const k = normalize(p.name) || normalize(p.englishName)
+    nameCount.set(k, (nameCount.get(k) ?? 0) + 1)
+  }
   return participants.map((p) => {
     const ts = tByP.get(p.id) ?? []
     // 顯示次序固定：車位 → 席號 → 聚餐餐席
@@ -47,7 +53,8 @@ export const buildIndex = (
     const hay = normalize(
       [p.name, p.englishName, p.phone, p.company, ...ids, ...seatWords].join('|'),
     )
-    return { p, tickets: ts, seats: ss, hay, ids }
+    const sameName = (nameCount.get(normalize(p.name) || normalize(p.englishName)) ?? 0) > 1
+    return { p, tickets: ts, seats: ss, hay, ids, sameName }
   })
 }
 

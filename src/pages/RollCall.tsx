@@ -175,7 +175,10 @@ export function RollCallSession() {
           </span>
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
-            <span className="muted">{names(e.p).secondary}</span>
+            <span className="muted">
+              {names(e.p).secondary}
+              {e.sameName && ` · 同名 #${e.p.memberId}`}
+            </span>
           </span>
           <span className="rc-seat">{bs ? `${bs.resource.label}-${bs.seatLabel}` : ''}</span>
         </button>

@@ -32,13 +32,24 @@ const GIVEN: [string, string][] = [
   ['CHI KEUNG', '志強'], ['HOI YAN', '凱欣'], ['KA HO', '家豪'], ['PUI SHAN', '佩珊'], ['WAI MAN', '偉文'],
   ['SUK FAN', '淑芬'], ['KIN WAI', '健偉'], ['YUEN TING', '婉婷'], ['CHUN HEI', '俊曦'], ['MAN', '敏'],
   ['TSZ CHING', '芷晴'], ['HOK LAM', '學霖'], ['LOK YIN', '樂賢'], ['SIU FONG', '小芳'], ['TAI', '泰'],
+  ['WING KIN', '永健'], ['MEI KUEN', '美娟'], ['CHUN YIP', '俊業'], ['SZE WAN', '思韻'], ['KWOK WAI', '國偉'],
+  ['YAN TING', '欣婷'], ['KA LOK', '家樂'], ['PUI YEE', '佩儀'], ['HO YIN', '浩然'], ['WAI LING', '慧玲'],
+  ['CHI HO', '志豪'], ['MAN YEE', '敏儀'], ['TSZ HIN', '梓軒'], ['LAI KUEN', '麗娟'], ['KIN MAN', '健文'],
+  ['HIU TUNG', '曉彤'], ['SHING', '成'], ['YUK LING', '玉玲'], ['WAI KIT', '偉傑'], ['CHING YI', '靜儀'],
 ]
 const COMPANIES = ['ABC Holdings', '明日科技', 'Sunrise Trading', '海港物流', 'Kowloon Bank', '青山設計', 'Pacific Media', '']
 const TAGS = ['輪椅', '素食', '需協助', '重要嘉賓', '傳譯']
 
+// 同一個活動內不重複姓名（示範資料用；真實名單可以有同名，App 會以編號分辨）
+const usedNames = new Set<string>()
 const makePerson = (i: number, eventId: string, now: number): Participant => {
-  const [se, sc] = pick(SURNAMES)
-  const [ge, gc] = pick(GIVEN)
+  let [se, sc] = pick(SURNAMES)
+  let [ge, gc] = pick(GIVEN)
+  for (let tries = 0; usedNames.has(sc + gc) && tries < 200; tries++) {
+    ;[se, sc] = pick(SURNAMES)
+    ;[ge, gc] = pick(GIVEN)
+  }
+  usedNames.add(sc + gc)
   const r = rand()
   return {
     id: uid(),
@@ -82,6 +93,7 @@ const buildEvent = (
   const now = Date.now()
   const event: EventRec = { ...base, id: uid(), createdAt: now, updatedAt: now }
   const { deviceId } = getSettings()
+  usedNames.clear()
   const people: Participant[] = []
   const tickets: Ticket[] = []
   const checkins: CheckIn[] = []
@@ -141,8 +153,10 @@ export const seedDemo = async () => {
         venue: 'Grand Ballroom', notes: '示範資料', status: 'active', code: 'AD26', modeConfig: { tableCount: 20, seatsPerTable: 12 } },
       170, 0.62, 80,
     )
-    // 固定測試嘉賓：CHAN TAI MAN · VIP-A0265
+    // 固定測試嘉賓：CHAN TAI MAN · VIP-A0265（如隨機名單已有同名，先改走）
     const star = dinner.people[0]
+    const clash = dinner.people.find((p, i) => i > 0 && p.name === '陳大文')
+    if (clash) Object.assign(clash, { name: '陳大明', englishName: 'CHAN TAI MING' })
     Object.assign(star, { name: '陳大文', englishName: 'CHAN TAI MAN', memberId: '0265', vip: true, guestCount: 1, status: 'active',
       attendance: 'not_arrived', arrivedCount: 0, checkedInAt: null, checkInMethod: null, manual: false, tags: ['重要嘉賓'] })
     Object.assign(dinner.tickets[0], { invitationId: 'VIP-A0265', status: 'valid', usedAt: null })
