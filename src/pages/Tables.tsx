@@ -3,18 +3,16 @@ import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 
 import SeatingPlan from './SeatingPlan'
 import TableSeatList from '../components/TableSeatList'
 import { TableIcon } from '../components/icons'
-import type { EventRec, Participant, Resource } from '../db/types'
-import { List, Minus, MoveHorizontal, Plus } from 'lucide-react'
-import { checkIn, setTableCapacity, undoCheckIn, verifyCheckIn, type ScanOutcome } from '../lib/actions'
-import { feedback } from '../lib/feedback'
-import { nameOf } from '../lib/names'
+import type { EventRec, Resource } from '../db/types'
+import { List, Minus, MoveHorizontal, Plus, Printer } from 'lucide-react'
+import { setTableCapacity, verifyCheckIn, type ScanOutcome } from '../lib/actions'
 import { normalize } from '../lib/util'
 import { useDebounced, useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
 import { TableArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
-import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, SearchBar, SectionTitle, toast } from '../components/ui'
+import { EmptyState, FilterChip, PageHeader, ProgressBar, SearchBar, SectionTitle, Sheet } from '../components/ui'
 
 // 圓桌圖形：中間是席號，外圍小圓點 = 座位（實心 = 已到）
 const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: number; seated: number }) => {
@@ -96,81 +94,87 @@ export default function Tables() {
   return v === 'plan' ? <SeatingPlan /> : v === 'list' ? <TablesList /> : <TablesOverview />
 }
 
-// 席位名單：逐席列出座位號、嘉賓及簽到狀態；可搜尋；按圓圈即可簽到（取消簽到需確認）
+// 席位名單：每席用與單一席相同的清單（包括空位、同行），可上下拖拉調整座位；搜尋可找出某人坐在哪一席
 function TablesList() {
   const ev = useOutletContext<EventRec>()
   const nav = useNavigate()
   const tables = useTables(ev)
   const [q, setQ] = useState('')
   const dq = useDebounced(q, 150)
-  const [undoP, setUndoP] = useState<Participant | null>(null)
+  const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
+  const [printOpen, setPrintOpen] = useState(false)
   const dinner = ev.mode === 'bus'
   if (!tables) return <div className="page" />
   const nq = normalize(dq)
-  const shown = tables
-    .map((x) => ({ ...x, guests: nq ? x.guests.filter((g) => g.e.hay.includes(nq)) : x.guests }))
-    .filter((x) => !nq || x.guests.length)
+  const shown = nq ? tables.filter((x) => x.guests.some((g) => g.e.hay.includes(nq))) : tables
   return (
     <div className="page">
       <div className="tables-head">
         <TablesViewToggle eventId={ev.id} view="list" />
+        <button className="btn btn-ghost btn-sm" onClick={() => setPrintOpen(true)}>
+          <Printer size={16} /> 列印
+        </button>
       </div>
       <div className="toolbar">
         <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號，看看坐在哪一席" />
       </div>
+      <p className="hint">按住右邊 ⠿ 上下拖拉可調整座位，目標有人會對調；按未到的嘉賓即簽到。</p>
       {shown.length === 0 && <p className="muted pad center">找不到「{dq}」</p>}
-      {shown.map(({ t, guests, arrived }) => (
-        <section key={t.id} className="card table-list-card">
+      {shown.map(({ t, guests, arrived, seated }) => (
+        <section key={t.id} className="table-list-card">
           <Link to={`/e/${ev.id}/tables/${t.id}`} className="table-list-head">
             <strong>
               {t.purpose === '晚餐' ? '晚餐 ' : ''}第 {t.label} 席
             </strong>
             <span className={arrived >= t.capacity ? 'full' : ''}>
-              {dinner ? `${guests.reduce((a, g) => a + g.e.p.guestCount, 0)} / ${t.capacity} 已安排` : `${arrived} / ${t.capacity} 已到`} ›
+              {dinner ? `${seated} / ${t.capacity} 已安排` : `${arrived} / ${t.capacity} 已到`} ›
             </span>
           </Link>
-          {guests.length ? (
-            <div className="list">
-              {guests.map(({ seat, e }) => (
-                <div key={e.p.id} className="table-list-row">
-                  <span className="seatlist-no">{seat || '—'}</span>
-                  <div className="seatlist-guest">
-                    <GuestRow
-                      e={e}
-                      trailing={<span />}
-                      onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}`)}
-                      onMarkClick={
-                        dinner
-                          ? undefined
-                          : async () => {
-                              if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
-                              await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
-                              feedback('valid')
-                              toast(`✓ ${nameOf(e.p)} 已簽到`)
-                            }
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted pad">此席未安排嘉賓</p>
-          )}
+          <TableSeatList
+            ev={ev}
+            table={t}
+            guests={guests}
+            compact
+            onTap={async (e) => {
+              if (!dinner && e.p.attendance === 'not_arrived') setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', e.p.id))
+              else nav(`/e/${ev.id}/guests/${e.p.id}`)
+            }}
+          />
         </section>
       ))}
-      <ConfirmSheet
-        open={!!undoP}
-        onClose={() => setUndoP(null)}
-        onConfirm={async () => {
-          if (undoP) await undoCheckIn(undoP)
-          toast('已取消簽到')
-        }}
-        title="取消簽到"
-        message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
-        confirmText="取消簽到"
-      />
+      <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} eventId={ev.id} />
+      {outcome && <ScanResult outcome={outcome} purpose="checkin" onDone={() => setOutcome(null)} />}
     </div>
+  )
+}
+
+// 列印選項
+export const PrintSheet = ({ open, onClose, eventId, tableId }: { open: boolean; onClose: () => void; eventId: string; tableId?: string }) => {
+  const nav = useNavigate()
+  const go = (q: string) => {
+    onClose()
+    nav(`/e/${eventId}/print?${q}`)
+  }
+  return (
+    <Sheet open={open} onClose={onClose} title="列印 Print">
+      <div className="menu-list">
+        {tableId && (
+          <button className="menu-item" onClick={() => go(`type=table&tid=${tableId}`)}>
+            <Printer size={20} /> 只列印此席 <small>This table</small>
+          </button>
+        )}
+        <button className="menu-item" onClick={() => go('type=tables')}>
+          <Printer size={20} /> 每席名單（每席一頁） <small>放在檯上或交給帶位同事</small>
+        </button>
+        <button className="menu-item" onClick={() => go('type=tables&cont=1')}>
+          <Printer size={20} /> 每席名單（連續列印） <small>較省紙</small>
+        </button>
+        <button className="menu-item" onClick={() => go('type=all')}>
+          <Printer size={20} /> 總名單（按姓名排列） <small>入口查閱用</small>
+        </button>
+      </div>
+      <p className="hint">列印時可選擇「儲存為 PDF」。</p>
+    </Sheet>
   )
 }
 
@@ -262,6 +266,7 @@ export function TableDetail() {
   const nav = useNavigate()
   const tables = useTables(ev)
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
+  const [printOpen, setPrintOpen] = useState(false)
   const dinner = ev.mode === 'bus'
   const x = tables?.find((y) => y.t.id === tid)
   if (!tables) return <div className="page" />
@@ -278,9 +283,14 @@ export function TableDetail() {
         en={`Table ${t.label}`}
         back={`/e/${ev.id}/tables`}
         actions={
-          <Link to={`/e/${ev.id}/tables?view=plan`} className="btn btn-sm btn-plan">
-            <MoveHorizontal size={16} /> 調位
-          </Link>
+          <>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPrintOpen(true)}>
+              <Printer size={16} /> 列印
+            </button>
+            <Link to={`/e/${ev.id}/tables?view=plan`} className="btn btn-sm btn-plan">
+              <MoveHorizontal size={16} /> 調位
+            </Link>
+          </>
         }
       />
       <div className="pager">
@@ -332,6 +342,7 @@ export function TableDetail() {
           else nav(`/e/${ev.id}/guests/${e.p.id}`)
         }}
       />
+      <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} eventId={ev.id} tableId={t.id} />
       {outcome && <ScanResult outcome={outcome} purpose="checkin" onDone={() => setOutcome(null)} />}
     </div>
   )

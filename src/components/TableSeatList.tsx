@@ -23,7 +23,28 @@ import { cx } from '../lib/util'
 import { GuestRow } from './GuestRow'
 import { SoftTag, toast } from './ui'
 
-type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
+export type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
+
+// 座位排列：一票多人佔連續座位；座位號衝突或未有座位號的，放到第一個空位（席位名單、單一席、列印共用）
+export const buildSlots = (capacity: number, guests: { seat: string; e: GuestEntry }[]) => {
+  const size = Math.max(capacity, guests.reduce((a, g) => a + g.e.p.guestCount, 0))
+  const out: Slot[] = Array.from({ length: size }, (_, i) => ({ seat: String(i + 1) }))
+  const place = (e: GuestEntry, start: number) => {
+    out[start].owner = e
+    for (let k = 1; k < e.p.guestCount && start + k < out.length; k++) if (!out[start + k].owner) out[start + k].companionOf = e
+  }
+  const later: GuestEntry[] = []
+  for (const { seat, e } of [...guests].sort((a, b) => (Number(a.seat) || 999) - (Number(b.seat) || 999))) {
+    const n = Number(seat) - 1
+    if (n >= 0 && n < out.length && !out[n].owner && !out[n].companionOf) place(e, n)
+    else later.push(e)
+  }
+  for (const e of later) {
+    const free = out.findIndex((x) => !x.owner && !x.companionOf)
+    if (free >= 0) place(e, free)
+  }
+  return out
+}
 
 // 以手指／滑鼠所在位置判斷放在哪個座位（用鍵盤操作時才用位置重疊判斷）
 const byPointer: CollisionDetection = (args) => {
@@ -38,11 +59,13 @@ export default function TableSeatList({
   table,
   guests,
   onTap,
+  compact,
 }: {
   ev: EventRec
   table: Resource
   guests: { seat: string; e: GuestEntry }[]
   onTap: (e: GuestEntry) => void
+  compact?: boolean // 席位名單內使用：不重複顯示說明，只在有調位時顯示「復原」
 }) {
   const purpose = table.purpose
   const history = useRef<Snap[]>([])
@@ -54,26 +77,7 @@ export default function TableSeatList({
     useSensor(KeyboardSensor),
   )
 
-  // 座位排列：一票多人佔連續座位；座位號衝突或未有座位號的，放到第一個空位
-  const slots = useMemo(() => {
-    const size = Math.max(table.capacity, guests.reduce((a, g) => a + g.e.p.guestCount, 0))
-    const out: Slot[] = Array.from({ length: size }, (_, i) => ({ seat: String(i + 1) }))
-    const place = (e: GuestEntry, start: number) => {
-      out[start].owner = e
-      for (let k = 1; k < e.p.guestCount && start + k < out.length; k++) if (!out[start + k].owner) out[start + k].companionOf = e
-    }
-    const later: GuestEntry[] = []
-    for (const { seat, e } of [...guests].sort((a, b) => (Number(a.seat) || 999) - (Number(b.seat) || 999))) {
-      const n = Number(seat) - 1
-      if (n >= 0 && n < out.length && !out[n].owner && !out[n].companionOf) place(e, n)
-      else later.push(e)
-    }
-    for (const e of later) {
-      const free = out.findIndex((x) => !x.owner && !x.companionOf)
-      if (free >= 0) place(e, free)
-    }
-    return out
-  }, [guests, table.capacity])
+  const slots = useMemo(() => buildSlots(table.capacity, guests), [guests, table.capacity])
 
   const onDragEnd = async (evt: DragEndEvent) => {
     setDragging(null)
@@ -108,12 +112,22 @@ export default function TableSeatList({
       onDragCancel={() => setDragging(null)}
       autoScroll
     >
-      <div className="seatlist-head">
-        <span className="muted">按住右邊 ⠿ 上下拖拉可調整座位，目標有人會對調</span>
-        <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
-          <Undo2 size={16} /> 復原
-        </button>
-      </div>
+      {!compact ? (
+        <div className="seatlist-head">
+          <span className="muted">按住右邊 ⠿ 上下拖拉可調整座位，目標有人會對調</span>
+          <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
+            <Undo2 size={16} /> 復原
+          </button>
+        </div>
+      ) : (
+        history.current.length > 0 && (
+          <div className="seatlist-head compact">
+            <button className="btn btn-ghost btn-sm" onClick={undo}>
+              <Undo2 size={16} /> 復原此席調位
+            </button>
+          </div>
+        )
+      )}
       <div className="list card seatlist">
         {slots.map((s) => (
           <SeatRow

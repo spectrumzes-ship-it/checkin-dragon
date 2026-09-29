@@ -17,6 +17,7 @@ import RollCall, { BusSeats, RollCallSession } from './pages/RollCall'
 import Souvenirs from './pages/Souvenirs'
 import SouvenirRecords from './pages/SouvenirRecords'
 import TestKit from './pages/TestKit'
+import Print from './pages/Print'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
 
@@ -44,6 +45,7 @@ export default function App() {
     <HashRouter>
       <Routes key={nameOrder}>
         <Route path="/e/:id/scan" element={<Scan />} />
+        <Route path="/e/:id/print" element={<Print />} />
         <Route element={<AppShell />}>
           <Route index element={<Home />} />
           <Route path="events" element={<EventList />} />

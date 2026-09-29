@@ -3779,9 +3779,19 @@ legend {
 
 /* 席位名單 */
 .table-list-card {
-  padding: 0;
-  margin-bottom: 12px;
-  overflow: hidden;
+  margin-bottom: 16px;
+}
+.table-list-card .table-list-head {
+  border-radius: var(--r) var(--r) 0 0;
+}
+.table-list-card .seatlist.card {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 0;
+}
+.seatlist-head.compact {
+  justify-content: flex-end;
+  margin: 6px 0;
 }
 .table-list-head {
   display: flex;
@@ -3809,4 +3819,134 @@ legend {
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+/* ===== 列印 ===== */
+.print-page {
+  background: var(--bg);
+  min-height: 100dvh;
+  padding: 16px;
+}
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 900px;
+  margin: 0 auto 12px;
+}
+.print-toolbar strong {
+  flex: 1;
+}
+.print-sheet {
+  background: #fff;
+  color: #2c2b29;
+  max-width: 900px;
+  margin: 0 auto 16px;
+  padding: 24px 28px;
+  border-radius: 12px;
+  border: 1px solid #e8e5de;
+}
+.print-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 2px solid #2c2b29;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.print-head img {
+  border-radius: 10px;
+}
+.print-head div {
+  flex: 1;
+}
+.print-head h1 {
+  font-size: 18px;
+}
+.print-head p {
+  font-size: 12px;
+  color: #77736c;
+}
+.print-sub {
+  font-size: 20px;
+  white-space: nowrap;
+}
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.print-table th,
+.print-table td {
+  border-bottom: 1px solid #d9d6cf;
+  padding: 7px 8px;
+  text-align: left;
+}
+.print-table th {
+  font-size: 12px;
+  color: #77736c;
+  background: #f3f1ec;
+}
+.print-table .no {
+  width: 48px;
+  text-align: center;
+  font-weight: 700;
+}
+.print-table .b {
+  font-weight: 700;
+}
+.print-table .check {
+  width: 48px;
+  text-align: center;
+  font-size: 18px;
+}
+.print-table tr.vacant-row td {
+  color: #a29d94;
+}
+.print-table .tag {
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid #a29d94;
+  color: #77736c;
+  font-weight: 600;
+}
+.print-foot {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #a29d94;
+  text-align: right;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  .print-page {
+    padding: 0;
+    background: #fff;
+  }
+  .print-sheet {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    max-width: none;
+    margin: 0 0 18px;
+  }
+  .print-sheet.page {
+    break-after: page;
+  }
+  .print-sheet.page:last-child {
+    break-after: auto;
+  }
+  .print-sheet.cont {
+    break-inside: avoid;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .print-table tr {
+    break-inside: avoid;
+  }
 }
