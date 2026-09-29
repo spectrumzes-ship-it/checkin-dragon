@@ -3516,9 +3516,16 @@ legend {
   gap: 8px;
 }
 
-/* 電話號碼：綠色，按下即撥打 */
+/* 電話號碼：淺綠色，按下即撥打（加大可按範圍，方便快速撥打） */
 .detail-value a.phone-link {
-  color: var(--ok-ink);
-  font-weight: 600;
+  display: inline-block;
+  color: var(--phone);
+  font-weight: 700;
   text-decoration: none;
+  padding: 6px 10px;
+  margin: -6px -10px;
+  border-radius: var(--r-xs);
+}
+.detail-value a.phone-link:active {
+  background: var(--ok-bg);
 }

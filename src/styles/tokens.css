@@ -32,6 +32,7 @@
   --info-bg: #dceaf5;
   --info-ink: #315b75;
   --vip: #b8892b;
+  --phone: #2fb36a;
 
   /* 目前模式（進入活動後由 data-mode 覆寫） */
   --mode-bg: var(--surface-2);
@@ -99,6 +100,7 @@
     --info-bg: #22323f;
     --info-ink: #b9d6ec;
     --vip: #e2b85c;
+    --phone: #7ddba4;
     --camera: #0f0f0e;
     --shadow: none;
     color-scheme: dark;
@@ -131,6 +133,7 @@
   --info-bg: #22323f;
   --info-ink: #b9d6ec;
   --vip: #e2b85c;
+  --phone: #7ddba4;
   --camera: #0f0f0e;
   --shadow: none;
   color-scheme: dark;
