@@ -139,35 +139,27 @@ const extract = (text: string) => {
   return { ids: [...ids], cjk: [...cjk.entries()], en: [...en], words }
 }
 
-// loose = 放寬門檻，用於列出「其他近似嘉賓」讓工作人員選擇
-export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5, loose = false): FuzzyMatch[] => {
-  const minId = loose ? 0.5 : 0.72
-  const minZh = loose ? 0.4 : 0.6
-  const minEn = loose ? 0.45 : 0.6
+// 按類型嚴格比對：編號只接受完全相同；中文名完全相同（或同姓只差一字作後備）；英文名高度相似
+export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyMatch[] => {
   const { ids, cjk, en, words } = extract(text)
   if (!ids.length && !cjk.length && !en.some((w) => w.length >= 3)) return []
   const out: FuzzyMatch[] = []
   for (const e of index) {
-    // 編號：完全相同（包括常見認錯字）= 100%；長編號差一兩個字元給較低分
+    // 編號：只接受完全相同（只容許 O↔0、I↔1 等常見認錯字）；相似但不同的編號不計
     let idScore = 0
     const gids = e.ids.map((x) => x.replace(/[^\p{L}\p{N}]/gu, ''))
-    for (const q of ids)
-      for (const g of gids) {
-        if (!g) continue
-        const sc = q === g || ocrFold(q) === ocrFold(g) ? 1 : g.length >= 5 ? Math.max(similarity(q, g), similarity(ocrFold(q), ocrFold(g))) * 0.9 : 0
-        if (sc > idScore) idScore = sc
-      }
-    if (idScore < minId) idScore = 0
+    for (const q of ids) for (const g of gids) if (g && (q === g || ocrFold(q) === ocrFold(g))) idScore = 1
 
     // 中文姓名
     let zh = 0
     const gname = normalize(e.p.name)
     // 整段完全相同 = 100%；只是較長名字的一部分（例如「馮敏儀」中的「馮敏」）最多 85%
     if (gname) for (const [q, whole] of cjk) {
-      const sc = q === gname ? (whole ? 1 : 0.85) : whole && q.length >= 2 && Math.abs(q.length - gname.length) <= 1 ? similarity(q, gname) * 0.9 : 0
+      // 只差一個字：必須同一姓氏、字數相同，才作為後備（例如 何小明／何小朋）
+      const oneOff = whole && q.length === gname.length && q.length >= 3 && q[0] === gname[0] && lev(q, gname) === 1
+      const sc = q === gname ? (whole ? 1 : 0.85) : oneOff ? 0.7 : 0
       if (sc > zh) zh = sc
     }
-    if (zh < minZh) zh = 0
 
     // 英文姓名（例如 CHAN TAl MAN 認錯字仍可吻合）；只打姓氏（例如 CHAN）列出多位
     let enS = 0
@@ -175,13 +167,12 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5, loose =
     if (gen) {
       for (const q of en) {
         if (q.length < 3) continue
-        const sc = similarity(q, gen) * (q.length >= gen.length - 2 ? 1 : 0.9)
-        if (sc > enS) enS = sc
+        const sim = similarity(q, gen)
+        if (sim >= 0.85 && sim > enS) enS = sim // 高度相似（容許一兩個字母認錯）才計
       }
       const surname = e.p.englishName.normalize('NFKC').toUpperCase().trim().split(/\s+/)[0]
       if (words.length === 1 && words[0].length >= 2 && surname === words[0]) enS = Math.max(enS, 0.62)
     }
-    if (enS < minEn) enS = 0
 
     const nameScore = Math.max(zh, enS)
     if (!nameScore && !idScore) continue

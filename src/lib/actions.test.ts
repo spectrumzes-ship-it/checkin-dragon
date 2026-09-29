@@ -260,3 +260,23 @@ describe('文字辨識：姓名與編號', () => {
     expect(m.find((x) => x.entry.p.name === '馮敏')!.score).toBeLessThan(1)
   })
 })
+
+describe('文字辨識：按類型嚴格比對', () => {
+  it('編號只接受完全相同；姓名差一字須同姓；不會列出離譜的建議', async () => {
+    const e = await saveEvent(ev('S'))
+    await guest(e.id, 'HO SIU MING', 'S1', { name: '何小明', memberId: '1075', invitationId: 'INV-D0075' })
+    await guest(e.id, 'WONG SIU MING', 'S2', { name: '黃小明', memberId: '1076', invitationId: 'INV-D0076' })
+    await guest(e.id, 'LEE TAI', 'S3', { name: '李泰', memberId: '2001' })
+    const [ps, ts] = await Promise.all([db.participants.where('eventId').equals(e.id).toArray(), db.tickets.toArray()])
+    const idx = buildIndex(ps, ts, [], [])
+    const names = (t: string) => fuzzyMatch(idx, t).map((m) => m.entry.p.name)
+
+    expect(names('會員編號 1075')).toEqual(['何小明']) // 1076 不會出現
+    expect(names('1077')).toEqual([]) // 相似但不同的編號：找不到
+    expect(names('何小明')[0]).toBe('何小明')
+    expect(names('何小明')).not.toContain('黃小明') // 不同姓
+    expect(names('何小朋')).toEqual(['何小明']) // 同姓只差一字：作後備
+    expect(names('WONG SIU MlNG')[0]).toBe('黃小明') // 英文名一個字母認錯
+    expect(names('HO TAI MAN')).toEqual([]) // 英文名只有部分相同：不計
+  })
+})

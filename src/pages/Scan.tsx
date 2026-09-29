@@ -35,8 +35,7 @@ export default function Scan() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [q, setQ] = useState('')
   const dq = useDebounced(q, 120)
-  // matches = 較嚴格的吻合（用於「最可能是」）；near = 放寬門檻的近似嘉賓（讓工作人員選擇）
-  const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[]; near: FuzzyMatch[] } | null>(null)
+  const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[] } | null>(null)
   const busy = useRef(false)
   const vv = useVisibleViewport()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -147,14 +146,13 @@ export default function Scan() {
       if (!ctx) return null
       // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
       const reads = await recognizeText(ctx)
-      let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[], near: [] as FuzzyMatch[] }
+      let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
       for (const r of reads) {
         // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
         const matches = fuzzyMatch(index, r.text)
-        if ((matches[0]?.score ?? 0) > (best.matches[0]?.score ?? 0) || !best.text) best = { ...r, matches, near: [] }
+        if ((matches[0]?.score ?? 0) > (best.matches[0]?.score ?? 0) || !best.text) best = { ...r, matches }
         if ((matches[0]?.score ?? 0) >= 0.95) break
       }
-      best.near = fuzzyMatch(index, best.text, 8, true)
       return best
     } finally {
       ocrRunning.current = false
@@ -166,9 +164,9 @@ export default function Scan() {
     setOcrBusy(true)
     try {
       const r = await readText()
-      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches, near: r.near })
+      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches })
     } catch {
-      setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [], near: [] })
+      setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [] })
     } finally {
       setOcrBusy(false)
     }
@@ -194,7 +192,7 @@ export default function Scan() {
             if (same) last.misses = 0
             else {
               lastOcrPid.current = { pid: '', text: '', misses: 0 }
-              setOcr({ text: r.text, matches: r.matches, near: r.near })
+              setOcr({ text: r.text, matches: r.matches })
               return
             }
           } else if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
@@ -233,7 +231,7 @@ export default function Scan() {
     setOcr((o) => (o ? { ...o, text } : o))
     clearTimeout(editTimer.current)
     editTimer.current = window.setTimeout(() => {
-      setOcr((o) => (o && o.text === text ? { text, matches: fuzzyMatch(index, text), near: fuzzyMatch(index, text, 8, true) } : o))
+      setOcr((o) => (o && o.text === text ? { text, matches: fuzzyMatch(index, text) } : o))
     }, 250)
   }
 
@@ -382,7 +380,7 @@ export default function Scan() {
                 </button>
                 <p className="hint center">印刷的姓名、會員編號、邀請編號最準確；手寫字未能辨識</p>
               </>
-            ) : ocr.matches.length === 0 && ocr.near.length === 0 ? (
+            ) : ocr.matches.length === 0 ? (
               <div className="ocr-none">
                 <OcrEdit value={ocr.text} onChange={editOcr} />
                 <p className="ocr-none-title">找不到相符嘉賓 No matching guest found</p>
@@ -399,12 +397,9 @@ export default function Scan() {
               (() => {
                 const mismatch = nameMismatch(ocr.matches, ocr.text)
                 const conflict = nameIdConflict(ocr.matches)
-                // 單一名單：嚴格吻合在前，再補上近似嘉賓，按吻合度排列，最多 5 位
-                const seen = new Set<string>()
-                const list = [...ocr.matches, ...ocr.near]
-                  .filter((m) => (seen.has(m.entry.p.id) ? false : (seen.add(m.entry.p.id), true)))
-                  .sort((a, b) => b.score - a.score)
-                  .slice(0, 5)
+                // 有完全吻合（姓名或編號）就只列出完全吻合的人；否則才列出後備（同姓差一字、只有姓氏等）
+                const exact = ocr.matches.filter((m) => m.score >= 0.95)
+                const list = (exact.length ? exact : ocr.matches).slice(0, 5)
                 const pick = (m: FuzzyMatch) => {
                   lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
                   run(ocr.text, 'OCR', m.entry.p.id)
@@ -434,7 +429,7 @@ export default function Scan() {
                     <div className="demo-btns">
                       <button
                         onClick={() => {
-                          lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? ocr.near[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
+                          lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
                           setOcr(null)
                         }}
                       >
