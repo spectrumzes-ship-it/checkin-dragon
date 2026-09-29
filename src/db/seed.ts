@@ -51,7 +51,7 @@ const GIVEN: [string, string][] = [
   ['HIU TUNG', '曉彤'], ['SHING', '成'], ['YUK LING', '玉玲'], ['WAI KIT', '偉傑'], ['CHING YI', '靜儀'],
 ]
 const COMPANIES = ['ABC Holdings', '明日科技', 'Sunrise Trading', '海港物流', 'Kowloon Bank', '青山設計', 'Pacific Media', '']
-const TAGS = ['輪椅', '素食', '需協助', '重要嘉賓', '傳譯']
+const TAGS = ['輪椅', '素食', '需協助', '傳譯']
 
 // 同一個活動內不重複姓名（示範資料用；真實名單可以有同名，App 會以編號分辨）
 const usedNames = new Set<string>()
@@ -172,7 +172,7 @@ export const seedDemo = async () => {
     const clash = dinner.people.find((p, i) => i > 0 && p.name === '陳大文')
     if (clash) Object.assign(clash, { name: '陳大明', englishName: 'CHAN TAI MING' })
     Object.assign(star, { name: '陳大文', englishName: 'CHAN TAI MAN', memberId: '0265', vip: true, guestCount: 1, status: 'active',
-      attendance: 'not_arrived', arrivedCount: 0, checkedInAt: null, checkInMethod: null, manual: false, tags: ['重要嘉賓'] })
+      attendance: 'not_arrived', arrivedCount: 0, checkedInAt: null, checkInMethod: null, manual: false, tags: [] })
     Object.assign(dinner.tickets[0], { invitationId: 'VIP-A0265', status: 'valid', usedAt: null })
     dinner.checkins = dinner.checkins.filter((c) => c.participantId !== star.id)
     for (let t = 1; t <= 20; t++)
@@ -265,7 +265,7 @@ export const seedDemo = async () => {
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 5
+export const DEMO_VERSION = 6
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {

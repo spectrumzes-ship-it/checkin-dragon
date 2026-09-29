@@ -783,3 +783,10 @@ export const generateTickets = async (eventId: string, opts: { prefix: string; s
   })
   return { created: people.length, skipped, first: tickets[0]?.ticketNumber, last: tickets[tickets.length - 1]?.ticketNumber }
 }
+
+export const setRemarks = async (p: Participant, remarks: string) => {
+  const r = remarks.trim()
+  if (r === (p.remarks || '').trim()) return
+  await db.participants.update(p.id, { remarks: r, updatedAt: Date.now() })
+  await audit(p.eventId, r ? '修改備註' : '刪除備註', 'participant', p.id, names(p).full, r.slice(0, 60))
+}

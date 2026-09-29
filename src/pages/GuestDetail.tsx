@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec } from '../db/types'
-import { setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import type { EventRec, Participant } from '../db/types'
+import { setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
@@ -138,7 +138,6 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
       <div className="detail-section">
         <Row icon={<Clock size={18} />} zh="簽到時間" value={p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
         <Row icon={<Armchair size={18} />} zh="飲食" value={p.dietary} />
-        <Row icon={<NotebookPen size={18} />} zh="備註" value={p.remarks} />
       </div>
 
       {souvenirs.length > 0 && (
@@ -223,6 +222,8 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         </div>
       )}
 
+      <RemarksBox p={p} />
+
       <ConfirmSheet
         open={confirm === 'undo'}
         onClose={() => setConfirm(null)}
@@ -259,6 +260,42 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         danger
         requireText="刪除"
       />
+    </div>
+  )
+}
+
+// 備註：直接在詳情頁輸入或修改（離開輸入框或按「儲存」即保存，並記錄在操作紀錄）
+function RemarksBox({ p }: { p: Participant }) {
+  const [text, setText] = useState(p.remarks || '')
+  useEffect(() => setText(p.remarks || ''), [p.id, p.remarks])
+  const changed = text.trim() !== (p.remarks || '').trim()
+  const save = async () => {
+    if (!changed) return
+    await setRemarks(p, text)
+    toast('已儲存備註')
+  }
+  return (
+    <div className="detail-section remarks-box">
+      <h3 className="detail-h">
+        <NotebookPen size={16} /> 備註 Notes
+      </h3>
+      <textarea
+        rows={3}
+        value={text}
+        placeholder="新增備註，例如：遲到、代領、要求靠近舞台…"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={save}
+      />
+      {changed && (
+        <div className="remarks-actions">
+          <button className="btn btn-ghost btn-sm" onPointerDown={(e) => e.preventDefault()} onClick={() => setText(p.remarks || '')}>
+            還原
+          </button>
+          <button className="btn btn-primary btn-sm" onPointerDown={(e) => e.preventDefault()} onClick={save}>
+            儲存
+          </button>
+        </div>
+      )}
     </div>
   )
 }

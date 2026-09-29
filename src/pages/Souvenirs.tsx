@@ -9,7 +9,7 @@ import { uid } from '../lib/util'
 import { GiftArt } from '../illustrations'
 import { EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
 
-const TAGS = ['輪椅', '素食', '需協助', '重要嘉賓', '傳譯']
+const TAGS = ['輪椅', '素食', '需協助', '傳譯']
 
 export default function Souvenirs() {
   const ev = useOutletContext<EventRec>()
