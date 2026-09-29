@@ -139,9 +139,16 @@ export default function Scan() {
       const f = frameRef.current
       const ctx = f ? grabFromFrame(v, f, canvasRef.current, 1280, 0.1) : grabFrame(v, 0.92, 1.8, canvasRef.current, 1280)
       if (!ctx) return null
-      const { text, confidence } = await recognizeText(ctx)
-      // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
-      return { text, confidence, matches: fuzzyMatch(index, text) }
+      // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
+      const reads = await recognizeText(ctx)
+      let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
+      for (const r of reads) {
+        // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
+        const matches = fuzzyMatch(index, r.text)
+        if ((matches[0]?.score ?? 0) > (best.matches[0]?.score ?? 0)) best = { ...r, matches }
+        if ((matches[0]?.score ?? 0) >= 0.95) break
+      }
+      return best
     } finally {
       ocrRunning.current = false
     }
@@ -403,6 +410,9 @@ export default function Scan() {
                   辨識到「<strong>{ocr.text}</strong>」
                 </p>
                 <p className="ocr-none-title">找不到相符嘉賓 No matching guest found</p>
+                <p className="hint">
+                  目前活動：{ev.name} · 共 {index.length} 位嘉賓。如嘉賓屬於另一個活動，請按左上角 × 返回後切換活動。
+                </p>
                 <div className="demo-btns">
                   <button onClick={() => (setOcr(null), setMode('manual'), setQ(ocr.text))}>手動搜尋</button>
                   <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>

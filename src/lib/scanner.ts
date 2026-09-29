@@ -176,7 +176,8 @@ export const getOcr = () =>
     setOcr('loading')
     try {
       const { createWorker, PSM } = await import('tesseract.js')
-      const worker = await createWorker(['eng', 'chi_tra'], 1, {
+      // 中文為主要語言：中文姓名辨識明顯較準，英文及編號不受影響
+      const worker = await createWorker(['chi_tra', 'eng'], 1, {
         workerPath: `${vendor}tesseract/worker.min.js`,
         corePath: `${vendor}tesseract/`,
         langPath: `${vendor}tessdata/`,
@@ -275,22 +276,20 @@ const clean = (text: string) =>
     .map((l) => l.trim())
     .filter((l) => l.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
 
-export const recognizeText = async (ctx: CanvasRenderingContext2D) => {
+// 回傳一至兩個辨識版本：原圖，以及（原圖不清楚時）整理成黑白後的版本
+export const recognizeText = async (ctx: CanvasRenderingContext2D, alwaysBoth = false) => {
   const worker = await getOcr()
-  // 先試原圖；認不到再試整理成黑白的版本
+  const out: { text: string; lines: string[]; confidence: number }[] = []
   const first = await worker.recognize(ctx.canvas)
-  let lines = clean(first.data.text)
-  let confidence = first.data.confidence
-  if (!lines.length || confidence < 55) {
+  const l1 = clean(first.data.text)
+  out.push({ text: l1.join(' '), lines: l1, confidence: first.data.confidence })
+  if (alwaysBoth || !l1.length || first.data.confidence < 80) {
     binarize(ctx)
     const second = await worker.recognize(ctx.canvas)
     const l2 = clean(second.data.text)
-    if (l2.length && second.data.confidence >= confidence) {
-      lines = l2
-      confidence = second.data.confidence
-    }
+    if (l2.length) out.push({ text: l2.join(' '), lines: l2, confidence: second.data.confidence })
   }
-  return { text: lines.join(' '), lines, confidence }
+  return out.filter((r) => r.text).sort((a, b) => b.confidence - a.confidence)
 }
 
 // 活動前預先載入文字辨識（「準備離線使用」）

@@ -181,6 +181,7 @@ export default function Settings() {
           <h3>Check-In Dragon 點名龍</h3>
           <p className="muted">活動・宴會・巴士出席管理</p>
           <p className="muted">版本 0.3.0 · 核心功能（第 3 階段）</p>
+          <p className="muted">更新時間 {__BUILD_TIME__}</p>
         </div>
       </div>
 
