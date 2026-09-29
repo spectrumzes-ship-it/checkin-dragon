@@ -42,6 +42,7 @@ export default function Settings() {
   const nav = useNavigate()
   const [confirm, setConfirm] = useState<null | 'reset' | 'clear'>(null)
   const [guide, setGuide] = useState(false)
+  const [camGuide, setCamGuide] = useState(false)
   const ocr = useOcrState()
   const installed = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
   const set = (p: Partial<S>) => setSettings(p)
@@ -156,6 +157,11 @@ export default function Settings() {
         <Item zh="加到主畫面" en="Install App" hint={installed ? '已安裝，現正以 App 形式使用' : undefined}>
           {installed ? <span className="badge tone-ok">已安裝</span> : <button className="btn btn-ghost btn-sm" onClick={() => setGuide(true)}>教我安裝</button>}
         </Item>
+        <Item zh="相機權限" en="Camera Permission" hint="iPhone／iPad 每次都要按「允許」？可改為永久允許">
+          <button className="btn btn-ghost btn-sm" onClick={() => setCamGuide(true)}>
+            設定方法
+          </button>
+        </Item>
         <Item zh="文字辨識資料" en="Text Recognition Data" hint="約 5 MB，下載後離線亦可使用文字辨識">
           {ocr.state === 'ready' ? (
             <span className="badge tone-ok">已準備</span>
@@ -185,6 +191,29 @@ export default function Settings() {
         </div>
       </div>
 
+      <Sheet open={camGuide} onClose={() => setCamGuide(false)} title="相機權限 Camera">
+        <div className="guide">
+          <p className="hint">iPhone／iPad 的 Safari 預設每次重新開啟網頁都會詢問相機權限。改為「允許」後就不會再問。</p>
+          <h4>方法一：只針對本 App（建議）</h4>
+          <ol>
+            <li>用 Safari 打開本 App 的網址</li>
+            <li>按網址列左邊的「大小」／「ᴀA」圖示</li>
+            <li>按「網站設定」</li>
+            <li>把「相機」改為「允許」</li>
+          </ol>
+          <h4>方法二：所有網站</h4>
+          <ol>
+            <li>打開 iPhone「設定」App</li>
+            <li>App → Safari（舊版 iOS：直接按 Safari）</li>
+            <li>網站設定 → 相機 → 允許</li>
+          </ol>
+          <h4>Android（Chrome）</h4>
+          <ol>
+            <li>第一次按「允許」後會自動記住</li>
+            <li>如曾按「封鎖」：網址列左邊圖示 → 權限 → 相機 → 允許</li>
+          </ol>
+        </div>
+      </Sheet>
       <Sheet open={guide} onClose={() => setGuide(false)} title="加到主畫面 Install">
         <div className="guide">
           <h4>iPhone／iPad（Safari）</h4>

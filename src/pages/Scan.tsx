@@ -55,6 +55,21 @@ export default function Scan() {
   const [ocrBusy, setOcrBusy] = useState(false)
   const [showDemo, setShowDemo] = useState(false)
   const [noCodeHint, setNoCodeHint] = useState(false)
+  // iPhone／iPad：相機權限仍是「每次詢問」時，提示可改為永久允許
+  const [permTip, setPermTip] = useState(false)
+  useEffect(() => {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    if (!ios) return
+    try {
+      if (localStorage.getItem('ckd-hide-perm-tip')) return
+    } catch {
+      /* ignore */
+    }
+    navigator.permissions
+      ?.query({ name: 'camera' as PermissionName })
+      .then((st) => setPermTip(st.state !== 'granted'))
+      .catch(() => setPermTip(true))
+  }, [])
   const outcomeRef = useRef<ScanOutcome | null>(null)
   outcomeRef.current = outcome
   // 防止同一張票仍放在鏡頭前時被重複讀取：處理過的票要離開鏡頭（連續約半秒看不到）才會再接受
@@ -350,6 +365,23 @@ export default function Scan() {
       </div>
 
       <div className="scan-panel">
+        {permTip && cam.status === 'ready' && (
+          <div className="perm-tip">
+            <span>每次都要按「允許」相機？可在 Safari「大小 ᴀA → 網站設定 → 相機 → 允許」改為永久允許。</span>
+            <button
+              onClick={() => {
+                setPermTip(false)
+                try {
+                  localStorage.setItem('ckd-hide-perm-tip', '1')
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              知道了
+            </button>
+          </div>
+        )}
         {mode === 'qr' && (
           <div className="demo">
             {!armed && !outcome && (

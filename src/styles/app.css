@@ -3437,3 +3437,19 @@ legend {
   border-radius: var(--r-xs);
   margin-bottom: 6px;
 }
+
+.perm-tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-caption);
+  background: var(--info-bg);
+  color: var(--info-ink);
+  padding: 8px 12px;
+  border-radius: var(--r-xs);
+}
+.perm-tip button {
+  flex-shrink: 0;
+  font-weight: 700;
+  text-decoration: underline;
+}
