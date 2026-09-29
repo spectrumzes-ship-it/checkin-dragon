@@ -313,11 +313,3 @@ describe('示範資料', () => {
   })
 })
 
-describe('撥號連結', () => {
-  it('香港 8 位號碼加 +852；國際號碼不變', async () => {
-    const { telHref } = await import('./util')
-    expect(telHref('9313 8878')).toBe('tel:+85293138878')
-    expect(telHref('+81 90-1234-5678')).toBe('tel:+819012345678')
-    expect(telHref('')).toBe('')
-  })
-})

@@ -7,7 +7,7 @@ import type { EventRec, Participant } from '../db/types'
 import { setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
-import { formatDateTime, formatTime, telHref } from '../lib/util'
+import { formatDateTime, formatTime } from '../lib/util'
 import { TableIcon } from '../components/icons'
 import { StatusIcon } from '../components/StatusIcon'
 import { ConfirmSheet, SoftTag, StatusBadge, toast } from '../components/ui'
@@ -115,12 +115,9 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
           zh="電話"
           value={
             p.phone && (
-              <span className="phone-line">
-                <a href={telHref(p.phone)}>{p.phone}</a>
-                <a className="btn btn-sm btn-call" href={telHref(p.phone)} aria-label={`撥打 ${p.phone}`}>
-                  <Phone size={14} /> 撥打
-                </a>
-              </span>
+              <a className="phone-link" href={`tel:${p.phone.replace(/\s+/g, '')}`}>
+                {p.phone}
+              </a>
             )
           }
         />

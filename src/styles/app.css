@@ -3516,14 +3516,9 @@ legend {
   gap: 8px;
 }
 
-.phone-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.btn-call {
-  background: var(--ok-bg);
+/* 電話號碼：綠色，按下即撥打 */
+.detail-value a.phone-link {
   color: var(--ok-ink);
-  text-decoration: none !important;
+  font-weight: 600;
+  text-decoration: none;
 }
