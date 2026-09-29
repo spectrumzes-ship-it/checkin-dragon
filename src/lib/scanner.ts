@@ -198,7 +198,8 @@ export const getQrDetector = () =>
 
 // ================= 文字辨識 OCR =================
 
-const vendor = `${import.meta.env.BASE_URL}vendor/`
+// 文字辨識檔案用完整網址（辨識程式在背景執行，相對路徑會以它自己的位置計算而出錯）
+const vendor = new URL(`${import.meta.env.BASE_URL}vendor/`, location.href).href
 let ocrPromise: Promise<OcrWorker> | null = null
 export type OcrState = 'idle' | 'loading' | 'ready' | 'error'
 let ocrState: OcrState = 'idle'

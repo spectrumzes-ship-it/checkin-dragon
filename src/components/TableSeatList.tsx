@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/core'
 import { GripVertical, Undo2, Users } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
-import { moveSeat, undoMoveSeat } from '../lib/actions'
+import { moveSeat, splitCompanion, undoMoveSeat } from '../lib/actions'
 import { nameOf, names } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
@@ -187,7 +187,15 @@ function SeatRow({ slot, over, onTap, seatLine }: { slot: Slot; over: boolean; o
               </span>
             </div>
           </div>
-          <span className="seatlist-grip-space" />
+          <button
+            className="seatlist-split"
+            onClick={async () => {
+              const c = await splitCompanion(slot.companionOf!.p)
+              if (c) toast(`已分拆「${nameOf(c)}」，可獨立安排座位`)
+            }}
+          >
+            分拆
+          </button>
         </>
       ) : (
         <span className="seatlist-empty">空位</span>

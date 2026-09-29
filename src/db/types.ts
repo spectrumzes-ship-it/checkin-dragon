@@ -55,6 +55,7 @@ export interface Participant {
   checkInMethod: ScanMethod | null
   manual: boolean
   ticketLabel?: string // 不記名門票的票號（沒有姓名時用作顯示名稱）
+  companionOf?: string // 由請柬分拆出來的同行者：所屬請柬（原嘉賓）的編號
   createdAt: number
   updatedAt: number
 }

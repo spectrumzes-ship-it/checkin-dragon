@@ -4,6 +4,8 @@ import { db, allTables } from '../db/db'
 import {
   emptyGuest,
   generateTickets,
+  mergeCompanion,
+  splitCompanion,
   moveSeat,
   saveEvent,
   undoMoveSeat,
@@ -330,5 +332,33 @@ describe('文字掃描框', () => {
     expect(moved.x0).toBe(130)
     const far = { x0: 700, y0: 900, x1: 900, y1: 1000 }
     expect(smoothBox(a, far)).toBe(far)
+  })
+})
+
+describe('分拆同行者', () => {
+  it('分拆後留在原座位、原請柬人數減少；原請柬嘉賓簽到時同行者一同簽到；可合併回原請柬', async () => {
+    const e = await saveEvent(ev('SP'))
+    const [t1] = await db.resources.where('eventId').equals(e.id).sortBy('sortOrder')
+    const host = await guest(e.id, 'CHAN PUI YEE', 'H1', { name: '陳佩儀', guestCount: 2, tableId: t1.id, tableSeat: '3' })
+    const c = (await splitCompanion(host))!
+    expect(c.name).toBe('陳佩儀（同行）')
+    expect(c.companionOf).toBe(host.id)
+    expect((await db.participants.get(host.id))!.guestCount).toBe(1)
+    const cSeat = await db.seats.where('participantId').equals(c.id).first()
+    expect(cSeat).toMatchObject({ resourceId: t1.id, seatLabel: '4' })
+    const cTicket = (await db.tickets.where('participantId').equals(c.id).first())!
+    expect(cTicket.qrCode).toHaveLength(8)
+
+    // 掃描原請柬：同行者一同簽到
+    const r = await verifyCheckIn(e.id, 'H1', 'QR')
+    expect(r.result).toBe('valid')
+    expect((await db.participants.get(c.id))!.attendance).toBe('arrived')
+
+    // 合併回原請柬
+    await mergeCompanion((await db.participants.get(c.id))!)
+    const h = (await db.participants.get(host.id))!
+    expect(h.guestCount).toBe(2)
+    expect(h.arrivedCount).toBe(2)
+    expect(await db.participants.get(c.id)).toBeUndefined()
   })
 })

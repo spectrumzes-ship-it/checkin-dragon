@@ -208,6 +208,7 @@ const Chip = ({ e, selected, children }: { e: GuestEntry; selected: boolean; chi
       <span className="guest-chip-name">{shortName(e)}</span>
       {e.sameName && <span className="guest-chip-plus">#{e.p.memberId || e.tickets[0]?.invitationId}</span>}
       {e.p.guestCount > 1 && <span className="guest-chip-plus">+{e.p.guestCount - 1}</span>}
+      {e.p.companionOf && <em className="chip-companion">同行</em>}
       {children}
     </span>
   )

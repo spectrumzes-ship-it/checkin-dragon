@@ -2,12 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// GitHub Pages 網址：https://spectrumzes-ship-it.github.io/checkin-dragon/
+// 網址：https://ticket.sparky.hk/（GitHub Pages 自訂網域）
+// 使用相對路徑（./），放在網域根目錄或任何子路徑都可以運作，日後搬到其他寄存空間亦不用修改
 // 版本更新時間（香港時間），顯示在「設定 → 關於」，方便確認裝置已更新
 const built = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')
 
 export default defineConfig({
-  base: '/checkin-dragon/',
+  base: './',
   define: { __BUILD_TIME__: JSON.stringify(built) },
   plugins: [
     react(),
@@ -20,8 +21,9 @@ export default defineConfig({
         short_name: '點名龍',
         description: '活動・宴會・巴士出席管理',
         lang: 'zh-Hant',
-        start_url: '/checkin-dragon/',
-        scope: '/checkin-dragon/',
+        start_url: './',
+        scope: './',
+        id: './',
         display: 'standalone',
         orientation: 'any',
         background_color: '#FAF9F6',

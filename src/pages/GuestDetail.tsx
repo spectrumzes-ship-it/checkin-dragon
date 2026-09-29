@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X } from 'lucide-react'
+import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X, UsersRound, UserPlus, Merge } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant } from '../db/types'
-import { setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import { mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
@@ -16,9 +16,10 @@ import { nameOf, names } from '../lib/names'
 const METHOD = { QR: 'QR 掃描', OCR: '文字辨識', MANUAL: '手動', SEARCH: '搜尋' }
 
 export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec; gid: string; entry?: GuestEntry; onClose: () => void }) {
-  const [confirm, setConfirm] = useState<null | 'undo' | 'cancel' | 'delete'>(null)
+  const [confirm, setConfirm] = useState<null | 'undo' | 'cancel' | 'delete' | 'merge'>(null)
   const logs = useLiveQuery(() => db.auditLogs.where('eventId').equals(ev.id).filter((l) => l.objectId === gid).reverse().sortBy('time'), [ev.id, gid]) ?? []
   const souvenirs = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
+  const host = useLiveQuery(async () => (entry?.p.companionOf ? await db.participants.get(entry.p.companionOf) : undefined), [entry?.p.companionOf])
   const reds = useLiveQuery(() => db.redemptions.where('participantId').equals(gid).filter((r) => !r.voided).toArray(), [gid]) ?? []
 
   if (!entry) return <p className="muted pad">找不到此嘉賓</p>
@@ -192,10 +193,40 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         </div>
       )}
 
+      {host && (
+        <div className="detail-section">
+          <div className="detail-row">
+            <span className="detail-icon">
+              <UsersRound size={18} />
+            </span>
+            <span className="detail-label">所屬請柬</span>
+            <span className="detail-value">
+              <Link to={`/e/${ev.id}/guests/${host.id}`}>{names(host).full}</Link>
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="detail-actions">
         <Link to={`/e/${ev.id}/guests/${p.id}/edit`} className="btn btn-ghost">
           <Pencil size={18} /> 修改
         </Link>
+        {p.status === 'active' && p.guestCount > 1 && (
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              const c = await splitCompanion(p)
+              if (c) toast(`已分拆「${nameOf(c)}」，可獨立安排座位`)
+            }}
+          >
+            <UserPlus size={18} /> 分拆一位同行者
+          </button>
+        )}
+        {p.companionOf && (
+          <button className="btn btn-ghost" onClick={() => setConfirm('merge')}>
+            <Merge size={18} /> 合併回原請柬
+          </button>
+        )}
         {p.status === 'active' ? (
           <button className="btn btn-ghost" onClick={() => setConfirm('cancel')}>
             取消嘉賓
@@ -233,6 +264,21 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
       )}
 
       <RemarksBox p={p} />
+
+      <ConfirmSheet
+        open={confirm === 'merge'}
+        onClose={() => setConfirm(null)}
+        onConfirm={async () => {
+          const h = await mergeCompanion(p)
+          if (h) {
+            toast(`已合併回 ${nameOf(h)} 的請柬`)
+            onClose()
+          }
+        }}
+        title="合併回原請柬"
+        message={<p>把 {nameOf(p)} 合併回 {host ? names(host).primary : ''} 的請柬？此同行者的獨立座位會取消，原請柬人數加一。</p>}
+        confirmText="合併"
+      />
 
       <ConfirmSheet
         open={confirm === 'undo'}

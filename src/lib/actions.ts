@@ -209,6 +209,15 @@ export const checkIn = async (
     if (ticket && ticket.status === 'valid') await db.tickets.update(ticket.id, { status: 'used', usedAt: now })
     const label = kind === 'checkin' ? '簽到 Check-In' : kind === 'reentry' ? '再次簽到 Re-entry' : '手動確認 Manual Override'
     await audit(p.eventId, label, 'participant', p.id, names(p).full, reason)
+    // 已分拆的同行者通常一同到場：請柬嘉賓簽到時一併簽到（之後可各自取消）
+    if (kind === 'checkin') {
+      const comps = await db.participants.where('eventId').equals(p.eventId).filter((c) => c.companionOf === p.id && c.status === 'active' && c.attendance === 'not_arrived').toArray()
+      for (const c of comps) {
+        await db.checkins.add({ ...rec, id: uid(), participantId: c.id, ticketId: null, count: c.guestCount, reason: `與${names(p).primary}一同簽到` })
+        await db.participants.update(c.id, { attendance: 'arrived', arrivedCount: c.guestCount, checkedInAt: now, checkInMethod: method, updatedAt: now })
+        await audit(p.eventId, `簽到 Check-In（與${names(p).primary}一同）`, 'participant', c.id, names(c).full)
+      }
+    }
   })
   return next
 }
@@ -789,4 +798,87 @@ export const setRemarks = async (p: Participant, remarks: string) => {
   if (r === (p.remarks || '').trim()) return
   await db.participants.update(p.id, { remarks: r, updatedAt: Date.now() })
   await audit(p.eventId, r ? '修改備註' : '刪除備註', 'participant', p.id, names(p).full, r.slice(0, 60))
+}
+
+// ---------- 分拆／合併同行者 ----------
+
+// 由一張多人請柬分拆出一位同行者，成為獨立嘉賓（可獨立安排座位）；留在原本同行的座位上
+export const splitCompanion = async (host: Participant) => {
+  if (host.guestCount < 2) return null
+  const now = Date.now()
+  const allArrived = host.arrivedCount >= host.guestCount
+  const hostCount = host.guestCount - 1
+  const c: Participant = {
+    id: uid(),
+    eventId: host.eventId,
+    name: host.name ? `${host.name}（同行）` : '',
+    englishName: host.englishName ? `${host.englishName} (GUEST)` : '',
+    memberId: '',
+    phone: '',
+    company: host.company,
+    vip: host.vip,
+    guestCount: 1,
+    tags: [],
+    dietary: '',
+    remarks: '',
+    status: 'active',
+    attendance: allArrived ? 'arrived' : 'not_arrived',
+    arrivedCount: allArrived ? 1 : 0,
+    checkedInAt: allArrived ? host.checkedInAt : null,
+    checkInMethod: allArrived ? host.checkInMethod : null,
+    manual: false,
+    ticketLabel: !host.name && !host.englishName && host.ticketLabel ? `${host.ticketLabel} 同行` : undefined,
+    companionOf: host.id,
+    createdAt: now,
+    updatedAt: now,
+  }
+  const hostArrived = Math.min(host.arrivedCount, hostCount)
+  await db.transaction('rw', [db.participants, db.tickets, db.seats, db.resources, db.auditLogs], async () => {
+    await db.participants.update(host.id, {
+      guestCount: hostCount,
+      arrivedCount: hostArrived,
+      attendance: hostArrived === 0 ? 'not_arrived' : hostArrived >= hostCount ? 'arrived' : 'partial',
+      updatedAt: now,
+    })
+    await db.participants.add(c)
+    await db.tickets.add({ id: uid(), eventId: host.eventId, participantId: c.id, qrCode: await uniqueCode(host.eventId), invitationId: '', ticketNumber: '', status: 'valid', usedAt: null })
+    // 圍席：同行者留在原請柬座位組的最後一個位置（原本已是同行的座位）
+    const seats = await db.seats.where('participantId').equals(host.id).toArray()
+    for (const s of seats) {
+      const r = await db.resources.get(s.resourceId)
+      if (r?.type !== 'table') continue
+      const start = Number(s.seatLabel)
+      await db.seats.add({ id: uid(), eventId: host.eventId, participantId: c.id, resourceId: s.resourceId, seatLabel: start ? String(start + hostCount) : '' })
+    }
+    await audit(host.eventId, `分拆同行者（剩 ${hostCount} 位）`, 'participant', host.id, names(host).full)
+  })
+  return c
+}
+
+// 把分拆出來的同行者合併回原請柬
+export const mergeCompanion = async (c: Participant) => {
+  if (!c.companionOf) return null
+  const host = await db.participants.get(c.companionOf)
+  if (!host) return null
+  const now = Date.now()
+  const guestCount = host.guestCount + c.guestCount
+  const arrivedCount = host.arrivedCount + c.arrivedCount
+  await db.transaction('rw', [db.participants, db.tickets, db.seats, db.attendance, db.redemptions, db.auditLogs], async () => {
+    await db.participants.update(host.id, {
+      guestCount,
+      arrivedCount,
+      attendance: arrivedCount === 0 ? 'not_arrived' : arrivedCount >= guestCount ? 'arrived' : 'partial',
+      checkedInAt: host.checkedInAt ?? c.checkedInAt,
+      updatedAt: now,
+    })
+    // 紀念品領取紀錄轉回原請柬名下
+    const reds = await db.redemptions.where('participantId').equals(c.id).toArray()
+    for (const r of reds) await db.redemptions.update(r.id, { participantId: host.id })
+    await db.participants.delete(c.id)
+    await db.tickets.where('participantId').equals(c.id).delete()
+    await db.seats.where('participantId').equals(c.id).delete()
+    await db.attendance.where('participantId').equals(c.id).delete()
+    await audit(host.eventId, `合併同行者回原請柬（共 ${guestCount} 位）`, 'participant', host.id, names(host).full)
+  })
+  return host
 }
