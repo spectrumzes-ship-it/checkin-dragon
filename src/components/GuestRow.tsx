@@ -3,6 +3,7 @@ import { Gift } from 'lucide-react'
 import type { GuestEntry } from '../lib/search'
 import { cx, formatTime } from '../lib/util'
 import { SoftTag, VipBadge } from './ui'
+import { StatusIcon } from './StatusIcon'
 import { isAnonymous, names } from '../lib/names'
 
 export const seatText = (e: GuestEntry) =>
@@ -16,27 +17,10 @@ export const seatText = (e: GuestEntry) =>
 
 export const StatusMark = ({ e }: { e: GuestEntry }) => {
   const p = e.p
-  if (p.status === 'cancelled')
-    return (
-      <span className="status-mark tone-bad" aria-label="已取消">
-        ×
-      </span>
-    )
-  if (p.attendance === 'arrived')
-    return (
-      <span className="status-mark tone-ok" aria-label="已到">
-        ✓
-      </span>
-    )
-  if (p.attendance === 'partial')
-    return (
-      <span className="status-mark tone-warn" aria-label="部分到達">
-        ◐
-      </span>
-    )
+  const kind = p.status === 'cancelled' ? 'cancelled' : p.attendance
   return (
-    <span className="status-mark tone-plain" aria-label="未到">
-      ○
+    <span className="status-mark">
+      <StatusIcon kind={kind} size={32} />
     </span>
   )
 }

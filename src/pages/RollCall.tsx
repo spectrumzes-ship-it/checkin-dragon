@@ -9,6 +9,7 @@ import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
 import { cx, pct } from '../lib/util'
+import { StatusIcon } from '../components/StatusIcon'
 import { BusArt } from '../illustrations'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
 import { nameOf, names } from '../lib/names'
@@ -170,8 +171,8 @@ export function RollCallSession() {
     return (
       <div className={cx('rc-row', isHere && 'here', warn && 'warn')}>
         <button className="rc-main" onClick={() => toggle(e)} aria-pressed={isHere}>
-          <span className="rc-mark" aria-hidden>
-            {isHere ? '✓' : warn ? '!' : '○'}
+          <span className="rc-mark">
+            <StatusIcon kind={isHere ? 'arrived' : warn ? 'warn' : 'not_arrived'} size={36} />
           </span>
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
@@ -251,7 +252,9 @@ export function RollCallSession() {
           ))}
         </section>
       )}
-      {missing.length === 0 && total > 0 && <div className="checked-box tone-ok center">✓ 全部到齊 All present</div>}
+      {missing.length === 0 && total > 0 && <div className="checked-box tone-ok center">
+          <StatusIcon kind="arrived" size={20} /> 全部到齊 All present
+        </div>}
 
       <section className="rc-all">
         <h3>全部乘客 All Passengers</h3>

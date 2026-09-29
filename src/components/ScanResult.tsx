@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Gift, Star } from 'lucide-react'
+import { CircleAlert, CircleCheck, CircleX, Gift, Star } from 'lucide-react'
 import type { ScanOutcome } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useSettings } from '../lib/settings'
@@ -8,13 +8,13 @@ import { names } from '../lib/names'
 
 // 全螢幕驗證結果：顏色 + 符號 + 文字三重提示（色盲亦可分辨）
 const LOOK = {
-  valid: { tone: 'ok', sym: '✓', en: 'VALID', zh: '有效' },
-  manual: { tone: 'info', sym: '✋', en: 'MANUAL CHECK', zh: '手動確認' },
-  invalid: { tone: 'bad', sym: '×', en: 'INVALID', zh: '無效' },
-  no_match: { tone: 'bad', sym: '×', en: 'NOT FOUND', zh: '找不到' },
-  not_eligible: { tone: 'bad', sym: '×', en: 'NOT ELIGIBLE', zh: '不符合資格' },
-  duplicate: { tone: 'warn', sym: '!', en: 'ALREADY CHECKED IN', zh: '已入場' },
-  out_of_stock: { tone: 'warn', sym: '!', en: 'OUT OF STOCK', zh: '庫存已用完' },
+  valid: { tone: 'ok', sym: CircleCheck, en: 'VALID', zh: '有效' },
+  manual: { tone: 'info', sym: CircleCheck, en: 'MANUAL CHECK', zh: '手動確認' },
+  invalid: { tone: 'bad', sym: CircleX, en: 'INVALID', zh: '無效' },
+  no_match: { tone: 'bad', sym: CircleX, en: 'NOT FOUND', zh: '找不到' },
+  not_eligible: { tone: 'bad', sym: CircleX, en: 'NOT ELIGIBLE', zh: '不符合資格' },
+  duplicate: { tone: 'warn', sym: CircleAlert, en: 'ALREADY CHECKED IN', zh: '已入場' },
+  out_of_stock: { tone: 'warn', sym: CircleAlert, en: 'OUT OF STOCK', zh: '庫存已用完' },
 } as const
 
 export type ResultPurpose = 'checkin' | 'rollcall' | 'souvenir'
@@ -66,9 +66,7 @@ export const ScanResult = ({
   return (
     <div className={`result tone-${look.tone}`} onClick={tapToClose} role="alert">
       <div className="result-inner">
-        <div className="result-sym" aria-hidden>
-          {look.sym}
-        </div>
+        <look.sym className="result-sym" strokeWidth={1.6} aria-hidden />
         <div className="result-title">
           <span className="result-en">{look.en}</span>
           <span className="result-zh">{look.zh}</span>

@@ -1258,20 +1258,9 @@ code {
   color: var(--text-2);
 }
 .status-mark {
-  width: 32px;
-  height: 32px;
   flex-shrink: 0;
-  border-radius: 50%;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  background: var(--t-bg);
-  color: var(--t-ink);
-}
-.status-mark.tone-plain {
-  background: transparent;
-  border: 1.5px solid var(--border);
-  color: var(--text-3);
 }
 .guest-row-main {
   flex: 1;
@@ -1899,22 +1888,14 @@ legend {
   width: 100%;
 }
 .result-sym {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  border: 6px solid currentColor;
-  display: grid;
-  place-items: center;
-  font-size: 72px;
-  font-weight: 700;
-  line-height: 1;
+  width: 128px;
+  height: 128px;
   animation: pop 180ms ease-out;
 }
 @media (min-width: 768px) {
   .result-sym {
-    width: 170px;
-    height: 170px;
-    font-size: 104px;
+    width: 180px;
+    height: 180px;
   }
 }
 .tone-bad .result-sym {
@@ -2517,25 +2498,9 @@ legend {
   text-align: left;
 }
 .rc-mark {
-  width: 36px;
-  height: 36px;
   flex-shrink: 0;
-  border-radius: 50%;
   display: grid;
   place-items: center;
-  font-weight: 800;
-  font-size: 18px;
-  border: 2px solid var(--border);
-  color: var(--text-3);
-}
-.rc-row.here .rc-mark {
-  background: var(--ok-ink);
-  border-color: var(--ok-ink);
-  color: var(--ok-bg);
-}
-.rc-row.warn .rc-mark {
-  border-color: var(--warn-ink);
-  color: var(--warn-ink);
 }
 .rc-name {
   flex: 1;
@@ -3058,15 +3023,12 @@ legend {
   padding: 0 6px 0 12px;
   min-width: 56px;
 }
-.mark-btn:hover .status-mark.tone-plain {
-  border-color: var(--ok-ink);
+.mark-btn:hover .si-plain {
   color: var(--ok-ink);
-  background: var(--ok-bg);
 }
-.mark-btn .status-mark {
+.mark-btn .si {
   width: 36px;
   height: 36px;
-  transition: background 120ms;
 }
 .guest-row-btn {
   flex: 1;
@@ -3204,4 +3166,46 @@ legend {
 .toggle-row small {
   color: var(--text-2);
   font-size: var(--fs-caption);
+}
+
+/* 狀態圖示顏色：已到 = 綠色實心圓圈 + 淺色剔號 */
+.si-ok {
+  color: var(--ok-ink);
+}
+.si-ok path {
+  stroke: var(--ok-bg);
+}
+.si-ok circle {
+  stroke: var(--ok-ink);
+}
+.si-plain {
+  color: var(--text-3);
+}
+.si-warn {
+  color: var(--warn-ink);
+}
+.si-bad {
+  color: var(--bad-ink);
+}
+.badge .si,
+.checked-box .si,
+.btn .si {
+  vertical-align: -3px;
+}
+.btn-primary .si-ok {
+  color: var(--bg);
+}
+.btn-primary .si-ok path {
+  stroke: var(--text);
+}
+.btn-primary .si-ok circle {
+  stroke: var(--bg);
+}
+.checked-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checked-box.center {
+  justify-content: center;
 }

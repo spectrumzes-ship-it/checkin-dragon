@@ -6,6 +6,7 @@ import type { Stats } from '../lib/hooks'
 import { useOnline } from '../lib/hooks'
 import { cx, dateParts } from '../lib/util'
 import { MODE_META, ModeIcon } from './icons'
+import { StatusIcon } from './StatusIcon'
 
 // ---------- 文字 ----------
 
@@ -226,15 +227,15 @@ export const MiniBarChart = ({ buckets }: { buckets: { label: string; value: num
 
 export const StatusBadge = ({ status }: { status: 'arrived' | 'partial' | 'not_arrived' | 'cancelled' }) => {
   const map = {
-    arrived: ['ok', '✓', '已到'],
-    partial: ['warn', '◐', '部分'],
-    not_arrived: ['plain', '○', '未到'],
-    cancelled: ['bad', '×', '已取消'],
+    arrived: ['ok', '已到'],
+    partial: ['warn', '部分'],
+    not_arrived: ['plain', '未到'],
+    cancelled: ['bad', '已取消'],
   } as const
-  const [tone, sym, text] = map[status]
+  const [tone, text] = map[status]
   return (
     <span className={cx('badge', `tone-${tone}`)}>
-      <span aria-hidden>{sym}</span> {text}
+      <StatusIcon kind={status} size={14} /> {text}
     </span>
   )
 }

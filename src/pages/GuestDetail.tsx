@@ -9,6 +9,7 @@ import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
 import { TableIcon } from '../components/icons'
+import { StatusIcon } from '../components/StatusIcon'
 import { ConfirmSheet, SoftTag, StatusBadge, toast } from '../components/ui'
 import { nameOf, names } from '../lib/names'
 
@@ -74,12 +75,12 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
                 toast(`✓ ${nameOf(p)} 已入場`)
               }}
             >
-              ✓ 入場 Check-In
+              <StatusIcon kind="arrived" size={22} /> 入場 Check-In
             </button>
           ) : (
             <>
               <div className="checked-box tone-ok">
-                ✓ 已於 {p.checkedInAt ? formatTime(p.checkedInAt) : ''} 入場
+                <StatusIcon kind="arrived" size={20} /> 已於 {p.checkedInAt ? formatTime(p.checkedInAt) : ''} 入場
                 {p.checkInMethod && <small> · {METHOD[p.checkInMethod]}</small>}
               </div>
               {p.guestCount > 1 && (
