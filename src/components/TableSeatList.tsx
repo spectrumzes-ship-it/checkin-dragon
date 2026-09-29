@@ -17,11 +17,11 @@ import {
 import { GripVertical, Undo2, Users } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
 import { moveSeat, undoMoveSeat } from '../lib/actions'
-import { nameOf } from '../lib/names'
+import { nameOf, names } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
 import { GuestRow } from './GuestRow'
-import { toast } from './ui'
+import { SoftTag, toast } from './ui'
 
 type Slot = { seat: string; owner?: GuestEntry; companionOf?: GuestEntry }
 
@@ -116,7 +116,13 @@ export default function TableSeatList({
       </div>
       <div className="list card seatlist">
         {slots.map((s) => (
-          <SeatRow key={s.seat} slot={s} over={Number(s.seat) > table.capacity} onTap={onTap} />
+          <SeatRow
+            key={s.seat}
+            slot={s}
+            over={Number(s.seat) > table.capacity}
+            onTap={onTap}
+            seatLine={(n) => `${table.purpose === '晚餐' ? '晚餐 ' : ''}第 ${table.label} 席 · ${n} 號`}
+          />
         ))}
       </div>
       <DragOverlay dropAnimation={null}>{dragging ? <div className="guest-chip dragging">{nameOf(dragging.p)}</div> : null}</DragOverlay>
@@ -124,7 +130,7 @@ export default function TableSeatList({
   )
 }
 
-function SeatRow({ slot, over, onTap }: { slot: Slot; over: boolean; onTap: (e: GuestEntry) => void }) {
+function SeatRow({ slot, over, onTap, seatLine }: { slot: Slot; over: boolean; onTap: (e: GuestEntry) => void; seatLine: (n: string) => string }) {
   const { setNodeRef, isOver } = useDroppable({ id: `seat:${slot.seat}` })
   const e = slot.owner
   const drag = useDraggable({ id: `g:${e?.p.id ?? 'none-' + slot.seat}`, disabled: !e })
@@ -148,9 +154,27 @@ function SeatRow({ slot, over, onTap }: { slot: Slot; over: boolean; onTap: (e: 
           <span ref={drag.setNodeRef} className="seatlist-anchor" />
         </>
       ) : slot.companionOf ? (
-        <span className="seatlist-companion">
-          <Users size={16} /> {nameOf(slot.companionOf.p)} <em>同行</em>
-        </span>
+        <>
+          <div className="seatlist-guest">
+            {/* 同行者：與嘉賓同樣大小及資料，只多一個「同行」標籤 */}
+            <div className="guest-row companion-row">
+              <span className="status-mark">
+                <span className="companion-mark">
+                  <Users size={18} />
+                </span>
+              </span>
+              <span className="guest-row-main">
+                <span className="guest-row-name">
+                  <strong>{names(slot.companionOf.p).primary}</strong>
+                  {names(slot.companionOf.p).secondary && <span className="muted">{names(slot.companionOf.p).secondary}</span>}
+                  <SoftTag tone="mode">同行</SoftTag>
+                </span>
+                <span className="guest-row-sub">{seatLine(slot.seat)}</span>
+              </span>
+            </div>
+          </div>
+          <span className="seatlist-grip-space" />
+        </>
       ) : (
         <span className="seatlist-empty">空位</span>
       )}

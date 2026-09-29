@@ -275,9 +275,11 @@ export const demoVersionOnDevice = () => {
     return 0
   }
 }
+const DEMO_DATE_KEY = 'ckd-demo-date'
 const markDemo = () => {
   try {
     localStorage.setItem(DEMO_KEY, String(DEMO_VERSION))
+    localStorage.setItem(DEMO_DATE_KEY, todayKey())
     localStorage.setItem('ckd-seeded', '1')
   } catch {
     /* ignore */
@@ -304,6 +306,28 @@ export const ensureSeeded = async () => {
   if (demoVersionOnDevice() !== DEMO_VERSION && (await onlyDemoData())) {
     await resetDemo()
     setSettings({ currentEventId: null })
+    return
+  }
+  // 示範活動跟隨今天日期：過了一天，把示範活動日期順延，「今日活動」不會變成空白
+  let seededOn = ''
+  try {
+    seededOn = localStorage.getItem(DEMO_DATE_KEY) || ''
+  } catch {
+    /* ignore */
+  }
+  const today = todayKey()
+  // 舊版本沒有記錄產生日期：以示範晚宴（產生時定為「今日」）的日期推算
+  if (!seededOn) seededOn = (await db.events.filter((e) => e.code === 'AD26').first())?.date ?? ''
+  if (seededOn && seededOn !== today && (await onlyDemoData())) {
+    const diff = Math.round((new Date(today + 'T00:00:00').getTime() - new Date(seededOn + 'T00:00:00').getTime()) / 86400000)
+    await db.transaction('rw', db.events, async () => {
+      for (const e of await db.events.toArray()) await db.events.update(e.id, { date: addDays(e.date, diff) })
+    })
+    try {
+      localStorage.setItem(DEMO_DATE_KEY, today)
+    } catch {
+      /* ignore */
+    }
   }
 }
 

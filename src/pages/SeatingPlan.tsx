@@ -222,7 +222,7 @@ const SeatSlot = ({ id, slot, over, selected, onTap }: { id: string; slot: Slot;
         <Chip e={slot.owner} selected={selected === slot.owner.p.id} />
       ) : slot.companionOf ? (
         <span className="companion">
-          <Users size={13} /> {shortName(slot.companionOf)} <em>同行</em>
+          {shortName(slot.companionOf)} <em>同行</em>
         </span>
       ) : (
         <span className="muted">空位</span>

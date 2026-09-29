@@ -3755,3 +3755,24 @@ legend {
   margin: 8px 56px 8px 0;
   padding: 10px 12px;
 }
+
+/* 單一席：同行者一行（與嘉賓同樣大小） */
+.companion-row {
+  cursor: default;
+}
+.companion-row:hover {
+  background: none;
+}
+.companion-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+}
+.seatlist-grip-space {
+  width: 48px;
+  flex-shrink: 0;
+}
