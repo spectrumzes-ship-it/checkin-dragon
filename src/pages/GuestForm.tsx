@@ -166,7 +166,7 @@ export default function GuestForm() {
               </label>
             </div>
             <label className="field">
-              <span>QR Code 內容（留空則自動產生）</span>
+              <span>QR Code 內容（留空則自動產生 8 位隨機編號）</span>
               <input value={g.qrCode} onChange={(e) => up('qrCode', e.target.value)} />
             </label>
             <div className="field">

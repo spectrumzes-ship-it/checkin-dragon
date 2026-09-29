@@ -42,3 +42,17 @@ export const searchNorm = (s: string) =>
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0)
 
 export const cx = (...xs: (string | false | null | undefined)[]) => xs.filter(Boolean).join(' ')
+
+// 隨機 QR 編號：8 位數字＋英文字母，不含容易混淆的 0/O、1/I/L（約 8,500 億個組合，難以偽造）
+export const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+export const randomCode = (len = 8, rng?: () => number) => {
+  let out = ''
+  if (!rng && typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const buf = new Uint32Array(len)
+    crypto.getRandomValues(buf)
+    for (const n of buf) out += CODE_CHARS[n % CODE_CHARS.length]
+    return out
+  }
+  for (let i = 0; i < len; i++) out += CODE_CHARS[Math.floor((rng ?? Math.random)() * CODE_CHARS.length)]
+  return out
+}

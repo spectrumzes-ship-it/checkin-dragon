@@ -69,6 +69,15 @@ describe('簽到驗證', () => {
     expect(cancelled.reason).toContain('取消')
   })
 
+  it('QR 掃描只接受 QR 編號，會員編號印成 QR 會被拒絕', async () => {
+    const e = await saveEvent(ev('Q'))
+    await guest(e.id, 'CHAN', '', { memberId: '5566' })
+    const t = (await db.tickets.toArray())[0]
+    expect(t.qrCode).toHaveLength(8)
+    expect((await verifyCheckIn(e.id, '5566', 'QR')).result).toBe('invalid')
+    expect((await verifyCheckIn(e.id, t.qrCode, 'QR')).result).toBe('valid')
+  })
+
   it('可用邀請編號和會員編號簽到（全形、大小寫、空格都可以）', async () => {
     const e = await saveEvent(ev('A'))
     await guest(e.id, 'CHAN TAI MAN', 'Q1', { invitationId: 'VIP-A0265', memberId: '0265' })
@@ -196,10 +205,15 @@ describe('不記名門票', () => {
     const again = await generateTickets(e.id, { prefix: 'ABC', start: 45, count: 10, guestCount: 1 })
     expect(again).toMatchObject({ created: 4, skipped: 6 })
 
-    const ok = await verifyCheckIn(e.id, 'abc-0007', 'QR')
+    // QR 內容是隨機 8 位編號；把票號直接印成 QR（偽造）會被拒絕
+    const t7 = (await db.tickets.where('ticketNumber').equals('ABC-0007').first())!
+    expect(t7.qrCode).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/)
+    expect((await verifyCheckIn(e.id, 'ABC-0007', 'QR')).result).toBe('invalid')
+    const ok = await verifyCheckIn(e.id, t7.qrCode.toLowerCase(), 'QR')
     expect(ok.result).toBe('valid')
     expect(ok.participant!.ticketLabel).toBe('ABC-0007')
-    expect((await verifyCheckIn(e.id, 'ABC-0007', 'QR')).result).toBe('duplicate')
+    // 工作人員手動輸入票號仍可找到（重複）
+    expect((await verifyCheckIn(e.id, 'ABC-0007', 'MANUAL')).result).toBe('duplicate')
     const { names } = await import('./names')
     expect(names(ok.participant!).primary).toBe('門票 ABC-0007')
   })

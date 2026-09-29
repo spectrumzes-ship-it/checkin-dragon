@@ -287,7 +287,7 @@ export default function Guests() {
                 {gen.prefix ? `${gen.prefix.toUpperCase()}-` : ''}
                 {String(gen.start + gen.count - 1).padStart(Math.max(4, String(gen.start + gen.count - 1).length), '0')}
               </code>
-              。QR Code 內容即票號。列印 QR 門票將在第 4 階段加入。
+              。票號會印在門票上方便核對；QR Code 內容則是 8 位隨機編號，防止偽造。列印 QR 門票將在第 4 階段加入。
             </p>
           </>
         )}

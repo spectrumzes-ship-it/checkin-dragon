@@ -11,7 +11,7 @@ import type {
   SouvenirRedemption,
   Ticket,
 } from './types'
-import { addDays, todayKey, uid } from '../lib/util'
+import { addDays, randomCode, todayKey, uid } from '../lib/util'
 import { getSettings, setSettings } from '../lib/settings'
 
 // 示範資料：全部是虛構人物。用固定亂數種子，每次產生的資料都一樣，方便測試。
@@ -21,6 +21,19 @@ const rand = () => {
   return seed / 4294967296
 }
 const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
+// QR 編號用另一條固定亂數（示範資料在每部裝置都相同，又不影響姓名的產生）
+let codeSeed = 881234
+const codeRand = () => {
+  codeSeed = (codeSeed * 1103515245 + 12345) % 2147483648
+  return codeSeed / 2147483648
+}
+const usedCodes = new Set<string>()
+const demoCode = () => {
+  let c = randomCode(8, codeRand)
+  while (usedCodes.has(c)) c = randomCode(8, codeRand)
+  usedCodes.add(c)
+  return c
+}
 
 const SURNAMES: [string, string][] = [
   ['CHAN', '陳'], ['WONG', '黃'], ['LEE', '李'], ['CHEUNG', '張'], ['LAU', '劉'], ['HO', '何'],
@@ -100,12 +113,11 @@ const buildEvent = (
   for (let i = 1; i <= count; i++) {
     const p = makePerson(i, event.id, now)
     if (rand() < 0.02) p.status = 'cancelled'
-    const code = `${event.code}-${String(i).padStart(4, '0')}`
     const t: Ticket = {
       id: uid(),
       eventId: event.id,
       participantId: p.id,
-      qrCode: code,
+      qrCode: demoCode(),
       invitationId: `${p.vip ? 'VIP' : 'INV'}-${String.fromCharCode(65 + (i % 6))}${String(i).padStart(4, '0')}`,
       ticketNumber: `T${String(i).padStart(5, '0')}`,
       status: p.status === 'cancelled' ? 'cancelled' : 'valid',
@@ -142,6 +154,8 @@ const save = async (b: Build) => {
 
 export const seedDemo = async () => {
   seed = 20260929
+  codeSeed = 881234
+  usedCodes.clear()
   const today = todayKey()
   const now = Date.now()
   const { deviceId } = getSettings()
@@ -224,8 +238,9 @@ export const seedDemo = async () => {
     // 不記名門票：只有頭 8 張（VIP）記名，其餘只顯示票號
     concert.people.forEach((p, i) => {
       if (i < 8) return Object.assign(p, { vip: true })
-      Object.assign(p, { name: '', englishName: '', memberId: '', phone: '', company: '', vip: false, tags: [], dietary: '', ticketLabel: concert.tickets[i].qrCode })
-      concert.tickets[i].invitationId = ''
+      const no = `ABC26-${String(i + 1).padStart(4, '0')}` // 門票上印的順序票號；QR 內容仍是隨機編號
+      Object.assign(p, { name: '', englishName: '', memberId: '', phone: '', company: '', vip: false, tags: [], dietary: '', ticketLabel: no })
+      Object.assign(concert.tickets[i], { invitationId: '', ticketNumber: no })
     })
     await save(concert)
 
@@ -250,7 +265,7 @@ export const seedDemo = async () => {
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 4
+export const DEMO_VERSION = 5
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {

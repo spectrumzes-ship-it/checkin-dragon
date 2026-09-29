@@ -14,7 +14,7 @@ import type {
   Ticket,
 } from '../db/types'
 import { getSettings } from './settings'
-import { normalize, uid } from './util'
+import { normalize, randomCode, uid } from './util'
 import { names } from './names'
 
 // 所有會改動資料的操作都集中在這裏：每個操作同時寫入操作紀錄（Audit Log）。
@@ -96,8 +96,9 @@ export const seatsFor = async (participantId: string) => {
     .sort((a, b) => (a.resource.type === b.resource.type ? 0 : a.resource.type === 'bus' ? -1 : 1))
 }
 
-// 用 QR 內容／邀請號／票號／會員號尋找嘉賓
-export const findByCode = async (raw: string) => {
+// 尋找嘉賓。QR 掃描（qrOnly）只接受隨機 QR 編號，防止有人把會員編號、票號印成 QR 冒認；
+// 文字辨識及手動輸入則可用 QR 編號／邀請號／票號／會員號（由工作人員親眼核對）
+export const findByCode = async (raw: string, qrOnly = false) => {
   const v = normalize(raw)
   if (!v) return null
   // App 產生的 QR：CKD1|活動代號|門票編號
@@ -105,8 +106,9 @@ export const findByCode = async (raw: string) => {
   const key = parts[0] === 'CKD1' && parts[2] ? parts[2] : v
   const ticket =
     (await db.tickets.where('qrCode').equals(key).first()) ??
-    (await db.tickets.where('invitationId').equals(key).first()) ??
-    (await db.tickets.where('ticketNumber').equals(key).first())
+    (qrOnly ? undefined : await db.tickets.where('invitationId').equals(key).first()) ??
+    (qrOnly ? undefined : await db.tickets.where('ticketNumber').equals(key).first())
+  if (!ticket && qrOnly) return null
   if (ticket) {
     const p = await db.participants.get(ticket.participantId)
     return p ? { participant: p, ticket } : null
@@ -132,7 +134,7 @@ export const verifyCheckIn = async (
     const p = await db.participants.get(participantId)
     if (p) found = { participant: p, ticket: (await db.tickets.where('participantId').equals(p.id).first()) ?? null }
   } else {
-    found = await findByCode(raw)
+    found = await findByCode(raw, method === 'QR')
   }
 
   const fail = async (reason: string, p?: Participant, extra: Partial<ScanOutcome> = {}) => {
@@ -257,6 +259,14 @@ export const undoCheckIn = async (p: Participant) => {
 
 // ---------- 嘉賓 ----------
 
+// 產生活動內不重複的隨機 QR 編號
+export const uniqueCode = async (eventId: string) => {
+  for (;;) {
+    const c = randomCode()
+    if (!(await db.tickets.where('qrCode').equals(c).filter((t) => t.eventId === eventId).count())) return c
+  }
+}
+
 export interface GuestInput {
   name: string
   englishName: string
@@ -344,7 +354,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
       id: t?.id ?? uid(),
       eventId,
       participantId: pid,
-      qrCode: normalize(g.qrCode) || t?.qrCode || normalize(`Q-${pid.slice(0, 8)}`),
+      qrCode: normalize(g.qrCode) || t?.qrCode || (await uniqueCode(eventId)),
       invitationId: normalize(g.invitationId),
       ticketNumber: normalize(g.ticketNumber) || t?.ticketNumber || '',
       status: t?.status ?? 'valid',
@@ -552,7 +562,7 @@ export const deleteSession = async (sessionId: string, eventId: string, name: st
 // 在點名中掃描
 export const verifyRollCall = async (eventId: string, sessionId: string, raw: string, method: ScanMethod, participantId?: string): Promise<ScanOutcome> => {
   const now = Date.now()
-  const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw)
+  const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw, method === 'QR')
   if (!found?.participant || found.participant.eventId !== eventId) {
     await logScan(eventId, 'rollcall', raw, method, 'invalid', '找不到乘客', null)
     return { result: 'invalid', reason: '找不到此乘客 Passenger Not Found', time: now, rawValue: raw }
@@ -598,7 +608,7 @@ export const redeemedQty = async (itemId: string, participantId?: string) => {
 export const verifySouvenir = async (eventId: string, itemId: string, raw: string, method: ScanMethod, participantId?: string): Promise<ScanOutcome> => {
   const now = Date.now()
   const item = await db.souvenirs.get(itemId)
-  const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw)
+  const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw, method === 'QR')
   const log = (r: ScanResultType, reason: string, pid: string | null) => logScan(eventId, 'souvenir', raw, method, r, reason, pid)
   if (!item) return { result: 'invalid', reason: '請先設定紀念品', time: now, rawValue: raw }
   if (!found?.participant || found.participant.eventId !== eventId) {
@@ -742,6 +752,7 @@ export const generateTickets = async (eventId: string, opts: { prefix: string; s
   const count = Math.max(1, Math.min(5000, Math.floor(opts.count)))
   const width = Math.max(4, String(opts.start + count - 1).length)
   const existing = new Set((await db.tickets.where('eventId').equals(eventId).toArray()).flatMap((t) => [t.qrCode, t.ticketNumber]))
+  const takenQr = new Set(existing)
   const now = Date.now()
   const people: Participant[] = []
   const tickets: Ticket[] = []
@@ -759,7 +770,11 @@ export const generateTickets = async (eventId: string, opts: { prefix: string; s
       attendance: 'not_arrived', arrivedCount: 0, checkedInAt: null, checkInMethod: null, manual: false,
       ticketLabel: code, createdAt: now, updatedAt: now,
     })
-    tickets.push({ id: uid(), eventId, participantId: pid, qrCode: code, invitationId: '', ticketNumber: code, status: 'valid', usedAt: null })
+    // 票號順序易讀（印在門票上）；QR 內容是隨機編號，防止偽造
+    let qr = randomCode()
+    while (takenQr.has(qr)) qr = randomCode()
+    takenQr.add(qr)
+    tickets.push({ id: uid(), eventId, participantId: pid, qrCode: qr, invitationId: '', ticketNumber: code, status: 'valid', usedAt: null })
   }
   await db.transaction('rw', db.participants, db.tickets, db.auditLogs, async () => {
     await db.participants.bulkAdd(people)
