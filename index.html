@@ -11,7 +11,14 @@
     <title>Check-In Dragon 點名龍</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- 開啟畫面：App 載入前顯示小龍 -->
+    <div id="root">
+      <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#FAF9F6;font-family:-apple-system,'PingFang TC',sans-serif;color:#2C2B29">
+        <img src="icons/logo-256.png" width="120" height="120" alt="" style="border-radius:28px" />
+        <div style="font-size:20px;font-weight:700">點名龍</div>
+        <div style="font-size:13px;color:#77736C">Check-In Dragon</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

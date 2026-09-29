@@ -3209,3 +3209,200 @@ legend {
 .checked-box.center {
   justify-content: center;
 }
+
+/* ===== 真實相機 ===== */
+.camera-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--camera);
+}
+.camera-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  background: var(--camera);
+  z-index: 1;
+}
+.camera-msg small {
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.6;
+}
+.camera-msg .demo-btns button {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.scan-frame,
+.scan-hint {
+  z-index: 1;
+}
+.scan-hint {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 14px;
+  border-radius: 999px;
+}
+.scan-icon.on {
+  background: #fff6c9;
+  color: #2c2b29;
+}
+.scan-icon.ghost {
+  background: none;
+}
+.spin {
+  animation: spin 900ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.demo-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+/* ===== 測試工具包 ===== */
+.kit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.kit-toolbar h1 {
+  flex: 1;
+  font-size: 22px;
+}
+.kit-toolbar h1 small {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-weight: 400;
+}
+.kit-intro {
+  margin-bottom: 16px;
+}
+.kit-h {
+  font-size: 18px;
+  margin: 20px 0 12px;
+}
+.kit-h small {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-weight: 400;
+  margin-left: 8px;
+}
+.kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.kit-card {
+  background: #fff;
+  color: #2c2b29;
+  border: 2px solid var(--t-bg);
+  border-radius: var(--r);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  break-inside: avoid;
+}
+.kit-card code {
+  background: #f3f1ec;
+}
+.kit-card small {
+  color: #77736c;
+  font-size: 11px;
+}
+.kit-tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--t-bg, #f3f1ec);
+  color: var(--t-ink, #77736c);
+}
+.kit-qr {
+  width: 100%;
+  max-width: 180px;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+.kit-names {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.kit-name {
+  background: #fff;
+  color: #2c2b29;
+  border: 1.5px solid #d9d6cf;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  break-inside: avoid;
+}
+.kit-name b {
+  font-size: 30px;
+  letter-spacing: 0.02em;
+  font-family: Arial, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+}
+.kit-name span:not(.kit-tag) {
+  font-size: 20px;
+  font-family: Arial, sans-serif;
+}
+.kit-name .mono {
+  font-family: 'Courier New', monospace;
+}
+.kit-name.blur b {
+  filter: blur(0.8px);
+}
+.guide h4 {
+  margin: 8px 0 4px;
+}
+.guide ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+@media print {
+  .sidebar,
+  .bottom-nav,
+  .no-print,
+  .toast {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .main {
+    padding: 0;
+  }
+  .page {
+    padding: 0;
+    max-width: none;
+  }
+  .kit-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

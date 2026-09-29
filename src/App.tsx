@@ -17,6 +17,7 @@ import RollCall, { BusSeats, RollCallSession } from './pages/RollCall'
 import Souvenirs from './pages/Souvenirs'
 import SouvenirRecords from './pages/SouvenirRecords'
 import SeatingPlan from './pages/SeatingPlan'
+import TestKit from './pages/TestKit'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
 
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="events/new" element={<EventForm />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="test-kit" element={<TestKit />} />
           <Route path="e/:id/edit" element={<EventForm />} />
           <Route path="e/:id" element={<EventLayout />}>
             <Route index element={<Dashboard />} />

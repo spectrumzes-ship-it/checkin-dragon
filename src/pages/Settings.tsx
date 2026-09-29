@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useOcrState, warmUpOcr } from '../lib/scanner'
+import { Sheet } from '../components/ui'
 import { clearAll, resetDemo } from '../db/seed'
 import { setSettings, useSettings, type Settings as S } from '../lib/settings'
 import { feedback } from '../lib/feedback'
@@ -39,6 +41,9 @@ export default function Settings() {
   const s = useSettings()
   const nav = useNavigate()
   const [confirm, setConfirm] = useState<null | 'reset' | 'clear'>(null)
+  const [guide, setGuide] = useState(false)
+  const ocr = useOcrState()
+  const installed = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
   const set = (p: Partial<S>) => setSettings(p)
 
   return (
@@ -146,16 +151,61 @@ export default function Settings() {
         </Item>
       </div>
 
+      <SectionTitle zh="裝置與離線" en="Device & Offline" />
+      <div className="card set-group">
+        <Item zh="加到主畫面" en="Install App" hint={installed ? '已安裝，現正以 App 形式使用' : undefined}>
+          {installed ? <span className="badge tone-ok">已安裝</span> : <button className="btn btn-ghost btn-sm" onClick={() => setGuide(true)}>教我安裝</button>}
+        </Item>
+        <Item zh="文字辨識資料" en="Text Recognition Data" hint="約 5 MB，下載後離線亦可使用文字辨識">
+          {ocr.state === 'ready' ? (
+            <span className="badge tone-ok">已準備</span>
+          ) : ocr.state === 'loading' ? (
+            <span className="muted">下載中 {Math.round(ocr.progress * 100)}%</span>
+          ) : (
+            <button className="btn btn-ghost btn-sm" onClick={() => warmUpOcr().then((ok) => toast(ok ? '文字辨識已準備好，離線亦可使用' : '下載失敗，請連接網絡後再試'))}>
+              {ocr.state === 'error' ? '重試下載' : '立即下載'}
+            </button>
+          )}
+        </Item>
+        <Item zh="測試工具包" en="Test Kit" hint="可列印的測試 QR Code 及名牌">
+          <Link to="/test-kit" className="btn btn-ghost btn-sm">
+            打開
+          </Link>
+        </Item>
+      </div>
+
       <SectionTitle zh="關於" en="About" />
       <div className="card about">
         <img src={logo} alt="點名龍 Logo" width={96} height={96} />
         <div>
           <h3>Check-In Dragon 點名龍</h3>
           <p className="muted">活動・宴會・巴士出席管理</p>
-          <p className="muted">版本 0.2.0 · 外觀原型（第 2 階段）</p>
+          <p className="muted">版本 0.3.0 · 核心功能（第 3 階段）</p>
         </div>
       </div>
 
+      <Sheet open={guide} onClose={() => setGuide(false)} title="加到主畫面 Install">
+        <div className="guide">
+          <h4>iPhone／iPad（Safari）</h4>
+          <ol>
+            <li>用 Safari 打開本 App 的網址</li>
+            <li>按底部（iPad 在頂部）的「分享」按鈕 □↑</li>
+            <li>向下捲動，按「加入主畫面」</li>
+            <li>按「新增」，主畫面就會出現小龍圖示</li>
+          </ol>
+          <h4>Android（Chrome）</h4>
+          <ol>
+            <li>用 Chrome 打開本 App 的網址</li>
+            <li>按右上角「⋮」</li>
+            <li>按「安裝應用程式」或「加到主畫面」</li>
+          </ol>
+          <h4>電腦（Chrome／Edge）</h4>
+          <ol>
+            <li>按網址列右邊的「安裝」圖示</li>
+          </ol>
+          <p className="hint">安裝後由主畫面圖示打開，沒有網絡也可以使用。iPhone 必須加到主畫面，資料才不會被 Safari 自動清除。</p>
+        </div>
+      </Sheet>
       <ConfirmSheet
         open={confirm === 'reset'}
         onClose={() => setConfirm(null)}

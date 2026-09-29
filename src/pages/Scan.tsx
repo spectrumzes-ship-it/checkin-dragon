@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Flashlight, Keyboard, QrCode, ScanText, X, Zap } from 'lucide-react'
+import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X, Zap } from 'lucide-react'
 import { db } from '../db/db'
 import type { Participant, ScanMethod } from '../db/types'
 import { checkIn, eligible, redeemedQty, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
@@ -9,12 +9,21 @@ import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, searchGuests, type FuzzyMatch } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx } from '../lib/util'
+import { getQrDetector, grabFrame, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
 import { SearchBar } from '../components/ui'
 
 type ScanMode = 'qr' | 'text' | 'manual'
+
+// 文字辨識結果：最高分明顯拋離其他人（≥95% 且比第二名高 10% 以上）只顯示一位；否則列出與最高分相差 20% 以內的人
+const pickShown = (ms: FuzzyMatch[]) => {
+  if (!ms.length) return ms
+  const top = ms[0].score
+  if (top >= 0.95 && (ms[1]?.score ?? 0) <= top - 0.1) return ms.slice(0, 1)
+  return ms.filter((m) => m.score >= top - 0.2)
+}
 
 // 萬用掃描：QR／文字／手動三合一，全程不離開相機畫面
 export default function Scan() {
@@ -36,6 +45,18 @@ export default function Scan() {
   const [ocr, setOcr] = useState<{ text: string; matches: FuzzyMatch[] } | null>(null)
   const busy = useRef(false)
   const vv = useVisibleViewport()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const cam = useCamera(videoRef, !!ev)
+  const ocrState = useOcrState()
+  const [armed, setArmed] = useState(true) // 「連續掃描」關閉時，每次結果後要按「掃描下一張」
+  const [ocrBusy, setOcrBusy] = useState(false)
+  const [showDemo, setShowDemo] = useState(false)
+  const [noCodeHint, setNoCodeHint] = useState(false)
+  const outcomeRef = useRef<ScanOutcome | null>(null)
+  outcomeRef.current = outcome
+  // 防止同一張票仍放在鏡頭前時被重複讀取：處理過的票要離開鏡頭（連續約半秒看不到）才會再接受
+  const lastCode = useRef<{ value: string; misses: number }>({ value: '', misses: 0 })
 
   // 掃描目的：簽到／點名／紀念品
   const purposeKey = params.get('p') ?? 'checkin'
@@ -44,11 +65,86 @@ export default function Scan() {
   const target = purpose === 'souvenir' ? souvenirs.find((s) => s.id === targetId) : purpose === 'rollcall' ? sessions.find((s) => s.id === targetId) : null
 
   useEffect(() => setSettings({ lastScanMode: mode }), [mode])
+  // 背景預先下載文字辨識資料（有網絡時），之後離線亦可用；不會阻礙 QR 掃描
+  useEffect(() => {
+    if (!navigator.onLine) return
+    const t = window.setTimeout(() => warmUpOcr(), mode === 'text' ? 0 : 3000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => {
     if (id) setSettings({ currentEventId: id })
   }, [id])
 
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
+
+  // ---- QR 連續掃描：每秒約 8 次讀取掃描框內的畫面 ----
+  const scanning = mode === 'qr' && cam.status === 'ready' && !outcome && armed
+  useEffect(() => {
+    if (!scanning) return
+    let stop = false
+    let timer = 0
+    const started = Date.now()
+    setNoCodeHint(false)
+    const tick = async () => {
+      if (stop) return
+      const v = videoRef.current
+      try {
+        const det = await getQrDetector()
+        canvasRef.current ??= document.createElement('canvas')
+        const ctx = v && grabFrame(v, 0.75, 1, canvasRef.current, 720)
+        if (ctx && !busy.current && !outcomeRef.current) {
+          const codes = await det.detect(canvasRef.current)
+          const value = codes[0]?.rawValue?.trim()
+          const last = lastCode.current
+          if (value && value === last.value) last.misses = 0 // 同一張票仍在鏡頭前：不再處理
+          else {
+            if (last.value && ++last.misses >= 4) last.value = '' // 已拿開
+            if (value) {
+              lastCode.current = { value, misses: 0 }
+              await run(value, 'QR')
+              return
+            }
+            if (Date.now() - started > 8000) setNoCodeHint(true)
+          }
+        }
+      } catch {
+        /* 單次讀取失敗，繼續下一次 */
+      }
+      if (!stop) timer = window.setTimeout(tick, 120)
+    }
+    tick()
+    return () => {
+      stop = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanning, purposeKey])
+
+  // ---- 文字辨識：拍下掃描框內的文字，再近似搜尋嘉賓 ----
+  const doOcr = async () => {
+    const v = videoRef.current
+    if (!v || ocrBusy) return
+    setOcrBusy(true)
+    try {
+      canvasRef.current ??= document.createElement('canvas')
+      const ctx = grabFrame(v, 0.85, 3.2, canvasRef.current, 1200)
+      if (!ctx) return
+      const { text, lines } = await recognizeText(ctx)
+      // 每一行及整段文字都試一次，取每位嘉賓最高的吻合度
+      const best = new Map<string, FuzzyMatch>()
+      for (const t of [...lines, text]) for (const m of fuzzyMatch(index, t)) {
+        const cur = best.get(m.entry.p.id)
+        if (!cur || m.score > cur.score) best.set(m.entry.p.id, m)
+      }
+      const matches = [...best.values()].sort((a, b) => b.score - a.score).slice(0, 5)
+      setOcr({ text: text || '（未能辨識文字）', matches })
+    } catch {
+      setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [] })
+    } finally {
+      setOcrBusy(false)
+    }
+  }
 
   const run = async (raw: string, method: ScanMethod, pid?: string) => {
     if (!id || busy.current) return
@@ -135,17 +231,52 @@ export default function Scan() {
             ))}
           </select>
         </div>
-        <button className="scan-icon" aria-label="閃光燈（第 3 階段）" disabled>
-          <Flashlight size={22} />
-        </button>
+        {cam.torchSupported ? (
+          <button className={cx('scan-icon', cam.torch && 'on')} aria-label={cam.torch ? '關閉手電筒' : '開啟手電筒'} aria-pressed={cam.torch} onClick={() => cam.setTorch(!cam.torch)}>
+            {cam.torch ? <Flashlight size={22} /> : <FlashlightOff size={22} />}
+          </button>
+        ) : (
+          <span className="scan-icon ghost" />
+        )}
       </header>
 
       <div className={cx('scan-view', mode === 'manual' && 'compact')}>
-        <div className="camera-placeholder">
-          <span>相機預覽 Camera</span>
-          <small>第 3 階段啟用真實相機，現在可用下方「模擬掃描」測試</small>
-        </div>
-        {mode !== 'manual' && (
+        <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+        {cam.status !== 'ready' && (
+          <div className="camera-msg">
+            {cam.status === 'starting' ? (
+              <>
+                <Loader2 size={28} className="spin" />
+                <span>正在開啟相機…</span>
+              </>
+            ) : (
+              <>
+                <Camera size={32} />
+                <strong>
+                  {cam.status === 'denied'
+                    ? '未允許使用相機'
+                    : cam.status === 'insecure'
+                      ? '需要 https 網址才可使用相機'
+                      : cam.status === 'unavailable'
+                        ? '找不到相機'
+                        : '相機未能開啟'}
+                </strong>
+                {cam.status === 'denied' && (
+                  <small>
+                    iPhone／iPad：設定 → Safari → 相機 → 允許（或網址列「大小」→ 網站設定）。
+                    <br />
+                    Android：網址列左邊的圖示 → 權限 → 相機 → 允許。
+                  </small>
+                )}
+                <div className="demo-btns">
+                  <button onClick={cam.retry}>再試一次</button>
+                  <button onClick={() => setMode('manual')}>改用手動搜尋</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {mode !== 'manual' && cam.status === 'ready' && (
           <div className={cx('scan-frame', mode === 'text' && 'wide')}>
             <i />
             <i />
@@ -153,16 +284,24 @@ export default function Scan() {
             <i />
           </div>
         )}
-        {mode === 'qr' && <p className="scan-hint">將 QR Code 放入框內</p>}
+        {mode === 'qr' && cam.status === 'ready' && (
+          <p className="scan-hint">{noCodeHint ? '掃不到？可改用「文字」或「手動」' : '將 QR Code 放入框內'}</p>
+        )}
         {mode === 'text' && <p className="scan-hint">對準 姓名／會員編號／邀請編號</p>}
       </div>
 
       <div className="scan-panel">
         {mode === 'qr' && (
           <div className="demo">
-            <p className="demo-title">
-              <Zap size={14} /> 模擬掃描 Demo
-            </p>
+            {!armed && !outcome && (
+              <button className="btn btn-primary btn-lg btn-block" onClick={() => setArmed(true)}>
+                <QrCode size={20} /> 掃描下一張
+              </button>
+            )}
+            <button className="demo-toggle" onClick={() => setShowDemo(!showDemo)}>
+              <Zap size={14} /> 沒有測試 QR？模擬掃描 {showDemo ? '▴' : '▾'}
+            </button>
+            {showDemo && (
             <div className="demo-btns">
               <button onClick={() => demo('valid')}>有效票</button>
               <button onClick={() => demo('duplicate')}>{purpose === 'checkin' ? '已簽到的票' : purpose === 'souvenir' ? '已領取的票' : '已點名的票'}</button>
@@ -170,6 +309,7 @@ export default function Scan() {
               {purpose === 'checkin' && <button onClick={() => demo('cancelled')}>已取消的票</button>}
               {purpose === 'checkin' && <button onClick={() => demo('wrong')}>其他活動的票</button>}
             </div>
+            )}
           </div>
         )}
 
@@ -177,15 +317,29 @@ export default function Scan() {
           <div className="demo">
             {!ocr ? (
               <>
-                <p className="demo-title">
-                  <Zap size={14} /> 模擬文字辨識 Demo
-                </p>
-                <div className="demo-btns">
-                  <button onClick={() => demoOcr('VIP-A0265')}>VIP-A0265</button>
-                  <button onClick={() => demoOcr('CHAN TAl MAN')}>CHAN TAl MAN（認錯字）</button>
-                  <button onClick={() => demoOcr('CHAN')}>CHAN（多人）</button>
-                  <button onClick={() => demoOcr('HELLO WORLD')}>隨意文字</button>
-                </div>
+                <button className="btn btn-primary btn-lg btn-block" onClick={doOcr} disabled={ocrBusy || cam.status !== 'ready'}>
+                  {ocrBusy ? (
+                    <>
+                      <Loader2 size={20} className="spin" /> {ocrState.state === 'loading' ? `載入文字辨識 ${Math.round(ocrState.progress * 100)}%` : '辨識中…'}
+                    </>
+                  ) : (
+                    <>
+                      <ScanText size={20} /> 辨識框內文字
+                    </>
+                  )}
+                </button>
+                <p className="hint center">印刷的姓名、會員編號、邀請編號最準確；手寫字未能辨識</p>
+                <button className="demo-toggle" onClick={() => setShowDemo(!showDemo)}>
+                  <Zap size={14} /> 模擬文字辨識 {showDemo ? '▴' : '▾'}
+                </button>
+                {showDemo && (
+                  <div className="demo-btns">
+                    <button onClick={() => demoOcr('VIP-A0265')}>VIP-A0265</button>
+                    <button onClick={() => demoOcr('CHAN TAl MAN')}>CHAN TAl MAN（認錯字）</button>
+                    <button onClick={() => demoOcr('CHAN')}>CHAN（多人）</button>
+                    <button onClick={() => demoOcr('HELLO WORLD')}>隨意文字</button>
+                  </div>
+                )}
               </>
             ) : ocr.matches.length === 0 ? (
               <div className="ocr-none">
@@ -202,10 +356,9 @@ export default function Scan() {
             ) : (
               <div className="ocr-matches">
                 <p className="demo-title">
-                  辨識到「{ocr.text}」·{' '}
-                  {ocr.matches.length === 1 || ocr.matches[0].score >= 0.9 && (ocr.matches[1]?.score ?? 0) < 0.8 ? '最可能是' : '可能的嘉賓 Possible Matches'}
+                  辨識到「{ocr.text}」· {pickShown(ocr.matches).length === 1 ? '最可能是' : '可能的嘉賓 Possible Matches'}
                 </p>
-                {(ocr.matches[0].score >= 0.9 && (ocr.matches[1]?.score ?? 0) < 0.8 ? ocr.matches.slice(0, 1) : ocr.matches).map((m) => (
+                {pickShown(ocr.matches).map((m) => (
                   <GuestRow
                     key={m.entry.p.id}
                     e={m.entry}
@@ -261,6 +414,7 @@ export default function Scan() {
           onDone={() => {
             setOutcome(null)
             if (mode === 'manual') setQ('')
+            if (mode === 'qr' && !settings.continuousScan) setArmed(false)
           }}
           onDetails={outcome.participant ? () => nav(`/e/${ev.id}/guests/${outcome.participant!.id}`) : undefined}
           onReentry={
