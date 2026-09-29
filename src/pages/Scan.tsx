@@ -237,6 +237,7 @@ export default function Scan() {
             if (same) last.misses = 0
             else {
               lastOcrPid.current = { pid: '', text: '', misses: 0 }
+              setTextBoxes([])
               setOcr({ text: r.text, matches: r.matches })
               return
             }
@@ -261,6 +262,7 @@ export default function Scan() {
   const run = async (raw: string, method: ScanMethod, pid?: string) => {
     if (!id || busy.current) return
     busy.current = true
+    setTextBoxes([]) // 清走畫面上的文字框痕跡
     try {
       let out: ScanOutcome
       if (purpose === 'souvenir') out = await verifySouvenir(id, targetId, raw, method, pid)
@@ -271,6 +273,15 @@ export default function Scan() {
     } finally {
       busy.current = false
     }
+  }
+
+  // 清除：拿走辨識結果及文字框，立即重新開始自動辨識（同一張名牌亦會重新辨識）
+  const clearOcr = () => {
+    lastOcrPid.current = { pid: '', text: '', misses: 0 }
+    setSameCard(false)
+    setLiveText('')
+    setTextBoxes([])
+    setOcr(null)
   }
 
   // 工作人員修改辨識到的文字：稍候片刻後重新比對（避免每打一個字都計算）
@@ -369,7 +380,7 @@ export default function Scan() {
             <i />
           </div>
         )}
-        {mode === 'text' && cam.status === 'ready' && (
+        {mode === 'text' && cam.status === 'ready' && !ocr && !outcome && (
           <div className="text-overlay" aria-hidden>
             {outer ? (
               <>
@@ -391,7 +402,7 @@ export default function Scan() {
         {mode === 'qr' && cam.status === 'ready' && (
           <p className="scan-hint">{noCodeHint ? '掃不到？可改用「文字」或「手動」' : '將 QR Code 放入框內'}</p>
         )}
-        {mode === 'text' && cam.status === 'ready' && !outer && <p className="scan-hint">對準名牌或門票，會自動找出文字</p>}
+        {mode === 'text' && cam.status === 'ready' && !outer && !ocr && <p className="scan-hint">對準名牌或門票，會自動找出文字</p>}
       </div>
 
       <div className="scan-panel">
@@ -453,7 +464,7 @@ export default function Scan() {
               </>
             ) : ocr.matches.length === 0 ? (
               <div className="ocr-none">
-                <OcrEdit value={ocr.text} onChange={editOcr} />
+                <OcrEdit value={ocr.text} onChange={editOcr} onClear={clearOcr} />
                 <p className="ocr-none-title">找不到相符嘉賓 No matching guest found</p>
                 <p className="hint">可在上面直接修改辨識到的文字，名單會即時更新。</p>
                 <p className="hint">
@@ -461,7 +472,6 @@ export default function Scan() {
                 </p>
                 <div className="demo-btns">
                   <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>
-                  <button onClick={() => setOcr(null)}>再試</button>
                 </div>
               </div>
             ) : (
@@ -489,7 +499,7 @@ export default function Scan() {
                 )
                 return (
                   <div className="ocr-matches">
-                    <OcrEdit value={ocr.text} onChange={editOcr} />
+                    <OcrEdit value={ocr.text} onChange={editOcr} onClear={clearOcr} />
                     {conflict ? (
                       <p className="ocr-warn">⚠ 姓名與編號指向不同的人，請核對後才簽到</p>
                     ) : (
@@ -497,16 +507,6 @@ export default function Scan() {
                     )}
                     <p className="ocr-group">可能的嘉賓 Possible matches · 點選以簽到</p>
                     {list.map(row)}
-                    <div className="demo-btns">
-                      <button
-                        onClick={() => {
-                          lastOcrPid.current = { pid: ocr.matches[0]?.entry.p.id ?? '', text: normalize(ocr.text), misses: 0 }
-                          setOcr(null)
-                        }}
-                      >
-                        都不是，再試
-                      </button>
-                    </div>
                   </div>
                 )
               })()
@@ -620,12 +620,17 @@ function useVisibleViewport() {
 }
 
 // 辨識到的文字：可直接修改（例如把認錯的字改正）
-function OcrEdit({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function OcrEdit({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
   // 多行顯示，完整看到辨識到的內容
   const rows = Math.min(4, Math.max(2, Math.ceil(value.length / 24)))
   return (
     <label className="ocr-edit">
-      <span>辨識到的文字 · 可修改</span>
+      <span className="ocr-edit-head">
+        辨識到的文字 · 可修改
+        <button type="button" className="ocr-clear" onClick={(e) => (e.preventDefault(), onClear())}>
+          <X size={14} /> 清除
+        </button>
+      </span>
       <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
     </label>
   )
