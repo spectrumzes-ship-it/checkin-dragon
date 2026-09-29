@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
@@ -80,8 +80,9 @@ export default function Scan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
-    if (id) setSettings({ currentEventId: id })
-  }, [id])
+    if (id && ev) setSettings({ currentEventId: id })
+    if (ev === null) setSettings({ currentEventId: null })
+  }, [id, ev])
 
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
 
@@ -235,6 +236,8 @@ export default function Scan() {
     }, 250)
   }
 
+  // 活動已不存在（例如示範資料已重新產生）：返回首頁，不會卡在黑畫面
+  if (ev === null) return <Navigate to="/" replace />
   if (!ev) return <div className="scan" />
 
   return (

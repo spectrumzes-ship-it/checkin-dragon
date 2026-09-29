@@ -7,8 +7,9 @@ import { pct } from './util'
 
 // 資料一改動，所有使用這些 hook 的畫面會自動更新（即時統計的基礎）
 
+// undefined = 載入中；null = 找不到（例如活動已刪除，或示範資料已重新產生）
 export const useEvent = (id: string | undefined) =>
-  useLiveQuery(() => (id ? db.events.get(id) : undefined), [id])
+  useLiveQuery(async () => (id ? ((await db.events.get(id)) ?? null) : null), [id])
 
 export const useEventData = (eventId: string | undefined) => {
   const data = useLiveQuery(async () => {

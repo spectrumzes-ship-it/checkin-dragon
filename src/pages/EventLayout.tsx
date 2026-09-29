@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown } from 'lucide-react'
 import { db } from '../db/db'
@@ -19,10 +19,13 @@ export default function EventLayout() {
   const [picker, setPicker] = useState(false)
 
   useEffect(() => {
-    if (id) setSettings({ currentEventId: id })
-  }, [id])
+    if (id && ev) setSettings({ currentEventId: id })
+    // 活動已不存在：清除「目前活動」並自動返回首頁
+    if (ev === null) setSettings({ currentEventId: null })
+  }, [id, ev])
 
   if (ev === undefined) return <div className="page" />
+  if (ev === null) return <Navigate to="/" replace />
   if (!ev)
     return (
       <div className="page">
