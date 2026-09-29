@@ -315,18 +315,14 @@ const clean = (text: string) =>
     .filter((l) => l.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
 
 // 回傳一至兩個辨識版本：原圖，以及（原圖不清楚時）整理成黑白後的版本
-export interface TextBox {
-  x0: number
-  y0: number
-  x1: number
-  y1: number
-}
+import type { TextBox } from './textbox'
+export { mainTextCluster, smoothBox, type TextBox } from './textbox'
 type OcrData = { text: string; confidence: number; blocks?: { paragraphs: { lines: { text: string; confidence: number; bbox: TextBox }[] }[] }[] | null }
 // 每一行文字的位置（只取可信的行），用來畫出貼合文字的框
 const lineBoxes = (d: OcrData): TextBox[] =>
   (d.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines))
-    .filter((l) => l.confidence >= 40 && l.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
-    .map((l) => l.bbox)
+    .filter((l) => l.confidence >= 55 && l.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2)
+    .map((l) => ({ ...l.bbox, conf: l.confidence }))
 
 export const recognizeText = async (ctx: CanvasRenderingContext2D, alwaysBoth = false) => {
   const worker = await getOcr()

@@ -313,3 +313,22 @@ describe('示範資料', () => {
   })
 })
 
+
+describe('文字掃描框', () => {
+  it('只取主要的一組文字，背景零碎字不計', async () => {
+    const { mainTextCluster } = await import('./textbox')
+    const name = { x0: 100, y0: 200, x1: 500, y1: 250, conf: 90 }
+    const id = { x0: 100, y0: 270, x1: 380, y1: 310, conf: 88 }
+    const noise = { x0: 20, y0: 900, x1: 60, y1: 915, conf: 60 } // 遠處細小的字
+    expect(mainTextCluster([noise, name, id])).toEqual({ x0: 100, y0: 200, x1: 500, y1: 310 })
+  })
+  it('細微差異不移動；明顯移動才平滑跟上；移到別處直接跳過去', async () => {
+    const { smoothBox } = await import('./textbox')
+    const a = { x0: 100, y0: 100, x1: 500, y1: 300 }
+    expect(smoothBox(a, { x0: 104, y0: 98, x1: 503, y1: 302 })).toBe(a)
+    const moved = smoothBox(a, { x0: 160, y0: 130, x1: 560, y1: 330 })
+    expect(moved.x0).toBe(130)
+    const far = { x0: 700, y0: 900, x1: 900, y1: 1000 }
+    expect(smoothBox(a, far)).toBe(far)
+  })
+})

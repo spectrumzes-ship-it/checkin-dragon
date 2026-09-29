@@ -3548,7 +3548,7 @@ legend {
 }
 .text-outer {
   position: absolute;
-  transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease;
+  transition: left 300ms ease-out, top 300ms ease-out, width 300ms ease-out, height 300ms ease-out;
 }
 .text-outer i {
   position: absolute;

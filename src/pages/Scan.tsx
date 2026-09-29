@@ -10,7 +10,7 @@ import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, typ
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, normalize } from '../lib/util'
 import { nameOf } from '../lib/names'
-import { getQrDetector, grabFrame, grabFromFrame, grabView, recognizeText, videoToView, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
+import { getQrDetector, grabFrame, grabFromFrame, grabView, mainTextCluster, recognizeText, smoothBox, videoToView, type TextBox, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
@@ -139,7 +139,19 @@ export default function Scan() {
   const [liveText, setLiveText] = useState('')
   const [sameCard, setSameCard] = useState(false) // 已處理的名牌仍在鏡頭前
   // 貼合文字的框：記錄文字在相機影像上的位置；畫面大小改變（例如結果面板展開）時即時重新換算，框一直貼住文字
-  const [textBoxes, setTextBoxes] = useState<{ x0: number; y0: number; x1: number; y1: number }[]>([])
+  const [textBox, setTextBoxRaw] = useState<TextBox | null>(null)
+  const boxMiss = useRef(0)
+  // 更新文字框：平穩移動；短暫讀不到（連續少於 3 次）保留原位，避免閃爍
+  const updateTextBox = (next: TextBox | null) => {
+    if (next) {
+      boxMiss.current = 0
+      setTextBoxRaw((prev) => smoothBox(prev, next))
+    } else if (++boxMiss.current >= 3) setTextBoxRaw(null)
+  }
+  const setTextBoxes = (_: []) => {
+    boxMiss.current = 0
+    setTextBoxRaw(null)
+  }
   const [, setViewTick] = useState(0)
   useEffect(() => {
     if (mode !== 'text') setTextBoxes([])
@@ -151,24 +163,15 @@ export default function Scan() {
     ro.observe(v)
     return () => ro.disconnect()
   })
-  const lineRects =
-    videoRef.current && textBoxes.length
-      ? textBoxes.map((b) => {
-          const a = videoToView(videoRef.current!, b.x0, b.y0)
-          const z = videoToView(videoRef.current!, b.x1, b.y1)
-          return { x: a.x, y: a.y, w: z.x - a.x, h: z.y - a.y }
-        })
-      : []
-  const outer = lineRects.length
-    ? (() => {
-        const pad = 10
-        const x0 = Math.min(...lineRects.map((b) => b.x)) - pad
-        const y0 = Math.min(...lineRects.map((b) => b.y)) - pad
-        const x1 = Math.max(...lineRects.map((b) => b.x + b.w)) + pad
-        const y1 = Math.max(...lineRects.map((b) => b.y + b.h)) + pad
-        return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 }
-      })()
-    : null
+  const outer =
+    videoRef.current && textBox
+      ? (() => {
+          const pad = 12
+          const a = videoToView(videoRef.current!, textBox.x0, textBox.y0)
+          const z = videoToView(videoRef.current!, textBox.x1, textBox.y1)
+          return { left: a.x - pad, top: a.y - pad, width: z.x - a.x + pad * 2, height: z.y - a.y + pad * 2 }
+        })()
+      : null
 
   const readText = async () => {
     const v = videoRef.current
@@ -183,13 +186,12 @@ export default function Scan() {
       const reads = await recognizeText(view.ctx)
       // 把文字位置換算到畫面上，畫出貼合文字的框
       const shown = reads.find((r) => r.boxes.length) ?? reads[0]
-      setTextBoxes(
-        (shown?.boxes ?? []).map((b) => {
-          const a = view.toVideo(b.x0, b.y0)
-          const z = view.toVideo(b.x1, b.y1)
-          return { x0: a.x, y0: a.y, x1: z.x, y1: z.y }
-        }),
-      )
+      const cluster = mainTextCluster(shown?.boxes ?? [])
+      if (cluster) {
+        const a = view.toVideo(cluster.x0, cluster.y0)
+        const z = view.toVideo(cluster.x1, cluster.y1)
+        updateTextBox({ x0: a.x, y0: a.y, x1: z.x, y1: z.y })
+      } else updateTextBox(null)
       let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
       for (const r of reads) {
         // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
@@ -390,9 +392,6 @@ export default function Scan() {
                   <i />
                   <i />
                 </div>
-                {lineRects.map((b, i) => (
-                  <div key={i} className="text-line" style={{ left: b.x, top: b.y, width: b.w, height: b.h }} />
-                ))}
               </>
             ) : (
               <div className="text-guide" />
