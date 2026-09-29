@@ -16,7 +16,7 @@ const RESULT: Record<ScanResultType, [string, string]> = {
   duplicate: ['warn', '! 重複'],
   out_of_stock: ['warn', '! 無庫存'],
 }
-const PURPOSE = { checkin: '入場', rollcall: '點名', souvenir: '紀念品' }
+const PURPOSE = { checkin: '簽到', rollcall: '點名', souvenir: '紀念品' }
 
 export default function Logs() {
   const ev = useOutletContext<EventRec>()

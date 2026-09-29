@@ -3008,7 +3008,7 @@ legend {
   font-size: 14px;
 }
 
-/* 嘉賓行：左邊圓圈可獨立按（快速入場） */
+/* 嘉賓行：左邊圓圈可獨立按（快速簽到） */
 .guest-row.split {
   padding: 0;
   gap: 0;

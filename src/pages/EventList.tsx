@@ -203,7 +203,7 @@ export default function EventList() {
           toast('已永久刪除')
         }}
         title="永久刪除活動"
-        message={<p>此活動的所有嘉賓、入場紀錄、點名和紀念品紀錄將會永久刪除，<strong>無法復原</strong>。</p>}
+        message={<p>此活動的所有嘉賓、簽到紀錄、點名和紀念品紀錄將會永久刪除，<strong>無法復原</strong>。</p>}
         confirmText="永久刪除"
         danger
         requireText={confirmDelete?.name}

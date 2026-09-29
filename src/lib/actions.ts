@@ -119,7 +119,7 @@ export const findByCode = async (raw: string) => {
   return null
 }
 
-// 入場驗證（QR／文字辨識／手動都經這裏）
+// 簽到驗證（QR／文字辨識／手動都經這裏）
 export const verifyCheckIn = async (
   eventId: string,
   raw: string,
@@ -205,7 +205,7 @@ export const checkIn = async (
     await db.checkins.add(rec)
     await db.participants.put(next)
     if (ticket && ticket.status === 'valid') await db.tickets.update(ticket.id, { status: 'used', usedAt: now })
-    const label = kind === 'checkin' ? '入場 Check-In' : kind === 'reentry' ? '再入場 Re-entry' : '手動確認 Manual Override'
+    const label = kind === 'checkin' ? '簽到 Check-In' : kind === 'reentry' ? '再次簽到 Re-entry' : '手動確認 Manual Override'
     await audit(p.eventId, label, 'participant', p.id, names(p).full, reason)
   })
   return next
@@ -251,7 +251,7 @@ export const undoCheckIn = async (p: Participant) => {
     })
     const tickets = await db.tickets.where('participantId').equals(p.id).toArray()
     for (const t of tickets) if (t.status === 'used') await db.tickets.update(t.id, { status: 'valid', usedAt: null })
-    await audit(p.eventId, '取消入場 Undo Check-In', 'participant', p.id, names(p).full)
+    await audit(p.eventId, '取消簽到 Undo Check-In', 'participant', p.id, names(p).full)
   })
 }
 

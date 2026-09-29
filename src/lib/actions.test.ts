@@ -42,8 +42,8 @@ beforeEach(async () => {
   for (const t of allTables()) await t.clear()
 })
 
-describe('入場驗證', () => {
-  it('有效 → 重複 → 取消入場後再有效', async () => {
+describe('簽到驗證', () => {
+  it('有效 → 重複 → 取消簽到後再有效', async () => {
     const e = await saveEvent(ev('A'))
     await guest(e.id, 'CHAN TAI MAN', 'A-001')
     expect((await verifyCheckIn(e.id, 'a-001', 'QR')).result).toBe('valid')
@@ -69,14 +69,14 @@ describe('入場驗證', () => {
     expect(cancelled.reason).toContain('取消')
   })
 
-  it('可用邀請編號和會員編號入場（全形、大小寫、空格都可以）', async () => {
+  it('可用邀請編號和會員編號簽到（全形、大小寫、空格都可以）', async () => {
     const e = await saveEvent(ev('A'))
     await guest(e.id, 'CHAN TAI MAN', 'Q1', { invitationId: 'VIP-A0265', memberId: '0265' })
     expect((await verifyCheckIn(e.id, ' vip-ａ0265 ', 'OCR')).result).toBe('valid')
     expect((await verifyCheckIn(e.id, '0265', 'MANUAL')).result).toBe('duplicate')
   })
 
-  it('一票多人：入場時預設全數到齊', async () => {
+  it('一票多人：簽到時預設全數到齊', async () => {
     const e = await saveEvent(ev('A'))
     await guest(e.id, 'CHAN', 'Q2', { guestCount: 2 })
     const r = await verifyCheckIn(e.id, 'Q2', 'QR')
@@ -84,13 +84,13 @@ describe('入場驗證', () => {
     expect(r.participant!.attendance).toBe('arrived')
   })
 
-  it('每次入場都寫入操作紀錄和掃描紀錄', async () => {
+  it('每次簽到都寫入操作紀錄和掃描紀錄', async () => {
     const e = await saveEvent(ev('A'))
     await guest(e.id, 'CHAN', 'Q3')
     await verifyCheckIn(e.id, 'Q3', 'QR')
     await verifyCheckIn(e.id, 'Q3', 'QR')
     expect(await db.scanLogs.count()).toBe(2)
-    expect((await db.auditLogs.toArray()).some((l) => l.action.startsWith('入場'))).toBe(true)
+    expect((await db.auditLogs.toArray()).some((l) => l.action.startsWith('簽到'))).toBe(true)
   })
 })
 
@@ -116,7 +116,7 @@ describe('紀念品', () => {
     expect((await verifySouvenir(e.id, gift.id, 'S3', 'QR')).result).toBe('valid')
   })
 
-  it('領取紀念品不會改變入場狀態', async () => {
+  it('領取紀念品不會改變簽到狀態', async () => {
     const e = await saveEvent(ev('A'))
     const p = await guest(e.id, 'CHAN', 'S9')
     const bag = { id: uid(), eventId: e.id, name: 'Bag', stock: null, perGuest: 1, eligibility: 'all', sortOrder: 1 }
@@ -189,7 +189,7 @@ describe('座位編排', () => {
 })
 
 describe('不記名門票', () => {
-  it('批量產生、以票號入場、重複票號會略過', async () => {
+  it('批量產生、以票號簽到、重複票號會略過', async () => {
     const e = await saveEvent({ ...ev('C'), mode: 'event', anonymous: true })
     const r = await generateTickets(e.id, { prefix: 'abc', start: 1, count: 50, guestCount: 1 })
     expect(r).toMatchObject({ created: 50, skipped: 0, first: 'ABC-0001', last: 'ABC-0050' })

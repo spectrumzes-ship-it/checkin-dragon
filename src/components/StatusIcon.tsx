@@ -1,6 +1,6 @@
 import { Circle, CircleAlert, CircleCheck, CircleDashed, CircleX } from 'lucide-react'
 
-// 入場狀態圖示：一律用圓圈圖案（不用文字符號，各裝置外觀一致）
+// 簽到狀態圖示：一律用圓圈圖案（不用文字符號，各裝置外觀一致）
 //   已到 = 實心圓圈打勾；未到 = 空心圓圈；部分到達 = 虛線圓圈；已取消 = 圓圈打叉；重複／注意 = 圓圈感嘆號
 export type StatusKind = 'arrived' | 'partial' | 'not_arrived' | 'cancelled' | 'warn'
 

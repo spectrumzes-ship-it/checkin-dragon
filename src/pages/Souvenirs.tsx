@@ -31,7 +31,7 @@ export default function Souvenirs() {
           </button>
         }
       />
-      <p className="hint">紀念品站獨立運作，與入場狀態無關。在掃描畫面頂部把「掃描目的」改為紀念品即可開始派發。</p>
+      <p className="hint">紀念品站獨立運作，與簽到狀態無關。在掃描畫面頂部把「掃描目的」改為紀念品即可開始派發。</p>
       {items.length === 0 ? (
         <EmptyState
           art={<GiftArt />}

@@ -36,7 +36,7 @@ export default function GuestForm() {
       const t = await db.tickets.where('participantId').equals(p.id).first()
       await checkIn(p, 'MANUAL', 'checkin', '臨時嘉賓', t)
       feedback('valid')
-      toast(`✓ ${p.englishName || p.name} 已新增並入場`)
+      toast(`✓ ${p.englishName || p.name} 已新增並簽到`)
     } else toast(existing ? '已儲存' : '已新增嘉賓')
     nav(`/e/${ev.id}/guests/${p.id}`, { replace: true })
   }
@@ -202,7 +202,7 @@ export default function GuestForm() {
           <button className="btn btn-secondary btn-lg">{gid ? '儲存' : '新增'}</button>
           {!gid && (
             <button type="button" className="btn btn-primary btn-lg" onClick={() => submit(true)}>
-              新增並入場
+              新增並簽到
             </button>
           )}
         </div>

@@ -13,7 +13,7 @@ const LOOK = {
   invalid: { tone: 'bad', sym: CircleX, en: 'INVALID', zh: '無效' },
   no_match: { tone: 'bad', sym: CircleX, en: 'NOT FOUND', zh: '找不到' },
   not_eligible: { tone: 'bad', sym: CircleX, en: 'NOT ELIGIBLE', zh: '不符合資格' },
-  duplicate: { tone: 'warn', sym: CircleAlert, en: 'ALREADY CHECKED IN', zh: '已入場' },
+  duplicate: { tone: 'warn', sym: CircleAlert, en: 'ALREADY CHECKED IN', zh: '已簽到' },
   out_of_stock: { tone: 'warn', sym: CircleAlert, en: 'OUT OF STOCK', zh: '庫存已用完' },
 } as const
 
@@ -114,7 +114,7 @@ export const ScanResult = ({
 
         <div className="result-time">
           {outcome.result === 'duplicate' && outcome.previousTime
-            ? `已於 ${formatTime(outcome.previousTime)} ${purpose === 'souvenir' ? '領取' : purpose === 'rollcall' ? '點名' : '入場'}`
+            ? `已於 ${formatTime(outcome.previousTime)} ${purpose === 'souvenir' ? '領取' : purpose === 'rollcall' ? '點名' : '簽到'}`
             : formatTime(outcome.time)}
         </div>
 
@@ -127,7 +127,7 @@ export const ScanResult = ({
             )}
             {onReentry && (
               <button className="btn btn-lg btn-on-result" onClick={onReentry}>
-                再入場
+                再次簽到
               </button>
             )}
           </div>

@@ -32,7 +32,7 @@ export default function Dashboard() {
   const stats = useMemo(() => computeStats(data?.participants ?? []), [data])
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 8) : []), [index, dq])
 
-  // 每 15 分鐘入場人數（最多顯示最近 12 格 = 3 小時）
+  // 每 15 分鐘簽到人數（最多顯示最近 12 格 = 3 小時）
   const buckets = useMemo(() => {
     const valid = checkins.filter((c) => !c.voided && c.kind === 'checkin')
     if (!valid.length) return []
@@ -83,7 +83,7 @@ export default function Dashboard() {
           {dq && (
             <div className="list card search-results">
               {results.length ? (
-                results.map((e) => <GuestRow key={e.p.id} e={e} onClick={() => tapGuest(e.p.id)} trailing={<span className="btn btn-sm btn-mode">入場</span>} />)
+                results.map((e) => <GuestRow key={e.p.id} e={e} onClick={() => tapGuest(e.p.id)} trailing={<span className="btn btn-sm btn-mode">簽到</span>} />)
               ) : (
                 <p className="muted pad">找不到「{dq}」</p>
               )}
@@ -115,7 +115,7 @@ export default function Dashboard() {
 
       <div className="dash-grid">
         <section className="card dash-donut">
-          <SectionTitle zh="入場進度" en="Progress" />
+          <SectionTitle zh="簽到進度" en="Progress" />
           <div className="donut-wrap">
             <DonutChart
               value={stats.arrived}
@@ -146,8 +146,8 @@ export default function Dashboard() {
         </section>
 
         <section className="card">
-          <SectionTitle zh="入場時段" en="Arrivals / 15 min" />
-          {buckets.length ? <MiniBarChart buckets={buckets} /> : <p className="muted pad">未有入場紀錄</p>}
+          <SectionTitle zh="簽到時段" en="Arrivals / 15 min" />
+          {buckets.length ? <MiniBarChart buckets={buckets} /> : <p className="muted pad">未有簽到紀錄</p>}
         </section>
 
         {ev.mode === 'bus' && (
@@ -208,7 +208,7 @@ export default function Dashboard() {
         </section>
 
         <section className="card">
-          <SectionTitle zh="最近入場" en="Recent Check-ins" />
+          <SectionTitle zh="最近簽到" en="Recent Check-ins" />
           {recent.length ? (
             <div className="list">
               {recent.map((e) => (
@@ -216,7 +216,7 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="muted pad">未有入場紀錄</p>
+            <p className="muted pad">未有簽到紀錄</p>
           )}
         </section>
       </div>

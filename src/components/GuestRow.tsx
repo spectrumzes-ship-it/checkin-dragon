@@ -39,7 +39,7 @@ export const GuestRow = ({
   selected?: boolean
   souvenir?: boolean
   trailing?: ReactNode
-  onMarkClick?: () => void // 按左邊狀態圓圈：快速入場／取消入場
+  onMarkClick?: () => void // 按左邊狀態圓圈：快速簽到／取消簽到
   seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
 }) => {
   const p = e.p
@@ -84,7 +84,7 @@ export const GuestRow = ({
         type="button"
         className="mark-btn"
         onClick={onMarkClick}
-        aria-label={p.attendance === 'not_arrived' ? `${names(p).primary} 入場` : `${names(p).primary} 取消入場`}
+        aria-label={p.attendance === 'not_arrived' ? `${names(p).primary} 簽到` : `${names(p).primary} 取消簽到`}
       >
         <StatusMark e={e} />
       </button>

@@ -199,7 +199,7 @@ export function TableDetail() {
                 {arrived} <small>/ {t.capacity} 已到</small>
               </p>
               <ProgressBar value={arrived} max={t.capacity} tone={arrived >= t.capacity ? 'ok' : 'mode'} />
-              <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可入場</p>
+              <p className="muted">已安排 {seated} 位 · 點未到嘉賓即可簽到</p>
             </>
           )}
         </div>

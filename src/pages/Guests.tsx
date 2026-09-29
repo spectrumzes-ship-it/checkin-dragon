@@ -166,7 +166,7 @@ export default function Guests() {
                 <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} disabled={!!dq}>
                   <option value="name">姓名</option>
                   <option value="seat">座位／席號</option>
-                  <option value="time">入場時間</option>
+                  <option value="time">簽到時間</option>
                   <option value="status">未到優先</option>
                 </select>
               </label>
@@ -216,7 +216,7 @@ export default function Guests() {
                         if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
                         await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
                         feedback('valid')
-                        toast(`✓ ${nameOf(e.p)} 已入場`)
+                        toast(`✓ ${nameOf(e.p)} 已簽到`)
                       }}
                     />
                   </div>
@@ -297,11 +297,11 @@ export default function Guests() {
         onClose={() => setUndoP(null)}
         onConfirm={async () => {
           if (undoP) await undoCheckIn(undoP)
-          toast('已取消入場')
+          toast('已取消簽到')
         }}
-        title="取消入場"
+        title="取消簽到"
         message={<p>把 {undoP && nameOf(undoP)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
-        confirmText="取消入場"
+        confirmText="取消簽到"
       />
       {!gid && wide && index.length > 0 && (
         <aside className="guests-detail placeholder">

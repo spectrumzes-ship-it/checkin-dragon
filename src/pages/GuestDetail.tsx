@@ -72,15 +72,15 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
               onClick={async () => {
                 await checkIn(p, 'SEARCH', 'checkin', '', t)
                 feedback('valid')
-                toast(`✓ ${nameOf(p)} 已入場`)
+                toast(`✓ ${nameOf(p)} 已簽到`)
               }}
             >
-              <StatusIcon kind="arrived" size={22} /> 入場 Check-In
+              <StatusIcon kind="arrived" size={22} /> 簽到 Check-In
             </button>
           ) : (
             <>
               <div className="checked-box tone-ok">
-                <StatusIcon kind="arrived" size={20} /> 已於 {p.checkedInAt ? formatTime(p.checkedInAt) : ''} 入場
+                <StatusIcon kind="arrived" size={20} /> 已於 {p.checkedInAt ? formatTime(p.checkedInAt) : ''} 簽到
                 {p.checkInMethod && <small> · {METHOD[p.checkInMethod]}</small>}
               </div>
               {p.guestCount > 1 && (
@@ -98,7 +98,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
                 </div>
               )}
               <button className="btn btn-ghost btn-block" onClick={() => setConfirm('undo')}>
-                <UndoDot size={18} /> 取消入場 Undo
+                <UndoDot size={18} /> 取消簽到 Undo
               </button>
             </>
           )}
@@ -136,7 +136,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
       )}
 
       <div className="detail-section">
-        <Row icon={<Clock size={18} />} zh="入場時間" value={p.checkedInAt ? formatDateTime(p.checkedInAt) : '未入場'} />
+        <Row icon={<Clock size={18} />} zh="簽到時間" value={p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
         <Row icon={<Armchair size={18} />} zh="飲食" value={p.dietary} />
         <Row icon={<NotebookPen size={18} />} zh="備註" value={p.remarks} />
       </div>
@@ -228,11 +228,11 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         onClose={() => setConfirm(null)}
         onConfirm={async () => {
           await undoCheckIn(p)
-          toast('已取消入場')
+          toast('已取消簽到')
         }}
-        title="取消入場"
+        title="取消簽到"
         message={<p>把 {nameOf(p)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
-        confirmText="取消入場"
+        confirmText="取消簽到"
       />
       <ConfirmSheet
         open={confirm === 'cancel'}

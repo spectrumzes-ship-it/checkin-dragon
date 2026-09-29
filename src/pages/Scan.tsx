@@ -37,7 +37,7 @@ export default function Scan() {
   const busy = useRef(false)
   const vv = useVisibleViewport()
 
-  // 掃描目的：入場／點名／紀念品
+  // 掃描目的：簽到／點名／紀念品
   const purposeKey = params.get('p') ?? 'checkin'
   const purpose: 'checkin' | 'rollcall' | 'souvenir' = purposeKey.startsWith('s:') ? 'souvenir' : purposeKey.startsWith('r:') ? 'rollcall' : 'checkin'
   const targetId = purposeKey.slice(2)
@@ -122,7 +122,7 @@ export default function Scan() {
             onChange={(e) => setParams({ p: e.target.value }, { replace: true })}
             aria-label="掃描目的"
           >
-            <option value="checkin">入場 Check-In</option>
+            <option value="checkin">簽到 Check-In</option>
             {sessions.map((s) => (
               <option key={s.id} value={`r:${s.id}`}>
                 點名：{s.name}
@@ -165,7 +165,7 @@ export default function Scan() {
             </p>
             <div className="demo-btns">
               <button onClick={() => demo('valid')}>有效票</button>
-              <button onClick={() => demo('duplicate')}>{purpose === 'checkin' ? '已入場的票' : purpose === 'souvenir' ? '已領取的票' : '已點名的票'}</button>
+              <button onClick={() => demo('duplicate')}>{purpose === 'checkin' ? '已簽到的票' : purpose === 'souvenir' ? '已領取的票' : '已點名的票'}</button>
               <button onClick={() => demo('invalid')}>無效票</button>
               {purpose === 'checkin' && <button onClick={() => demo('cancelled')}>已取消的票</button>}
               {purpose === 'checkin' && <button onClick={() => demo('wrong')}>其他活動的票</button>}
