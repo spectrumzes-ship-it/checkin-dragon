@@ -57,3 +57,11 @@ export const randomCode = (len = 8, rng?: () => number) => {
   return out
 }
 
+
+// ---- 活動日期（可跨日）----
+type Dated = { date: string; endDate?: string }
+export const endDateOf = (e: Dated) => (e.endDate && e.endDate > e.date ? e.endDate : e.date)
+export const isOnDay = (e: Dated, day: string) => e.date <= day && day <= endDateOf(e)
+export const isUpcoming = (e: Dated, day: string) => e.date > day
+export const isPast = (e: Dated, day: string) => endDateOf(e) < day
+export const formatDateRange = (e: Dated) => (endDateOf(e) === e.date ? formatDate(e.date) : `${formatDate(e.date)} – ${formatDate(endDateOf(e))}`)

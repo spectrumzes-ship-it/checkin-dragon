@@ -4,7 +4,7 @@ import { ChevronLeft, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
 import { names, nameOf } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
-import { formatDate, formatDateTime } from '../lib/util'
+import { formatDateTime, formatDateRange } from '../lib/util'
 import { typeLabel } from '../components/icons'
 import { buildSlots } from '../components/TableSeatList'
 
@@ -51,7 +51,7 @@ export default function Print() {
       <div>
         <h1>{ev.name}</h1>
         <p>
-          {typeLabel(ev.type)} · {formatDate(ev.date)} {ev.startTime} · {ev.venue}
+          {typeLabel(ev.type)} · {formatDateRange(ev)} {ev.startTime} · {ev.venue}
         </p>
       </div>
       <strong className="print-sub">{sub}</strong>

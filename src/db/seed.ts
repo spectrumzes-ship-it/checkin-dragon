@@ -321,7 +321,7 @@ export const ensureSeeded = async () => {
   if (seededOn && seededOn !== today && (await onlyDemoData())) {
     const diff = Math.round((new Date(today + 'T00:00:00').getTime() - new Date(seededOn + 'T00:00:00').getTime()) / 86400000)
     await db.transaction('rw', db.events, async () => {
-      for (const e of await db.events.toArray()) await db.events.update(e.id, { date: addDays(e.date, diff) })
+      for (const e of await db.events.toArray()) await db.events.update(e.id, { date: addDays(e.date, diff), ...(e.endDate ? { endDate: addDays(e.endDate, diff) } : {}) })
     })
     try {
       localStorage.setItem(DEMO_DATE_KEY, today)

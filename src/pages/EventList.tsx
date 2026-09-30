@@ -7,7 +7,7 @@ import type { EventRec, Mode } from '../db/types'
 import { deleteEventPermanently, duplicateEvent, setEventStatus } from '../lib/actions'
 import { useEventSummaries } from '../lib/hooks'
 import { setSettings } from '../lib/settings'
-import { normalize, todayKey } from '../lib/util'
+import { normalize, todayKey, isOnDay, isUpcoming, isPast } from '../lib/util'
 import { CalendarArt } from '../illustrations'
 import { MODE_META, ModeIcon } from '../components/icons'
 import { ConfirmSheet, EmptyState, EventRow, FilterChip, PageHeader, SearchBar, Sheet, toast } from '../components/ui'
@@ -27,7 +27,7 @@ export default function EventList() {
   const pick = params.get('pick')
   const events = useLiveQuery(() => db.events.toArray(), [])
   const today = todayKey()
-  const defaultTab: Tab = events?.some((e) => e.date === today && e.status !== 'archived') ? 'today' : 'upcoming'
+  const defaultTab: Tab = events?.some((e) => isOnDay(e, today) && e.status !== 'archived') ? 'today' : 'upcoming'
   const tab = (params.get('tab') as Tab | null) ?? defaultTab
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState<EventRec | null>(null)
@@ -37,7 +37,7 @@ export default function EventList() {
     t === 'archived'
       ? e.status === 'archived'
       : e.status !== 'archived' &&
-        (t === 'today' ? e.date === today : t === 'upcoming' ? e.date > today : e.date < today || e.status === 'completed')
+        (t === 'today' ? isOnDay(e, today) : t === 'upcoming' ? isUpcoming(e, today) : isPast(e, today) || e.status === 'completed')
 
   const list = useMemo(() => {
     if (!events) return []

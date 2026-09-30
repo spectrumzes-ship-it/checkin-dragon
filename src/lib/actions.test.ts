@@ -26,6 +26,7 @@ const ev = (name: string): EventInput => ({
   mode: 'banquet',
   type: 'Dinner',
   date: '2026-10-20',
+  endDate: '',
   startTime: '18:30',
   endTime: '22:00',
   venue: 'Hall',

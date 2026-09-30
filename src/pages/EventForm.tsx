@@ -14,6 +14,7 @@ const blank = (mode: Mode): EventInput => ({
   mode,
   type: MODE_META[mode].types[0],
   date: todayKey(),
+  endDate: '',
   startTime: '18:30',
   endTime: '22:00',
   venue: '',
@@ -41,6 +42,7 @@ export default function EventForm() {
       mode: existing.mode,
       type: existing.type,
       date: existing.date,
+      endDate: existing.endDate ?? '',
       startTime: existing.startTime,
       endTime: existing.endTime,
       venue: existing.venue,
@@ -110,9 +112,15 @@ export default function EventForm() {
           </label>
           <div className="field-row">
             <label className="field">
-              <span>日期 Date</span>
+              <span>開始日期 Start Date</span>
               <input type="date" value={f.date} onChange={(e) => up('date', e.target.value)} />
             </label>
+            <label className="field">
+              <span>結束日期（單日可留空）</span>
+              <input type="date" value={f.endDate} min={f.date} onChange={(e) => up('endDate', e.target.value)} />
+            </label>
+          </div>
+          <div className="field-row">
             <label className="field">
               <span>開始 Start</span>
               <input type="time" value={f.startTime} onChange={(e) => up('startTime', e.target.value)} />

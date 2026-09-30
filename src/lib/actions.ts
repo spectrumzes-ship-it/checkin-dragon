@@ -460,6 +460,7 @@ export interface EventInput {
   mode: Mode
   type: string
   date: string
+  endDate: string // 跨日活動的結束日期；空白 = 單日
   startTime: string
   endTime: string
   venue: string
@@ -516,6 +517,7 @@ export const saveEvent = async (input: EventInput, existing?: EventRec) => {
     mode: input.mode,
     type: input.type,
     date: input.date,
+    endDate: input.endDate > input.date ? input.endDate : undefined,
     startTime: input.startTime,
     endTime: input.endTime,
     venue: input.venue.trim(),

@@ -14,7 +14,8 @@ export interface EventRec {
   name: string
   mode: Mode
   type: string
-  date: string // YYYY-MM-DD
+  date: string // YYYY-MM-DD（開始日期）
+  endDate?: string // 跨日活動的結束日期；沒有 = 單日活動
   startTime: string // HH:mm
   endTime: string
   venue: string

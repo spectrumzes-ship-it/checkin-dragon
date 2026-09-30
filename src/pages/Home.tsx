@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
 import { db } from '../db/db'
 import { useEventSummaries } from '../lib/hooks'
-import { todayKey } from '../lib/util'
+import { isOnDay, isPast, isUpcoming, todayKey } from '../lib/util'
 import { CalendarArt } from '../illustrations'
 import { EmptyState, EventCard, EventRow, ModeCard, SectionTitle, SyncIndicator } from '../components/ui'
 
@@ -12,9 +12,9 @@ const logo = `${import.meta.env.BASE_URL}icons/logo-256.png`
 export default function Home() {
   const events = useLiveQuery(() => db.events.toArray(), [])
   const today = todayKey()
-  const todays = events?.filter((e) => e.date === today && e.status !== 'archived').sort((a, b) => a.startTime.localeCompare(b.startTime))
-  const upcoming = events?.filter((e) => e.date > today && e.status === 'active').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
-  const recent = events?.filter((e) => e.date < today && e.status !== 'archived').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
+  const todays = events?.filter((e) => isOnDay(e, today) && e.status !== 'archived').sort((a, b) => a.startTime.localeCompare(b.startTime))
+  const upcoming = events?.filter((e) => isUpcoming(e, today) && e.status === 'active').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
+  const recent = events?.filter((e) => isPast(e, today) && e.status !== 'archived').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
   const summaries = useEventSummaries(todays)
   const counts = { event: 0, banquet: 0, bus: 0, gift: 0 }
   events?.forEach((e) => e.status !== 'archived' && counts[e.mode]++)

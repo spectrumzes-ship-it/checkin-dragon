@@ -7,7 +7,7 @@ import type { EventRec } from '../db/types'
 import { ChartPie, ChevronLeft, ClipboardList, Gift, ListChecks, Armchair, ScanLine, Users } from 'lucide-react'
 import { useEvent } from '../lib/hooks'
 import { setSettings } from '../lib/settings'
-import { formatDate, todayKey } from '../lib/util'
+import { todayKey, isOnDay, isUpcoming, isPast, formatDateRange } from '../lib/util'
 import { ModeIcon, TableIcon, typeLabel } from '../components/icons'
 import { EmptyState, Sheet, SyncIndicator } from '../components/ui'
 import { CalendarArt } from '../illustrations'
@@ -75,7 +75,7 @@ export default function EventLayout() {
               {ev.name} <ChevronDown size={16} className="switch-caret" />
             </strong>
             <span>
-              {typeLabel(ev.type)} · {formatDate(ev.date)} · {ev.startTime}
+              {typeLabel(ev.type)} · {formatDateRange(ev)} · {ev.startTime}
               {ev.venue && ` · ${ev.venue}`}
               {ev.status === 'completed' && ' · 已完成'}
               {ev.status === 'archived' && ' · 已封存'}
@@ -109,9 +109,9 @@ function EventPicker({ open, onClose, current }: { open: boolean; onClose: () =>
   const today = todayKey()
   const active = events.filter((e) => e.status !== 'archived')
   const groups: [string, EventRec[]][] = [
-    ['今日 Today', active.filter((e) => e.date === today).sort((a, b) => a.startTime.localeCompare(b.startTime))],
-    ['即將舉行 Upcoming', active.filter((e) => e.date > today).sort((a, b) => a.date.localeCompare(b.date))],
-    ['已完成 Past', active.filter((e) => e.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)],
+    ['今日 Today', active.filter((e) => isOnDay(e, today)).sort((a, b) => a.startTime.localeCompare(b.startTime))],
+    ['即將舉行 Upcoming', active.filter((e) => isUpcoming(e, today)).sort((a, b) => a.date.localeCompare(b.date))],
+    ['已完成 Past', active.filter((e) => isPast(e, today)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)],
   ]
   const go = (e: EventRec) => {
     const sub = loc.pathname.split('/')[3] ?? ''
@@ -135,7 +135,7 @@ function EventPicker({ open, onClose, current }: { open: boolean; onClose: () =>
                   <span className="event-row-main">
                     <strong>{e.name}</strong>
                     <span className="muted">
-                      {formatDate(e.date)} · {e.startTime} · {typeLabel(e.type)}
+                      {formatDateRange(e)} · {e.startTime} · {typeLabel(e.type)}
                     </span>
                   </span>
                   {e.id === current.id && <span className="muted">目前</span>}

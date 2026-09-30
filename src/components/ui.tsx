@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Cloud, CloudOff, Search, Star, X } from 'luc
 import type { EventRec, Mode } from '../db/types'
 import type { Stats } from '../lib/hooks'
 import { useOnline } from '../lib/hooks'
-import { cx, dateParts } from '../lib/util'
+import { cx, dateParts, endDateOf, formatDate, formatDateRange } from '../lib/util'
 import { MODE_META, ModeIcon } from './icons'
 import { StatusIcon } from './StatusIcon'
 
@@ -89,7 +89,7 @@ export const EventCard = ({ event, stats }: { event: EventRec; stats?: Stats }) 
       </div>
       <h3>{event.name}</h3>
       <p className="muted">
-        今日 · {event.startTime} · {event.venue}
+        {multiDay(event) ? formatDateRange(event) : '今日'} · {event.startTime} · {event.venue}
       </p>
       {stats && (
         <>
@@ -105,6 +105,8 @@ export const EventCard = ({ event, stats }: { event: EventRec; stats?: Stats }) 
     </Link>
   )
 }
+
+const multiDay = (e: EventRec) => endDateOf(e) !== e.date
 
 export const DateBlock = ({ date }: { date: string }) => {
   const { month, day } = dateParts(date)
@@ -126,6 +128,7 @@ export const EventRow = ({ event, stats, trailing }: { event: EventRec; stats?: 
       <span className="event-row-main">
         <strong>{event.name}</strong>
         <span className="muted">
+          {multiDay(event) && `至 ${formatDate(endDateOf(event))} · `}
           {event.startTime} · {event.venue}
           {stats && stats.total > 0 && ` · ${stats.arrived}/${stats.total}`}
         </span>
