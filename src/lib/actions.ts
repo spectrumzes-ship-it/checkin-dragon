@@ -894,7 +894,7 @@ export const moveSeat = async (eventId: string, pid: string, purpose: string, ta
 
 const roomsOf = (eventId: string) => db.resources.where('eventId').equals(eventId).filter((r) => r.type === 'room').toArray()
 
-// 新增房間：預設兩人一間；capacity 1 = 單人房
+// 新增房間：預設雙人房；之後人數跟隨實際入住人數
 export const addRoom = async (eventId: string, capacity = 2, label = '') => {
   const rooms = await roomsOf(eventId)
   const n = rooms.reduce((m, r) => Math.max(m, r.sortOrder), 0) + 1
@@ -903,9 +903,8 @@ export const addRoom = async (eventId: string, capacity = 2, label = '') => {
   return room
 }
 
-export const updateRoom = async (room: Resource, patch: { label?: string; capacity?: number }) => {
-  const capacity = patch.capacity === undefined ? room.capacity : Math.max(1, Math.min(6, patch.capacity))
-  await db.resources.update(room.id, { label: patch.label?.trim() || room.label, capacity })
+export const updateRoom = async (room: Resource, patch: { label?: string }) => {
+  await db.resources.update(room.id, { label: patch.label?.trim() || room.label })
 }
 
 export const deleteRoom = async (room: Resource) => {
@@ -914,16 +913,25 @@ export const deleteRoom = async (room: Resource) => {
   await audit(room.eventId, `刪除房間 ${room.label}`, 'resource', room.id)
 }
 
-// 安排某人入住某房間（roomId = null 代表移出）。房間滿了會回傳 false
+// 房間人數跟隨實際入住人數：1 人 = 單人房、2 人 = 雙人房…；空房預設為雙人房
+const ROOM_MAX = 6
+const fitRoom = async (roomId: string) => {
+  const n = await db.seats.where('resourceId').equals(roomId).count()
+  await db.resources.update(roomId, { capacity: n || 2 })
+}
+
+// 安排某人入住某房間（roomId = null 代表移出）。房間人數會自動調整；超過 6 人會回傳 false
 export const assignRoom = async (eventId: string, pid: string, roomId: string | null) => {
   const rooms = await roomsOf(eventId)
   const ids = new Set(rooms.map((r) => r.id))
   const room = rooms.find((r) => r.id === roomId)
   if (roomId && !room) return false
-  if (room && (await db.seats.where('resourceId').equals(room.id).filter((s) => s.participantId !== pid).count()) >= room.capacity) return false
+  if (room && (await db.seats.where('resourceId').equals(room.id).filter((s) => s.participantId !== pid).count()) >= ROOM_MAX) return false
   const mine = await db.seats.where('participantId').equals(pid).filter((s) => ids.has(s.resourceId)).toArray()
+  if (room && mine.length === 1 && mine[0].resourceId === room.id) return true // 已在這間房
   await db.seats.bulkDelete(mine.map((s) => s.id))
   if (room) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
+  for (const id of new Set([...mine.map((s) => s.resourceId), ...(room ? [room.id] : [])])) await fitRoom(id)
   const p = await db.participants.get(pid)
   await audit(eventId, room ? `安排房間 ${room.label}` : '移出房間', 'participant', pid, p ? names(p).full : '')
   return true
