@@ -75,7 +75,7 @@ const makePerson = (i: number, eventId: string, now: number): Participant => {
     vip: r < 0.08,
     guestCount: rand() < 0.15 ? 2 : 1,
     tags: rand() < 0.1 ? [pick(TAGS)] : [],
-    dietary: rand() < 0.07 ? '素食' : '',
+    dietary: (rand(), ''), // 「飲食需要」已由「特別需要」取代（保留亂數次序，令其他示範資料不變）
     remarks: '',
     status: 'active',
     attendance: 'not_arrived',
@@ -265,7 +265,7 @@ export const seedDemo = async () => {
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 6
+export const DEMO_VERSION = 7
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {

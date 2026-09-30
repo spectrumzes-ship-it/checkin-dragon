@@ -37,6 +37,49 @@ const Item = ({ zh, en, hint, children }: { zh: string; en: string; hint?: strin
   </div>
 )
 
+// 可自訂的選項清單：點 ✕ 刪除，輸入後按「新增」
+const ListEditor = ({ zh, en, hint, placeholder, values, onChange }: { zh: string; en: string; hint: string; placeholder: string; values: string[]; onChange: (v: string[]) => void }) => {
+  const [text, setText] = useState('')
+  const add = () => {
+    const t = text.trim()
+    if (!t) return
+    if (!values.includes(t)) onChange([...values, t])
+    setText('')
+  }
+  return (
+    <div className="set-item set-list">
+      <div className="set-label">
+        <span>{zh}</span>
+        <small>{en}</small>
+        <em>{hint}</em>
+      </div>
+      <div className="chips">
+        {values.map((v) => (
+          <span key={v} className="chip active">
+            {v}
+            <button className="chip-x" aria-label={`刪除 ${v}`} onClick={() => onChange(values.filter((x) => x !== v))}>
+              ✕
+            </button>
+          </span>
+        ))}
+        {!values.length && <span className="muted">未有選項</span>}
+      </div>
+      <form
+        className="set-list-add"
+        onSubmit={(e) => {
+          e.preventDefault()
+          add()
+        }}
+      >
+        <input className="set-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={`新增${zh}`} />
+        <button className="btn btn-mode btn-sm" type="submit">
+          新增
+        </button>
+      </form>
+    </div>
+  )
+}
+
 export default function Settings() {
   const s = useSettings()
   const nav = useNavigate()
@@ -53,7 +96,7 @@ export default function Settings() {
 
       <SectionTitle zh="一般" en="General" />
       <div className="card set-group">
-        <Item zh="語言" en="Language" hint="English、日本語 將在第 5 階段加入">
+        <Item zh="語言" en="Language" hint="簡體中文、English 將在第 5 階段加入">
           <Seg value="zh" options={[['zh', '繁體中文']]} onChange={() => {}} />
         </Item>
         <Item zh="姓名顯示" en="Name Order" hint="例：陳大文 CHAN TAI MAN／CHAN TAI MAN 陳大文">
@@ -66,6 +109,26 @@ export default function Settings() {
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />
         </Item>
+      </div>
+
+      <SectionTitle zh="嘉賓資料選項" en="Guest Options" />
+      <div className="card set-group">
+        <ListEditor
+          zh="特別需要"
+          en="Special Notes"
+          hint="新增／修改嘉賓時可選擇的項目。刪除選項不會改動已經選了的嘉賓。"
+          placeholder="例如 嬰兒椅"
+          values={s.specialNotes}
+          onChange={(v) => set({ specialNotes: v })}
+        />
+        <ListEditor
+          zh="禮物組別"
+          en="Gift Groups"
+          hint="自訂哪一類嘉賓可以領取禮物（例如 贊助商、工作人員）。在嘉賓資料選擇組別，再在紀念品的「領取資格」選「只限該組別」。"
+          placeholder="例如 贊助商"
+          values={s.giftGroups}
+          onChange={(v) => set({ giftGroups: v })}
+        />
       </div>
 
       <SectionTitle zh="掃描" en="Scan" />

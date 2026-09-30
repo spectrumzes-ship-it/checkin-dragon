@@ -1,3 +1,4 @@
+import { useSettings } from '../lib/settings'
 import { useEffect, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -8,9 +9,9 @@ import { feedback } from '../lib/feedback'
 import { cx } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
 
-const TAGS = ['輪椅', '素食', '需協助', '傳譯']
 
 export default function GuestForm() {
+  const settings = useSettings()
   const ev = useOutletContext<EventRec>()
   const { gid } = useParams()
   const nav = useNavigate()
@@ -172,7 +173,7 @@ export default function GuestForm() {
             <div className="field">
               <span>特別需要 Special Notes</span>
               <div className="chips">
-                {TAGS.map((t) => (
+                {[...new Set([...settings.specialNotes, ...g.tags])].map((t) => (
                   <button
                     type="button"
                     key={t}
@@ -184,10 +185,23 @@ export default function GuestForm() {
                 ))}
               </div>
             </div>
-            <label className="field">
-              <span>飲食需要 Dietary</span>
-              <input value={g.dietary} onChange={(e) => up('dietary', e.target.value)} />
-            </label>
+            {[...new Set([...settings.giftGroups, ...g.giftGroups])].length > 0 && (
+              <div className="field">
+                <span>禮物組別 Gift Group</span>
+                <div className="chips">
+                  {[...new Set([...settings.giftGroups, ...g.giftGroups])].map((t) => (
+                    <button
+                      type="button"
+                      key={t}
+                      className={cx('chip', g.giftGroups.includes(t) && 'active')}
+                      onClick={() => up('giftGroups', g.giftGroups.includes(t) ? g.giftGroups.filter((x) => x !== t) : [...g.giftGroups, t])}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label className="field">
               <span>備註 Remarks</span>
               <textarea rows={2} value={g.remarks} onChange={(e) => up('remarks', e.target.value)} />

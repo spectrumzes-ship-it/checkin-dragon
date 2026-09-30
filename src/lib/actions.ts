@@ -287,6 +287,7 @@ export interface GuestInput {
   vip: boolean
   guestCount: number
   tags: string[]
+  giftGroups: string[]
   dietary: string
   remarks: string
   tableId: string
@@ -309,6 +310,7 @@ export const emptyGuest = (): GuestInput => ({
   vip: false,
   guestCount: 1,
   tags: [],
+  giftGroups: [],
   dietary: '',
   remarks: '',
   tableId: '',
@@ -344,6 +346,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     vip: g.vip,
     guestCount: Math.max(1, g.guestCount || 1),
     tags: g.tags,
+    giftGroups: g.giftGroups,
     dietary: g.dietary,
     remarks: g.remarks,
     status: existing?.status ?? 'active',
@@ -393,8 +396,10 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     company: p.company,
     vip: p.vip,
     guestCount: p.guestCount,
-    tags: p.tags,
-    dietary: p.dietary,
+    // 舊的「飲食需要」併入「特別需要」
+    tags: p.dietary && !p.tags.includes(p.dietary) ? [...p.tags, p.dietary] : p.tags,
+    giftGroups: p.giftGroups ?? [],
+    dietary: '',
     remarks: p.remarks,
     tableId: mainTable?.resource.id ?? '',
     tableSeat: mainTable?.seatLabel ?? '',
@@ -613,12 +618,16 @@ export const entitlement = (item: SouvenirItem, p: Participant) => (item.perGues
 export const eligible = (item: SouvenirItem, p: Participant) => {
   if (item.eligibility === 'all') return true
   if (item.eligibility === 'vip') return p.vip
-  if (item.eligibility.startsWith('tag:')) return p.tags.includes(item.eligibility.slice(4))
+  if (item.eligibility.startsWith('group:')) return !!p.giftGroups?.includes(item.eligibility.slice(6))
+  if (item.eligibility.startsWith('tag:')) return p.tags.includes(item.eligibility.slice(4)) // 舊資料
   return true
 }
 
 export const eligibilityLabel = (e: string) =>
-  e === 'all' ? '所有人' : e === 'vip' ? '只限 VIP' : e.startsWith('tag:') ? `只限「${e.slice(4)}」` : e
+  e === 'all' ? '所有人' : e === 'vip' ? '只限 VIP' : e.startsWith('group:') ? `只限「${e.slice(6)}」` : e.startsWith('tag:') ? `只限「${e.slice(4)}」` : e
+
+// 數量說明：0 = 按人數（一票多人每位 1 份）；N = 每張請柬固定 N 份
+export const quantityLabel = (perGuest: number) => (perGuest > 0 ? `每張請柬 ${perGuest} 份` : '每位 1 份（按人數）')
 
 export const redeemedQty = async (itemId: string, participantId?: string) => {
   const rows = participantId

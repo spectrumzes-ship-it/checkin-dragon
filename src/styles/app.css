@@ -4044,3 +4044,38 @@ legend {
 .souvenir-actions > :nth-child(3) {
   grid-column: 1 / -1;
 }
+
+/* 設定：可自訂的選項清單 */
+.set-item.set-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.set-list .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+}
+.chip-x {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  padding: 4px;
+  margin: -4px -6px -4px 0;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.chip-x:hover {
+  opacity: 1;
+}
+.set-list-add {
+  display: flex;
+  gap: 8px;
+}
+.set-list-add input {
+  flex: 1;
+  min-width: 0;
+}

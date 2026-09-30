@@ -45,8 +45,9 @@ export interface Participant {
   company: string
   vip: boolean
   guestCount: number
-  tags: string[]
-  dietary: string
+  tags: string[] // 特別需要
+  giftGroups?: string[] // 禮物領取組別（在設定自訂）
+  dietary: string // 舊欄位：已由「特別需要」取代，不再輸入
   remarks: string
   status: 'active' | 'cancelled'
   attendance: Attendance
@@ -134,7 +135,7 @@ export interface SouvenirItem {
   name: string
   stock: number | null // null = 不限數量
   perGuest: number // 0 = 跟嘉賓人數
-  eligibility: string // 'all' | 'vip' | 'tag:XXX'
+  eligibility: string // 'all' | 'vip' | 'group:禮物組別'（舊資料可能有 'tag:XXX'）
   sortOrder: number
 }
 

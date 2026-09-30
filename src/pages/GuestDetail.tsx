@@ -149,7 +149,8 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
 
       <div className="detail-section">
         <Row icon={<Clock size={18} />} zh="簽到時間" value={p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
-        <Row icon={<Armchair size={18} />} zh="飲食" value={p.dietary} />
+        <Row icon={<Armchair size={18} />} zh="特別需要" value={p.tags.includes(p.dietary) ? '' : p.dietary} />
+        <Row icon={<Gift size={18} />} zh="禮物組別" value={p.giftGroups?.join('、')} />
       </div>
 
       {souvenirs.length > 0 && (

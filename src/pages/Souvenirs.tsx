@@ -4,18 +4,19 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem } from '../db/types'
-import { eligibilityLabel, saveSouvenir } from '../lib/actions'
+import { eligibilityLabel, quantityLabel, saveSouvenir } from '../lib/actions'
 import { uid } from '../lib/util'
+import { useSettings } from '../lib/settings'
 import { GiftArt } from '../illustrations'
 import { EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
 
-const TAGS = ['輪椅', '素食', '需協助', '傳譯']
 
 export default function Souvenirs() {
   const ev = useOutletContext<EventRec>()
   const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id])
   const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
   const [edit, setEdit] = useState<SouvenirItem | null>(null)
+  const groups = useSettings().giftGroups
 
   const blank = (): SouvenirItem => ({ id: uid(), eventId: ev.id, name: '', stock: 100, perGuest: 0, eligibility: 'all', sortOrder: (items?.length ?? 0) + 1 })
 
@@ -59,10 +60,8 @@ export default function Souvenirs() {
                   </span>
                   <div>
                     <h3>{it.name}</h3>
-                    <p className="muted">
-                      {eligibilityLabel(it.eligibility)} · 每人 {it.perGuest || '跟嘉賓人數'}
-                      {it.perGuest ? ' 份' : ''}
-                    </p>
+                    <p className="muted">{eligibilityLabel(it.eligibility)}</p>
+                    <p className="muted">{quantityLabel(it.perGuest)}</p>
                   </div>
                   <button className="icon-btn" aria-label="修改" onClick={() => setEdit(it)}>
                     <Pencil size={18} />
@@ -134,7 +133,7 @@ export default function Souvenirs() {
                 />
               </label>
               <label className="field">
-                <span>每人份數（0 = 跟嘉賓人數）</span>
+                <span>每張請柬份數（0 = 按人數）</span>
                 <input type="number" min={0} value={edit.perGuest} onChange={(e) => setEdit({ ...edit, perGuest: Number(e.target.value) })} />
               </label>
             </div>
@@ -143,13 +142,21 @@ export default function Souvenirs() {
               <select value={edit.eligibility} onChange={(e) => setEdit({ ...edit, eligibility: e.target.value })}>
                 <option value="all">所有人</option>
                 <option value="vip">只限 VIP</option>
-                {TAGS.map((t) => (
-                  <option key={t} value={`tag:${t}`}>
+                {groups.map((t) => (
+                  <option key={t} value={`group:${t}`}>
                     只限「{t}」
                   </option>
                 ))}
+                {!['all', 'vip', ...groups.map((t) => `group:${t}`)].includes(edit.eligibility) && (
+                  <option value={edit.eligibility}>{eligibilityLabel(edit.eligibility)}（舊設定）</option>
+                )}
               </select>
             </label>
+            <p className="hint">
+              「每張請柬份數」填 0：一票多人的請柬每位 1 份；填 2：每張請柬固定 2 份。
+              <br />
+              想只派給某一類嘉賓？先到 <Link to="/settings">設定 → 禮物組別</Link> 新增組別（例如「贊助商」），再在嘉賓資料選擇組別。
+            </p>
           </>
         )}
       </Sheet>
