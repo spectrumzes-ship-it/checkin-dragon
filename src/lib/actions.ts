@@ -293,6 +293,8 @@ export interface GuestInput {
   age: string
   birthDate: string
   idPrefix: string
+  permitNo?: string
+  permitExpiry?: string
   walkIn?: boolean
   giftOnly?: boolean
   dietary: string
@@ -363,6 +365,8 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     age: g.age.trim() || undefined,
     birthDate: g.birthDate || undefined,
     idPrefix: idPrefixOf(g.idPrefix) || undefined,
+    permitNo: g.permitNo !== undefined ? normalize(g.permitNo).replace(/[^A-Z0-9]/g, '') || undefined : existing?.permitNo,
+    permitExpiry: g.permitExpiry !== undefined ? g.permitExpiry || undefined : existing?.permitExpiry,
     leftAt: existing?.leftAt,
     walkIn: g.walkIn ?? existing?.walkIn,
     giftOnly: g.giftOnly ?? existing?.giftOnly,
@@ -422,6 +426,8 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     age: p.age ?? '',
     birthDate: p.birthDate ?? '',
     idPrefix: p.idPrefix ?? '',
+    permitNo: p.permitNo ?? '',
+    permitExpiry: p.permitExpiry ?? '',
     dietary: '',
     remarks: p.remarks,
     tableId: mainTable?.resource.id ?? '',

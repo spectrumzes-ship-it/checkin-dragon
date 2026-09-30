@@ -7,7 +7,7 @@ import type { EventRec, Participant } from '../db/types'
 import { setGiftOnly, setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
-import { formatDateTime, formatTime } from '../lib/util'
+import { formatDateTime, formatTime, endDateOf } from '../lib/util'
 import { TableIcon } from '../components/icons'
 import { StatusIcon } from '../components/StatusIcon'
 import { ConfirmSheet, SoftTag, StatusBadge, toast } from '../components/ui'
@@ -154,6 +154,20 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<Gift size={18} />} zh="禮物組別" value={p.giftGroups?.join('、')} />
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />
         <Row icon={<UserRound size={18} />} zh="出生日期" value={p.birthDate} />
+        <Row icon={<IdCard size={18} />} zh="回鄉證號碼" value={p.permitNo} />
+        <Row
+          icon={<IdCard size={18} />}
+          zh="證件有效期"
+          value={
+            p.permitExpiry ? (
+              <>
+                {p.permitExpiry} {p.permitExpiry < endDateOf(ev) && <SoftTag tone="warn">{p.permitExpiry < ev.date ? '已過期' : '行程期間到期'}</SoftTag>}
+              </>
+            ) : (
+              ''
+            )
+          }
+        />
         <Row icon={<IdCard size={18} />} zh="身份證" value={p.idPrefix ? `${p.idPrefix}***(*)（只保存頭 4 位）` : ''} />
       </div>
 

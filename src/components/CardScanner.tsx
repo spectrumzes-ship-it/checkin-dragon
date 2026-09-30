@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Loader2, ScanText, X } from 'lucide-react'
-import { grabView, recognizeText, useCamera } from '../lib/scanner'
+import { grabFromFrame, recognizeText, useCamera } from '../lib/scanner'
 import { extractFields, type CardFields } from '../lib/search'
 
 const LABELS: [keyof CardFields, string][] = [
@@ -8,6 +8,8 @@ const LABELS: [keyof CardFields, string][] = [
   ['englishName', '英文姓名'],
   ['birthDate', '出生日期'],
   ['idPrefix', '身份證頭 4 位'],
+  ['permitNo', '回鄉證號碼'],
+  ['permitExpiry', '證件有效期至'],
   ['memberId', '會員編號'],
   ['phone', '電話'],
 ]
@@ -16,6 +18,7 @@ const LABELS: [keyof CardFields, string][] = [
 export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
   const cam = useCamera(videoRef, true)
   const [busy, setBusy] = useState(false)
   const [found, setFound] = useState<CardFields | null>(null)
@@ -28,11 +31,12 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
     setMsg('')
     try {
       canvasRef.current ??= document.createElement('canvas')
-      const view = grabView(v, canvasRef.current, 1280)
-      if (!view) return setMsg('未能讀取畫面，請再試')
-      const reads = await recognizeText(view.ctx, true)
-      // 取抽到最多欄位的一次辨識結果
-      const best = reads.map((r) => extractFields(r.text)).sort((a, b) => Object.values(b).filter(Boolean).length - Object.values(a).filter(Boolean).length)[0]
+      // 只讀取框內的證件範圍，並用較高解像度，細字較清楚
+      const ctx = frameRef.current && grabFromFrame(v, frameRef.current, canvasRef.current, 1600, 0.1)
+      if (!ctx) return setMsg('未能讀取畫面，請再試')
+      const reads = await recognizeText(ctx, true)
+      // 取抽到最多欄位的一次辨識結果（保留分行，姓名和其他資料不會混在一起）
+      const best = reads.map((r) => extractFields(r.lines.join('\n'))).sort((a, b) => Object.values(b).filter(Boolean).length - Object.values(a).filter(Boolean).length)[0]
       if (!best || !Object.values(best).some(Boolean)) return setMsg('辨識不到文字，請對準證件、保持光線充足後再試')
       setFound(best)
     } catch {
@@ -52,6 +56,7 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
       </header>
       <div className="cardscan-view">
         <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+        <div ref={frameRef} className="cardscan-frame" aria-hidden />
         {cam.status !== 'ready' && (
           <div className="camera-msg">
             {cam.status === 'starting' ? <Loader2 size={28} className="spin" /> : null}
@@ -82,7 +87,7 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
           </>
         ) : (
           <>
-            <p className="hint">把證件或會員證放在畫面中央，文字要清晰，然後按「辨識」。</p>
+            <p className="hint">把證件放滿框內（身份證、回鄉證、會員證），保持平放、光線充足、避免反光，然後按「辨識」。</p>
             {msg && <p className="ocr-warn">{msg}</p>}
             <button className="btn btn-primary btn-block" onClick={read} disabled={busy || cam.status !== 'ready'}>
               <ScanText size={18} /> {busy ? '辨識中…' : '辨識'}

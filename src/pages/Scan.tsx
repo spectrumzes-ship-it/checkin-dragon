@@ -28,6 +28,8 @@ function NewRecipient({ text, onGo, compact }: { text: string; onGo: (f: CardFie
     ['英文姓名', f.englishName],
     ['出生日期', f.birthDate],
     ['身份證頭 4 位', f.idPrefix],
+    ['回鄉證號碼', f.permitNo],
+    ['證件有效期至', f.permitExpiry],
     ['會員編號', f.memberId],
     ['電話', f.phone],
   ]

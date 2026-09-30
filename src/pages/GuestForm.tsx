@@ -64,7 +64,9 @@ export default function GuestForm() {
               phone: f.phone || s.phone,
               birthDate: f.birthDate || s.birthDate,
               age: ageFromBirth(f.birthDate) || s.age,
-              idPrefix: f.idPrefix || s.idPrefix,
+              // 旅遊巴士保存回鄉證號碼及有效期；其他模式只保留證件號碼頭 4 位
+              idPrefix: f.idPrefix || (ev.mode === 'bus' ? '' : f.permitNo.slice(0, 4)) || s.idPrefix,
+              ...(ev.mode === 'bus' ? { permitNo: f.permitNo || s.permitNo, permitExpiry: f.permitExpiry || s.permitExpiry } : {}),
             }))
             setMore(true)
             setScan(false)
@@ -243,6 +245,18 @@ export default function GuestForm() {
               <span>身份證號碼（只保存頭 4 位）</span>
               <input value={g.idPrefix} onChange={(e) => up('idPrefix', idPrefixOf(e.target.value))} maxLength={4} placeholder="例如 A123" autoCapitalize="characters" />
             </label>
+            {ev.mode === 'bus' && (
+              <div className="field-row">
+                <label className="field">
+                  <span>回鄉證號碼 Permit No.</span>
+                  <input value={g.permitNo ?? ''} onChange={(e) => up('permitNo', e.target.value.toUpperCase())} placeholder="例如 H12345678" autoCapitalize="characters" />
+                </label>
+                <label className="field">
+                  <span>證件有效期至 Valid Until</span>
+                  <input type="date" value={g.permitExpiry ?? ''} onChange={(e) => up('permitExpiry', e.target.value)} />
+                </label>
+              </div>
+            )}
             <label className="field">
               <span>備註 Remarks</span>
               <textarea rows={2} value={g.remarks} onChange={(e) => up('remarks', e.target.value)} />

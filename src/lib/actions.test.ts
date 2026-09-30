@@ -266,6 +266,39 @@ describe('證件文字抽取', () => {
     expect(f.idPrefix).toBe('A123')
     expect(f.memberId).toBe('M00123')
   })
+  it('香港身份證版面：不把中文電碼當電話、不把簽發日期當出生日期', () => {
+    const f = extractFields(
+      '香港永久性居民身份證\nHONG KONG PERMANENT IDENTITY CARD\n李 智 能\nLEE, Chi Nan\n2621 2535 5174\n出生日期 Date of Birth\n01-01-1985  男 M\n***AZ\n簽發日期 Date of Issue\n(01-79) 26-11-18\nZ683365(5)',
+    )
+    expect(f.name).toBe('李智能')
+    expect(f.englishName).toBe('LEE CHI NAN')
+    expect(f.birthDate).toBe('1985-01-01')
+    expect(f.idPrefix).toBe('Z683')
+    expect(f.phone).toBe('')
+    expect(f.memberId).toBe('')
+  })
+  it('回鄉證版面：取出生日期而不是有效期；證件號碼 H＋8 位', () => {
+    const f = extractFields(
+      '港澳居民來往內地通行證\n姓名 陳大文\nCHAN, TAI MAN\n出生日期 1980.01.01\n性別 男\n有效期限 2013.01.02-2023.01.01\n簽發機關 公安部出入境管理局\n證件號碼 H12345678 01',
+    )
+    expect(f.name).toBe('陳大文')
+    expect(f.englishName).toBe('CHAN TAI MAN')
+    expect(f.birthDate).toBe('1980-01-01')
+    expect(f.permitNo).toBe('H12345678')
+    expect(f.permitExpiry).toBe('2023-01-01')
+    expect(f.idPrefix).toBe('')
+    expect(f.phone).toBe('')
+  })
+  it('沒有「出生」標籤時取最早的日期；括號認錯仍讀到身份證號碼', () => {
+    const f = extractFields('王小明\nWONG, SIU MING\n15-08-2019\n03-02-1972\nA123456 [7]')
+    expect(f.birthDate).toBe('1972-02-03')
+    expect(f.idPrefix).toBe('A123')
+  })
+  it('頂部證件名稱被認錯時，仍取英文姓名上方的中文姓名', () => {
+    const f = extractFields('甘澳 居民 來往 內地 通行 讓\n陳大文\nCHAN, TAI MAN\n1980.01.01\nH12345678')
+    expect(f.name).toBe('陳大文')
+    expect(f.englishName).toBe('CHAN TAI MAN')
+  })
   it('只有會員證：姓名＋編號', () => {
     const f = extractFields('MEMBER NO. VIP-A0265\n何浩然')
     expect(f.name).toBe('何浩然')

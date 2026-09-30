@@ -4287,3 +4287,16 @@ legend {
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border-soft);
 }
+
+.cardscan-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(90%, 520px);
+  aspect-ratio: 1.586; /* 身份證／回鄉證的比例 */
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}

@@ -30,7 +30,7 @@ import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toa
 import { nameOf } from '../lib/names'
 
 const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字辨識', MANUAL: '手動', SEARCH: '名單' }
-const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
+const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '', permitNo: '', permitExpiry: '' })
 const TICK = { accentColor: 'var(--mode-ink)' }
 
 // 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
@@ -64,7 +64,15 @@ export default function SouvenirRecords() {
   const loc = useLocation()
   const pre = loc.state as { reg?: Partial<ReturnType<typeof blankReg>>; method?: ScanMethod } | null
   useEffect(() => {
-    if (pre?.reg) setReg({ ...blankReg(), ...pre.reg, age: ageFromBirth(pre.reg.birthDate ?? '') })
+    if (pre?.reg)
+      setReg({
+        ...blankReg(),
+        ...pre.reg,
+        age: ageFromBirth(pre.reg.birthDate ?? ''),
+        idPrefix: pre.reg.idPrefix || (ev.mode === 'bus' ? '' : (pre.reg.permitNo ?? '').slice(0, 4)),
+        permitNo: ev.mode === 'bus' ? (pre.reg.permitNo ?? '') : '',
+        permitExpiry: ev.mode === 'bus' ? (pre.reg.permitExpiry ?? '') : '',
+      })
     else if (params.get('reg') === '1') setReg(blankReg())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.key])
@@ -321,6 +329,18 @@ export default function SouvenirRecords() {
                 <input value={reg.memberId} onChange={(e) => setReg({ ...reg, memberId: e.target.value })} />
               </label>
             </div>
+            {ev.mode === 'bus' && (
+              <div className="field-row">
+                <label className="field">
+                  <span>回鄉證號碼 Permit No.</span>
+                  <input value={reg.permitNo} onChange={(e) => setReg({ ...reg, permitNo: e.target.value.toUpperCase() })} placeholder="例如 H12345678" autoCapitalize="characters" />
+                </label>
+                <label className="field">
+                  <span>證件有效期至 Valid Until</span>
+                  <input type="date" value={reg.permitExpiry} onChange={(e) => setReg({ ...reg, permitExpiry: e.target.value })} />
+                </label>
+              </div>
+            )}
           </>
         )}
       </Sheet>
@@ -337,7 +357,9 @@ export default function SouvenirRecords() {
               phone: f.phone || reg.phone,
               birthDate: f.birthDate || reg.birthDate,
               age: ageFromBirth(f.birthDate) || reg.age,
-              idPrefix: f.idPrefix || reg.idPrefix,
+              idPrefix: f.idPrefix || (ev.mode === 'bus' ? '' : f.permitNo.slice(0, 4)) || reg.idPrefix,
+              permitNo: ev.mode === 'bus' ? f.permitNo || reg.permitNo : '',
+              permitExpiry: ev.mode === 'bus' ? f.permitExpiry || reg.permitExpiry : '',
             })
             setUsedOcr(true)
             setScan(false)
