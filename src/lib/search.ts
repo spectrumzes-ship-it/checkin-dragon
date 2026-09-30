@@ -6,6 +6,7 @@ export interface GuestEntry {
   p: Participant
   tickets: Ticket[]
   seats: { resource: Resource; seatLabel: string }[]
+  room?: Resource // 旅遊模式：所住的房間
   hay: string // 已整理、無空格
   ids: string[] // 已整理的各種編號
   sameName: boolean // 同一活動內有同名的人（顯示編號分辨）
@@ -25,9 +26,14 @@ export const buildIndex = (
   }
   const rById = new Map(resources.map((r) => [r.id, r]))
   const sByP = new Map<string, { resource: Resource; seatLabel: string }[]>()
+  const roomByP = new Map<string, Resource>()
   for (const s of seats) {
     const r = rById.get(s.resourceId)
     if (!r) continue
+    if (r.type === 'room') {
+      roomByP.set(s.participantId, r) // 房間另外記錄，不算座位
+      continue
+    }
     const arr = sByP.get(s.participantId) ?? []
     arr.push({ resource: r, seatLabel: s.seatLabel })
     sByP.set(s.participantId, arr)
@@ -55,7 +61,7 @@ export const buildIndex = (
     )
     const nk = normalize(p.name) || normalize(p.englishName)
     const sameName = !!nk && (nameCount.get(nk) ?? 0) > 1
-    return { p, tickets: ts, seats: ss, hay, ids, sameName }
+    return { p, tickets: ts, seats: ss, room: roomByP.get(p.id), hay, ids, sameName }
   })
 }
 

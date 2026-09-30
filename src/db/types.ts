@@ -85,7 +85,7 @@ export interface Ticket {
 export interface Resource {
   id: string
   eventId: string
-  type: 'table' | 'bus'
+  type: 'table' | 'bus' | 'room' // room = 旅遊模式的酒店房間（capacity = 入住人數，預設 2）
   label: string
   capacity: number
   purpose: string

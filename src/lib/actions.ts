@@ -495,7 +495,8 @@ const makeCode = (name: string) =>
 
 // prev = 修改前的活動；只更新仍然使用舊預設人數的席，逐席改過的人數會保留
 export const syncResources = async (ev: EventRec, prev?: EventRec) => {
-  const existing = await db.resources.where('eventId').equals(ev.id).toArray()
+  // 房間由「房間」頁自行管理，不在這裏增刪
+  const existing = (await db.resources.where('eventId').equals(ev.id).toArray()).filter((r) => r.type !== 'room')
   const want: Omit<Resource, 'id'>[] = []
   if (ev.mode === 'banquet') {
     for (let i = 1; i <= (ev.modeConfig.tableCount ?? 0); i++)
@@ -887,6 +888,58 @@ export const moveSeat = async (eventId: string, pid: string, purpose: string, ta
     if (occupant) await audit(eventId, `調位（對調）：→ ${from}`, 'participant', occupant.participantId, nameOf(q))
   })
   return { pid, affected, before }
+}
+
+// ---------- 旅遊模式：房間 ----------
+
+const roomsOf = (eventId: string) => db.resources.where('eventId').equals(eventId).filter((r) => r.type === 'room').toArray()
+
+// 新增房間：預設兩人一間；capacity 1 = 單人房
+export const addRoom = async (eventId: string, capacity = 2, label = '') => {
+  const rooms = await roomsOf(eventId)
+  const n = rooms.reduce((m, r) => Math.max(m, r.sortOrder), 0) + 1
+  const room: Resource = { id: uid(), eventId, type: 'room', label: label.trim() || String(n), capacity, purpose: '', sortOrder: n }
+  await db.resources.add(room)
+  return room
+}
+
+export const updateRoom = async (room: Resource, patch: { label?: string; capacity?: number }) => {
+  const capacity = patch.capacity === undefined ? room.capacity : Math.max(1, Math.min(6, patch.capacity))
+  await db.resources.update(room.id, { label: patch.label?.trim() || room.label, capacity })
+}
+
+export const deleteRoom = async (room: Resource) => {
+  await db.seats.where('resourceId').equals(room.id).delete()
+  await db.resources.delete(room.id)
+  await audit(room.eventId, `刪除房間 ${room.label}`, 'resource', room.id)
+}
+
+// 安排某人入住某房間（roomId = null 代表移出）。房間滿了會回傳 false
+export const assignRoom = async (eventId: string, pid: string, roomId: string | null) => {
+  const rooms = await roomsOf(eventId)
+  const ids = new Set(rooms.map((r) => r.id))
+  const room = rooms.find((r) => r.id === roomId)
+  if (roomId && !room) return false
+  if (room && (await db.seats.where('resourceId').equals(room.id).filter((s) => s.participantId !== pid).count()) >= room.capacity) return false
+  const mine = await db.seats.where('participantId').equals(pid).filter((s) => ids.has(s.resourceId)).toArray()
+  await db.seats.bulkDelete(mine.map((s) => s.id))
+  if (room) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
+  const p = await db.participants.get(pid)
+  await audit(eventId, room ? `安排房間 ${room.label}` : '移出房間', 'participant', pid, p ? names(p).full : '')
+  return true
+}
+
+// 自動分房：把未分房的人按次序每兩人一間（最後剩一人就單人一間）。回傳新增的房間數
+export const autoAssignRooms = async (eventId: string, pids: string[]) => {
+  let made = 0
+  for (let i = 0; i < pids.length; i += 2) {
+    const pair = pids.slice(i, i + 2)
+    const room = await addRoom(eventId, pair.length)
+    for (const pid of pair) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
+    made++
+  }
+  if (made) await audit(eventId, `自動分房：新增 ${made} 間房`, 'event', eventId)
+  return made
 }
 
 // 巴士車位：把乘客移到某架車的某個座位；目標座位有人就對調。回傳移動前的狀態，可用 undoMoveSeat 復原。

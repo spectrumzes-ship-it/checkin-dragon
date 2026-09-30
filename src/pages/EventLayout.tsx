@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, BedDouble } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { ChartPie, ChevronLeft, ClipboardList, Gift, ListChecks, Armchair, ScanLine, Users } from 'lucide-react'
@@ -54,6 +54,7 @@ export default function EventLayout() {
           { to: `${base}/rollcall`, icon: <ListChecks size={18} />, zh: '點名', en: 'Roll Call' },
           { to: `${base}/seats`, icon: <Armchair size={18} />, zh: '座位', en: 'Seats' },
           { to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '餐席', en: 'Dinner' },
+          { to: `${base}/rooms`, icon: <BedDouble size={18} />, zh: '房間', en: 'Rooms' },
         ]
       : []),
     ...(gift ? [] : [{ to: `${base}/souvenirs`, icon: <Gift size={18} />, zh: '紀念品', en: 'Souvenirs' }]),
@@ -115,7 +116,7 @@ function EventPicker({ open, onClose, current }: { open: boolean; onClose: () =>
   ]
   const go = (e: EventRec) => {
     const sub = loc.pathname.split('/')[3] ?? ''
-    const ok = sub === 'tables' ? e.mode === 'banquet' : sub === 'rollcall' || sub === 'seats' ? e.mode === 'bus' : true
+    const ok = sub === 'tables' ? e.mode === 'banquet' : sub === 'rollcall' || sub === 'seats' || sub === 'rooms' ? e.mode === 'bus' : true
     setSettings({ currentEventId: e.id })
     onClose()
     nav(`/e/${e.id}${ok && sub ? `/${sub}` : ''}`)

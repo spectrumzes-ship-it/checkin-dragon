@@ -4,6 +4,9 @@ import { db, allTables } from '../db/db'
 import {
   emptyGuest,
   generateTickets,
+  addRoom,
+  assignRoom,
+  autoAssignRooms,
   mergeCompanion,
   registerAndRedeem,
   splitCompanion,
@@ -238,6 +241,38 @@ describe('只領禮品與名單上的 QR', () => {
     expect(e.endDate).toBeUndefined()
     const g = await saveEvent({ ...ev('G'), mode: 'gift', endDate: '2026-10-25' })
     expect(g.endDate).toBe('2026-10-25')
+  })
+})
+
+describe('旅遊模式房間', () => {
+  it('預設雙人房，滿了不能再加；可改單人房；修改活動不會刪走空房', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const a = await guest(e.id, 'A', 'R1')
+    const b = await guest(e.id, 'B', 'R2')
+    const c = await guest(e.id, 'C', 'R3')
+    const room = await addRoom(e.id)
+    expect(room.capacity).toBe(2)
+    expect(await assignRoom(e.id, a.id, room.id)).toBe(true)
+    expect(await assignRoom(e.id, b.id, room.id)).toBe(true)
+    expect(await assignRoom(e.id, c.id, room.id)).toBe(false)
+    const single = await addRoom(e.id, 1)
+    expect(await assignRoom(e.id, c.id, single.id)).toBe(true)
+    expect(await assignRoom(e.id, a.id, single.id)).toBe(false)
+    const empty = await addRoom(e.id)
+    await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 49 }] }, e)
+    expect(await db.resources.get(empty.id)).toBeTruthy()
+    const [ps, ts, ss, rs] = await Promise.all([db.participants.toArray(), db.tickets.toArray(), db.seats.toArray(), db.resources.toArray()])
+    const idx = buildIndex(ps, ts, ss, rs)
+    expect(idx.find((x) => x.p.id === a.id)!.room!.id).toBe(room.id)
+    expect(idx.find((x) => x.p.id === a.id)!.seats.some((x) => x.resource.type === 'room')).toBe(false)
+  })
+  it('自動分房：每兩人一間，單數時最後一人單人房', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const ids = []
+    for (const n of ['A', 'B', 'C']) ids.push((await guest(e.id, n, 'X' + n)).id)
+    expect(await autoAssignRooms(e.id, ids)).toBe(2)
+    const rooms = (await db.resources.toArray()).filter((r) => r.type === 'room').sort((x, y) => x.sortOrder - y.sortOrder)
+    expect(rooms.map((r) => r.capacity)).toEqual([2, 1])
   })
 })
 

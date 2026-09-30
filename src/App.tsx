@@ -16,6 +16,7 @@ import Tables, { TableDetail } from './pages/Tables'
 import RollCall, { BusSeats, RollCallSession } from './pages/RollCall'
 import Souvenirs from './pages/Souvenirs'
 import SouvenirRecords from './pages/SouvenirRecords'
+import Rooms from './pages/Rooms'
 import TestKit from './pages/TestKit'
 import Print from './pages/Print'
 import Logs from './pages/Logs'
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="rollcall" element={<RollCall />} />
             <Route path="rollcall/:sid" element={<RollCallSession />} />
             <Route path="seats" element={<BusSeats />} />
+            <Route path="rooms" element={<Rooms />} />
             <Route path="souvenirs" element={<Souvenirs />} />
             <Route path="souvenirs/records" element={<SouvenirRecords />} />
             <Route path="logs" element={<Logs />} />

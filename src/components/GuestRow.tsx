@@ -59,6 +59,7 @@ export const GuestRow = ({
           {p.guestCount > 1 && <SoftTag>{p.attendance === 'partial' ? `${p.arrivedCount}/` : ''}{p.guestCount} 位</SoftTag>}
         </span>
         <span className="guest-row-sub">
+          {e.room && <span className="muted">房 {e.room.label}　</span>}
           {seatText(e) || (isAnonymous(p) ? <span className="muted">不記名</span> : seating ? <span className="muted">未安排座位</span> : null)}
           {p.tags.map((t) => (
             <SoftTag key={t}>{t}</SoftTag>

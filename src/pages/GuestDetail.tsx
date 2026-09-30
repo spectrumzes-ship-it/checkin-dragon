@@ -154,6 +154,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<Gift size={18} />} zh="禮物組別" value={p.giftGroups?.join('、')} />
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />
         <Row icon={<UserRound size={18} />} zh="出生日期" value={p.birthDate} />
+        <Row icon={<Armchair size={18} />} zh="房間" value={entry.room ? `${entry.room.label}（${entry.room.capacity === 1 ? '單人房' : `${entry.room.capacity} 人房`}）` : ''} />
         <Row icon={<IdCard size={18} />} zh="回鄉證號碼" value={p.permitNo} />
         <Row
           icon={<IdCard size={18} />}
