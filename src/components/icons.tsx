@@ -15,8 +15,8 @@ export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon;
     types: ['Wedding', 'Annual Dinner', 'Dinner', 'Gala', 'Award Ceremony', 'VIP Dinner'],
   },
   bus: {
-    zh: '旅遊巴士',
-    en: 'Tour Bus',
+    zh: '旅遊',
+    en: 'Tour',
     icon: Bus,
     types: ['Tour', 'School Trip', 'Company Trip', 'Shuttle'],
   },

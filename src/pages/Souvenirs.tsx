@@ -12,7 +12,7 @@ import { EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components
 
 
 const LOGICS: [SouvenirLogic, string, string][] = [
-  ['person', '按人頭／門票登記派發', '每位（每張門票）可領一次。適合旅遊巴士、活動、宴會一般情況。'],
+  ['person', '按人頭／門票登記派發', '每位（每張門票）可領一次。適合旅遊、活動、宴會一般情況。'],
   ['invitation', '按請柬單位派發（同行者共用）', '同一張請柬只可領一次，任何一位領了，其他同行者不可再領。適合宴會家庭請柬。'],
   ['fcfs', '限量先到先得', '不認人、不查重複，每次核銷即扣庫存，派完即止。適合「禮品領取」。'],
 ]
