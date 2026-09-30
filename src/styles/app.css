@@ -4099,14 +4099,23 @@ legend {
   border-color: var(--mode-ink);
   background: var(--mode-bg);
 }
-.radio-list input {
-  margin-top: 3px;
-  flex-shrink: 0;
+.radio-list input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  margin: 2px 0 0;
+  flex: 0 0 20px;
+  accent-color: var(--mode-ink);
 }
-.radio-list span {
+.radio-list label > span {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--fs-body);
 }
 .radio-list small {
   color: var(--text-2);
