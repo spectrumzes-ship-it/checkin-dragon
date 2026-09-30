@@ -3,26 +3,26 @@ import type { Mode } from '../db/types'
 
 export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon; types: string[] }> = {
   event: {
-    zh: '活動模式',
-    en: 'Event Mode',
+    zh: '活動',
+    en: 'Event',
     icon: Ticket,
     types: ['Concert', 'Performance', 'Exhibition', 'Premiere', 'VIP Event', 'Company Event', 'Launch Event'],
   },
   banquet: {
-    zh: '宴會模式',
-    en: 'Banquet Mode',
+    zh: '宴會',
+    en: 'Banquet',
     icon: UtensilsCrossed,
     types: ['Wedding', 'Annual Dinner', 'Dinner', 'Gala', 'Award Ceremony', 'VIP Dinner'],
   },
   bus: {
-    zh: '旅遊巴士模式',
-    en: 'Tour Bus Mode',
+    zh: '旅遊巴士',
+    en: 'Tour Bus',
     icon: Bus,
     types: ['Tour', 'School Trip', 'Company Trip', 'Shuttle'],
   },
   gift: {
-    zh: '禮品領取模式',
-    en: 'Gift Collection Mode',
+    zh: '禮品領取',
+    en: 'Gift Collection',
     icon: Gift,
     types: ['Gift Counter', 'Redemption', 'Promotion'],
   },
