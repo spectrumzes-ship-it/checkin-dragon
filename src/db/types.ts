@@ -7,6 +7,7 @@ export type ScanMethod = 'QR' | 'OCR' | 'MANUAL' | 'SEARCH'
 export interface BusConfig {
   label: string
   capacity: number
+  layout?: '2+1' | '2+2' | '3+2' // 座位排列；沒有 = 按座位數估計
 }
 
 export interface EventRec {

@@ -1,3 +1,4 @@
+import { BUS_LAYOUTS, BUS_PRESETS, defaultLayout, type BusLayout } from '../lib/busLayout'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
@@ -172,7 +173,8 @@ export default function EventForm() {
           <fieldset className="card">
             <legend>巴士設定 Buses</legend>
             {f.buses.map((b, i) => (
-              <div className="field-row" key={i}>
+              <div className="bus-config" key={i}>
+              <div className="field-row">
                 <label className="field">
                   <span>車號 Bus</span>
                   <input
@@ -193,11 +195,44 @@ export default function EventForm() {
                   <Trash2 size={18} />
                 </button>
               </div>
+              <div className="field-row">
+                <label className="field">
+                  <span>車型（常見座位數）</span>
+                  <select
+                    value={BUS_PRESETS.some((p) => p.seats === b.capacity && p.layout === (b.layout ?? defaultLayout(b.capacity))) ? b.capacity : ''}
+                    onChange={(e) => {
+                      const p = BUS_PRESETS.find((x) => x.seats === Number(e.target.value))
+                      if (p) up('buses', f.buses.map((x, j) => (j === i ? { ...x, capacity: p.seats, layout: p.layout } : x)))
+                    }}
+                  >
+                    <option value="">自訂</option>
+                    {BUS_PRESETS.map((p) => (
+                      <option key={p.seats} value={p.seats}>
+                        {p.zh}（{p.layout.replace('+', '＋')}）
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>座位排列 Layout</span>
+                  <select
+                    value={b.layout ?? defaultLayout(b.capacity)}
+                    onChange={(e) => up('buses', f.buses.map((x, j) => (j === i ? { ...x, layout: e.target.value as BusLayout } : x)))}
+                  >
+                    {BUS_LAYOUTS.map(([v, zh]) => (
+                      <option key={v} value={v}>
+                        {zh}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              </div>
             ))}
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => up('buses', [...f.buses, { label: String.fromCharCode(65 + f.buses.length), capacity: 45 }])}
+              onClick={() => up('buses', [...f.buses, { label: String.fromCharCode(65 + f.buses.length), capacity: 49, layout: '2+2' }])}
             >
               <Plus size={16} /> 加一架巴士
             </button>

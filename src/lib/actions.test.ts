@@ -21,6 +21,7 @@ import {
 import { buildIndex, extractFields, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
 import { ageFromBirth, uid } from './util'
 import { computeStats } from './hooks'
+import { busRows } from './busLayout'
 
 const ev = (name: string): EventInput => ({
   name,
@@ -237,6 +238,22 @@ describe('只領禮品與名單上的 QR', () => {
     expect(e.endDate).toBeUndefined()
     const g = await saveEvent({ ...ev('G'), mode: 'gift', endDate: '2026-10-25' })
     expect(g.endDate).toBe('2026-10-25')
+  })
+})
+
+describe('巴士座位排列', () => {
+  it('常見車型的排數及最後一排', () => {
+    const r49 = busRows(49, '2+2')
+    expect(r49.length).toBe(12)
+    expect(r49[0]).toEqual([1, 2, null, 3, 4])
+    expect(r49[11]).toEqual([45, 46, 47, 48, 49])
+    const r61 = busRows(61, '3+2')
+    expect(r61[0]).toEqual([1, 2, 3, null, 4, 5])
+    expect(r61[r61.length - 1]).toEqual([56, 57, 58, 59, 60, 61])
+    const r19 = busRows(19, '2+1')
+    expect(r19[r19.length - 1]).toEqual([16, 17, 18, 19])
+    expect(busRows(45, '2+2').flat().filter((n) => n).length).toBe(45)
+    expect(busRows(30, '2+2').flat().filter((n) => n).length).toBe(30)
   })
 })
 

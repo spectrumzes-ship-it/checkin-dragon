@@ -1,5 +1,6 @@
 import { db } from '../db/db'
 import type {
+  BusConfig,
   CheckIn,
   EventRec,
   Mode,
@@ -477,7 +478,7 @@ export interface EventInput {
   notes: string
   tableCount: number
   seatsPerTable: number
-  buses: { label: string; capacity: number }[]
+  buses: BusConfig[]
   dinnerTables: number
   dinnerSeats: number
   anonymous: boolean
@@ -878,6 +879,30 @@ export const moveSeat = async (eventId: string, pid: string, purpose: string, ta
     const from = mine ? `第 ${label(mine.resourceId)} 席 ${mine.seatLabel} 號` : '未安排'
     await audit(eventId, `調位：${from} → ${to}`, 'participant', pid, nameOf(p))
     if (occupant) await audit(eventId, `調位（對調）：→ ${from}`, 'participant', occupant.participantId, nameOf(q))
+  })
+  return { pid, affected, before }
+}
+
+// 巴士車位：把乘客移到某架車的某個座位；目標座位有人就對調。回傳移動前的狀態，可用 undoMoveSeat 復原。
+export const moveBusSeat = async (eventId: string, pid: string, target: SeatTarget) => {
+  const buses = await db.resources.where('eventId').equals(eventId).filter((r) => r.type === 'bus').toArray()
+  const ids = new Set(buses.map((b) => b.id))
+  const label = (id: string) => buses.find((b) => b.id === id)?.label ?? ''
+  const mine = await db.seats.where('participantId').equals(pid).filter((s) => ids.has(s.resourceId)).first()
+  const occupant = await db.seats.where('resourceId').equals(target.resourceId).filter((s) => s.seatLabel === target.seatLabel && s.participantId !== pid).first()
+  const affected = [...new Set([mine?.resourceId, target.resourceId].filter(Boolean) as string[])]
+  const before = (await db.seats.where('resourceId').anyOf(affected).toArray()).map((s) => ({ ...s }))
+  const [p, q] = await db.participants.bulkGet([pid, occupant?.participantId].filter(Boolean) as string[])
+  await db.transaction('rw', db.seats, db.auditLogs, async () => {
+    if (occupant) {
+      if (mine) await db.seats.update(occupant.id, { resourceId: mine.resourceId, seatLabel: mine.seatLabel })
+      else await db.seats.delete(occupant.id)
+    }
+    if (mine) await db.seats.update(mine.id, { resourceId: target.resourceId, seatLabel: target.seatLabel })
+    else await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: target.resourceId, seatLabel: target.seatLabel })
+    const from = mine ? `${label(mine.resourceId)} 車 ${mine.seatLabel} 號` : '未安排'
+    await audit(eventId, `調車位：${from} → ${label(target.resourceId)} 車 ${target.seatLabel} 號`, 'participant', pid, p ? names(p).full : '')
+    if (occupant) await audit(eventId, `調車位（對調）：→ ${from}`, 'participant', occupant.participantId, q ? names(q).full : '')
   })
   return { pid, affected, before }
 }

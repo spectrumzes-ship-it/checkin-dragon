@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { busRows, defaultLayout } from '../lib/busLayout'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Eraser, LogOut, Phone, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Eraser, LogOut, Phone, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { clearSession, createSession, deleteSession, setAttendance } from '../lib/actions'
+import { clearSession, createSession, deleteSession, moveBusSeat, setAttendance, undoMoveSeat } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
@@ -333,6 +335,12 @@ export function BusSeats() {
   const ev = useOutletContext<EventRec>()
   const nav = useNavigate()
   const { data, index } = useEventData(ev.id)
+  // 拖拉乘客到另一個座位（可跨車）：電腦按住移動即拖；手機按住約 0.3 秒才開始
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }))
+  const history = useRef<Awaited<ReturnType<typeof moveBusSeat>>[]>([])
+  const lastDrag = useRef(0)
+  const [dragging, setDragging] = useState<GuestEntry | null>(null)
+  const [, force] = useState(0)
   if (!data) return <div className="page" />
   const buses = data.resources.filter((r) => r.type === 'bus')
   if (!buses.length)
@@ -341,43 +349,103 @@ export function BusSeats() {
         <EmptyState art={<BusArt />} zh="還沒有設定巴士。" en="No buses yet." action={<Link className="btn btn-primary" to={`/e/${ev.id}/edit`}>設定巴士</Link>} />
       </div>
     )
+  const byId = new Map(index.map((e) => [e.p.id, e]))
+  const onDragEnd = async (evt: DragEndEvent) => {
+    setDragging(null)
+    lastDrag.current = Date.now()
+    if (!evt.over) return
+    const pid = String(evt.active.id).slice(2)
+    const [, busId, seat] = String(evt.over.id).split('|')
+    const e = byId.get(pid)
+    if (!e || e.seats.some((s) => s.resource.id === busId && s.seatLabel === seat)) return
+    history.current.push(await moveBusSeat(ev.id, pid, { resourceId: busId, seatLabel: seat }))
+    force((n) => n + 1)
+    toast(`${nameOf(e.p)} → ${buses.find((b) => b.id === busId)?.label} 車 ${seat} 號`)
+  }
+  const undo = async () => {
+    const snap = history.current.pop()
+    if (!snap) return
+    await undoMoveSeat(ev.id, snap)
+    force((n) => n + 1)
+    toast('已復原上一次調位')
+  }
   return (
-    <div className="page">
-      {buses.map((b) => {
-        const bySeat = new Map<string, GuestEntry>()
-        index.forEach((e) => e.seats.forEach((s) => s.resource.id === b.id && e.p.status === 'active' && bySeat.set(s.seatLabel, e)))
-        const rows = Math.ceil(b.capacity / 4)
-        return (
-          <section key={b.id} className="card bus-block">
-            <h2 className="bus-title">
-              {b.label} 車 <small>Bus {b.label} · {bySeat.size} / {b.capacity}</small>
-            </h2>
-            <div className="bus-grid">
-              {Array.from({ length: rows }, (_, r) => (
-                <div className="bus-row" key={r}>
-                  {[1, 2, 0, 3, 4].map((c, k) => {
-                    if (c === 0) return <span key={k} className="bus-aisle" />
-                    const n = r * 4 + c
-                    if (n > b.capacity) return <span key={k} />
-                    const e = bySeat.get(String(n))
-                    return (
-                      <button
-                        key={k}
-                        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived', !!e?.p.leftAt && 'left')}
-                        onClick={() => e && nav(`/e/${ev.id}/guests/${e.p.id}`)}
-                        title={e ? `${names(e.p).full}${e.p.leftAt ? '（已中途離開）' : ''}` : `${n} 號空位`}
-                      >
-                        <small>{n}</small>
-                        <span>{e ? nameOf(e.p) : ''}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          </section>
-        )
-      })}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={(e) => setDragging(byId.get(String(e.active.id).slice(2)) ?? null)}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setDragging(null)}
+      autoScroll
+    >
+      <div className="page">
+        <div className="seatlist-head">
+          <span className="muted">拖拉名字可調整車位（手機：按住約半秒），目標有人會對調，亦可拖到另一架車；點名字看詳情。座位排列可在「修改活動」更改。</span>
+          <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
+            <Undo2 size={16} /> 復原
+          </button>
+        </div>
+        {buses.map((b) => {
+          const bySeat = new Map<string, GuestEntry>()
+          index.forEach((e) => e.seats.forEach((s) => s.resource.id === b.id && e.p.status === 'active' && bySeat.set(s.seatLabel, e)))
+          const layout = ev.modeConfig.buses?.find((x) => x.label === b.label)?.layout ?? defaultLayout(b.capacity)
+          const rows = busRows(b.capacity, layout)
+          const cols = rows[0]?.length ?? 5
+          return (
+            <section key={b.id} className="card bus-block">
+              <h2 className="bus-title">
+                {b.label} 車{' '}
+                <small>
+                  Bus {b.label} · {bySeat.size} / {b.capacity} · {layout.replace('+', '＋')} 排列
+                </small>
+              </h2>
+              <div className="bus-grid" style={{ maxWidth: cols * 100 }}>
+                <div className="bus-front">車頭 Front</div>
+                {rows.map((row, r) => (
+                  <div className="bus-row" key={r} style={{ gridTemplateColumns: row.map((n) => (n === null ? '18px' : 'minmax(0, 1fr)')).join(' ') }}>
+                    {row.map((n, k) =>
+                      n === null ? (
+                        <span key={k} className="bus-aisle" />
+                      ) : n === 0 ? (
+                        <span key={k} />
+                      ) : (
+                        <BusSeat
+                          key={k}
+                          id={`seat|${b.id}|${n}`}
+                          n={n}
+                          e={bySeat.get(String(n))}
+                          onOpen={(e) => Date.now() - lastDrag.current > 400 && nav(`/e/${ev.id}/guests/${e.p.id}`)}
+                        />
+                      ),
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+      <DragOverlay dropAnimation={null}>{dragging ? <div className="guest-chip dragging">{nameOf(dragging.p)}</div> : null}</DragOverlay>
+    </DndContext>
+  )
+}
+
+function BusSeat({ id, n, e, onOpen }: { id: string; n: number; e?: GuestEntry; onOpen: (e: GuestEntry) => void }) {
+  const drop = useDroppable({ id })
+  const drag = useDraggable({ id: `g:${e?.p.id ?? 'none-' + id}`, disabled: !e })
+  return (
+    <div ref={drop.setNodeRef} className={cx('bus-cell', drop.isOver && 'drop')}>
+      <button
+        ref={drag.setNodeRef}
+        {...drag.listeners}
+        {...drag.attributes}
+        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived', !!e?.p.leftAt && 'left', drag.isDragging && 'ghost')}
+        onClick={() => e && onOpen(e)}
+        title={e ? `${names(e.p).full}${e.p.leftAt ? '（已中途離開）' : ''}` : `${n} 號空位`}
+      >
+        <small>{n}</small>
+        <span>{e ? nameOf(e.p) : ''}</span>
+      </button>
     </div>
   )
 }
