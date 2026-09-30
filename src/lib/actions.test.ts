@@ -299,6 +299,12 @@ describe('證件文字抽取', () => {
     expect(f.name).toBe('陳大文')
     expect(f.englishName).toBe('CHAN TAI MAN')
   })
+  it('複姓的英文姓名（AU YEUNG, Wai Shan）', () => {
+    const f = extractFields('歐陽慧珊\nAU YEUNG, Wai Shan\n2962 7122 1979 3790\n23-07-1992\nY123456(A)')
+    expect(f.englishName).toBe('AU YEUNG WAI SHAN')
+    expect(f.name).toBe('歐陽慧珊')
+    expect(f.idPrefix).toBe('Y123')
+  })
   it('只有會員證：姓名＋編號', () => {
     const f = extractFields('MEMBER NO. VIP-A0265\n何浩然')
     expect(f.name).toBe('何浩然')

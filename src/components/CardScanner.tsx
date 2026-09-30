@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Loader2, ScanText, X } from 'lucide-react'
-import { grabFromFrame, recognizeText, useCamera } from '../lib/scanner'
-import { extractFields, type CardFields } from '../lib/search'
+import { grabFromFrame, recognizeCard, useCamera } from '../lib/scanner'
+import { extractFields, isDocWord, type CardFields } from '../lib/search'
 
 const LABELS: [keyof CardFields, string][] = [
   ['name', '中文姓名'],
@@ -23,6 +23,7 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
   const [busy, setBusy] = useState(false)
   const [found, setFound] = useState<CardFields | null>(null)
   const [msg, setMsg] = useState('')
+  const [names, setNames] = useState<string[]>([])
 
   const read = async () => {
     const v = videoRef.current
@@ -34,9 +35,13 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
       // 只讀取框內的證件範圍，並用較高解像度，細字較清楚
       const ctx = frameRef.current && grabFromFrame(v, frameRef.current, canvasRef.current, 1600, 0.1)
       if (!ctx) return setMsg('未能讀取畫面，請再試')
-      const reads = await recognizeText(ctx, true)
+      const card = await recognizeCard(ctx)
       // 取抽到最多欄位的一次辨識結果（保留分行，姓名和其他資料不會混在一起）
-      const best = reads.map((r) => extractFields(r.lines.join('\n'))).sort((a, b) => Object.values(b).filter(Boolean).length - Object.values(a).filter(Boolean).length)[0]
+      const best = card.texts.map((t) => extractFields(t)).sort((a, b) => Object.values(b).filter(Boolean).length - Object.values(a).filter(Boolean).length)[0]
+      // 中文姓名：以「放大姓名範圍再辨識」的結果為準（較整張卡辨識可靠），並列出其他可能讓工作人員選
+      const alts = [...new Set([...card.names.filter((n) => !isDocWord(n)), ...(best?.name && !isDocWord(best.name) ? [best.name] : [])])].slice(0, 4)
+      if (best) best.name = alts[0] ?? ''
+      setNames(alts)
       if (!best || !Object.values(best).some(Boolean)) return setMsg('辨識不到文字，請對準證件、保持光線充足後再試')
       setFound(best)
     } catch {
@@ -75,7 +80,17 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
                 </div>
               ))}
             </dl>
-            <p className="hint">請核對；填入表格後仍可修改。相片不會保存。</p>
+            {names.length > 1 && (
+              <div className="chips" style={{ marginBottom: 8 }}>
+                <span className="muted">中文姓名可能是：</span>
+                {names.map((n) => (
+                  <button key={n} className={found.name === n ? 'chip active' : 'chip'} onClick={() => setFound({ ...found, name: n })}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="hint">請核對，中文姓名最容易認錯；填入表格後仍可修改。相片不會保存。</p>
             <div className="cardscan-btns">
               <button className="btn btn-ghost" onClick={() => setFound(null)}>
                 重新辨識

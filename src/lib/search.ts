@@ -317,8 +317,9 @@ export const extractFields = (text: string): CardFields => {
   // 證件格式「姓, 名」（LEE, CHI NAN）最可靠；否則取同一行內連續 2–4 個英文字
   const isWord = (w: string) => w.length >= 2 && !EN_LABELS.has(w) && !DOC_EN.has(w)
   let enAt = -1 // 英文姓名在文字中的位置，用來找緊貼在它前面的中文姓名
-  const comma = /([A-Z]{2,})\s?,\s?([A-Z]{2,}(?:[ \t]+[A-Z]{2,}){0,3})/.exec(rest)
-  if (comma && isWord(comma[1]) && comma[2].split(/\s+/).every(isWord)) {
+  // 姓氏可以是兩個字（AU YEUNG, WAI SHAN）
+  const comma = /([A-Z]{2,}(?:[ \t][A-Z]{2,})?)\s?,\s?([A-Z]{2,}(?:[ \t]+[A-Z]{2,}){0,3})/.exec(rest)
+  if (comma && comma[1].split(/\s+/).every(isWord) && comma[2].split(/\s+/).every(isWord)) {
     out.englishName = `${comma[1]} ${comma[2].replace(/\s+/g, ' ')}`.trim()
     enAt = comma.index
   } else {
@@ -352,3 +353,6 @@ export const extractFields = (text: string): CardFields => {
   }
   return out
 }
+
+// 是否證件上的固定字眼（不是姓名）
+export const isDocWord = (w: string) => DOC_ZH.some((l) => l.includes(w) || w.includes(l)) || LABELS.has(w)

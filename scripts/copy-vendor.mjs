@@ -8,6 +8,7 @@ mkdirSync(`${out}/tessdata`, { recursive: true })
 cpSync('node_modules/tesseract.js/dist/worker.min.js', `${out}/tesseract/worker.min.js`)
 for (const f of ['tesseract-core-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js', 'tesseract-core-relaxedsimd-lstm.wasm.js'])
   cpSync(`node_modules/tesseract.js-core/${f}`, `${out}/tesseract/${f}`)
-for (const lang of ['eng', 'chi_tra'])
+// chi_sim：回鄉證上的簡體字姓名（只在辨識回鄉證時才下載）
+for (const lang of ['eng', 'chi_tra', 'chi_sim'])
   cpSync(`node_modules/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz`, `${out}/tessdata/${lang}.traineddata.gz`)
 console.log('vendor files copied')

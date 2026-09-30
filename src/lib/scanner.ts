@@ -342,3 +342,114 @@ export const recognizeText = async (ctx: CanvasRenderingContext2D, alwaysBoth = 
 
 // 活動前預先載入文字辨識（「準備離線使用」）
 export const warmUpOcr = () => getOcr().then(() => true).catch(() => false)
+
+
+// ---------- 證件辨識（登記用）：身份證／回鄉證 ----------
+// 證件上的中文姓名字體較大、字距很闊（身份證用楷書，回鄉證用簡體字），整張卡一次過辨識時常被漏掉或認錯。
+// 做法：先辨識整張卡找出英文姓名（或「姓名」標籤）的位置，再把它上方／旁邊的姓名範圍裁出來放大，
+// 用「單行文字」方式再辨識一次；回鄉證另外用簡體中文資料辨識。
+let simPromise: Promise<OcrWorker> | null = null
+const getSimOcr = () =>
+  (simPromise ??= (async () => {
+    try {
+      const { createWorker, PSM } = await import('tesseract.js')
+      const worker = await createWorker(['chi_sim'], 1, { workerPath: `${vendor}tesseract/worker.min.js`, corePath: `${vendor}tesseract/`, langPath: `${vendor}tessdata/` })
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE })
+      return worker
+    } catch (e) {
+      simPromise = null
+      throw e
+    }
+  })())
+
+type CardLine = { text: string; confidence: number; bbox: TextBox }
+const allLines = (d: OcrData): CardLine[] => (d.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines))
+
+// 把姓名範圍裁出並放大；mode：0 = 原圖、1 = 黑白整理
+const cropName = (src: HTMLCanvasElement, r: TextBox, mode: 0 | 1) => {
+  const x0 = Math.max(0, Math.floor(r.x0)), y0 = Math.max(0, Math.floor(r.y0))
+  const w = Math.min(src.width - x0, Math.ceil(r.x1 - r.x0)), h = Math.min(src.height - y0, Math.ceil(r.y1 - r.y0))
+  if (w < 12 || h < 8) return null
+  const k = Math.min(6, Math.max(1, 120 / h)) // 放大到字高約 100 像素
+  const c = document.createElement('canvas')
+  const pad = 24
+  c.width = Math.round(w * k) + pad * 2
+  c.height = Math.round(h * k) + pad * 2
+  const ctx = c.getContext('2d', { willReadFrequently: true })!
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, c.width, c.height)
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(src, x0, y0, w, h, pad, pad, c.width - pad * 2, c.height - pad * 2)
+  if (mode === 1) binarize(ctx)
+  return c
+}
+
+const CJK_RUN = /[\u3400-\u9fff]{2,4}/g
+const NAME_LABEL = /姓\s?名|NAME/g
+
+export const recognizeCard = async (ctx: CanvasRenderingContext2D) => {
+  const worker = await getOcr()
+  const { PSM } = await import('tesseract.js')
+  // 保留一份原圖（黑白整理會改動畫面）
+  const orig = document.createElement('canvas')
+  orig.width = ctx.canvas.width
+  orig.height = ctx.canvas.height
+  orig.getContext('2d')!.drawImage(ctx.canvas, 0, 0)
+
+  const first = (await worker.recognize(ctx.canvas, {}, { text: true, blocks: true })).data as OcrData
+  binarize(ctx)
+  const second = (await worker.recognize(ctx.canvas, {}, { text: true, blocks: true })).data as OcrData
+  const texts = [first, second].map((d) => clean(d.text).join('\n')).filter(Boolean)
+
+  // 找姓名範圍：英文姓名一行的上方（身份證、回鄉證的中文姓名都印在英文姓名之上），或「姓名」標籤的同一行
+  const regions: TextBox[] = []
+  for (const d of [first, second]) {
+    const lines = allLines(d)
+    const en = lines.find((l) => /[A-Z]{2,}\s?,\s?[A-Z]{2,}/i.test(l.text)) ?? lines.find((l) => /^[^\u3400-\u9fff\d]*[A-Z]{2,}(\s+[A-Z]{2,}){1,3}[^\u3400-\u9fff\d]*$/i.test(l.text.trim()) && !/IDENTITY|PERMANENT|HONG|PERMIT|BIRTH|ISSUE/i.test(l.text))
+    if (en) {
+      const h = en.bbox.y1 - en.bbox.y0
+      regions.push({ x0: en.bbox.x0 - h * 0.6, y0: en.bbox.y0 - h * 2.6, x1: Math.max(en.bbox.x1, en.bbox.x0 + h * 9), y1: en.bbox.y0 - h * 0.05 })
+      regions.push({ x0: en.bbox.x0 - h * 0.6, y0: en.bbox.y0 - h * 1.7, x1: Math.max(en.bbox.x1, en.bbox.x0 + h * 9), y1: en.bbox.y0 - h * 0.05 })
+    }
+    const lab = lines.find((l) => /姓\s?名/.test(l.text))
+    if (lab) {
+      const h = lab.bbox.y1 - lab.bbox.y0
+      regions.push({ x0: lab.bbox.x0 - h * 0.3, y0: lab.bbox.y0 - h * 0.45, x1: lab.bbox.x1 + h * 6, y1: lab.bbox.y1 + h * 0.45 })
+    }
+    if (regions.length) break
+  }
+
+  // 逐個範圍用「單行文字」再辨識；回鄉證（有 H／M＋8 位數字，或見到「通行證」）加用簡體中文
+  const isPermit = texts.some((t) => /通行[證证]|PERMIT|(?<![A-Z0-9])[HM]\s?\d{8}/i.test(t))
+  const found = new Map<string, number>() // 姓名 → 累計信心
+  const note = (text: string, conf: number) => {
+    const t = text.normalize('NFKC').replace(NAME_LABEL, ' ').replace(/(?<=[\u3400-\u9fff])\s+(?=[\u3400-\u9fff])/g, '')
+    for (const m of t.match(CJK_RUN) ?? []) found.set(m, (found.get(m) ?? 0) + conf)
+  }
+  if (regions.length) {
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE })
+    try {
+      // 已有一個姓名在兩次辨識都出現（累計信心夠高）就不用再試，節省時間
+      const sure = () => Math.max(0, ...found.values()) >= 140
+      for (const r of regions)
+        for (const mode of [0, 1] as const) {
+          if (sure()) break
+          const c = cropName(orig, r, mode)
+          if (!c) continue
+          const d = (await worker.recognize(c)).data
+          if (d.confidence >= 45) note(d.text, d.confidence)
+          // 同時用簡體中文辨識：回鄉證以簡體結果優先；其他證件只在簡體結果明顯較有把握時才會排前
+          try {
+            const sd = (await (await getSimOcr()).recognize(c)).data
+            if (sd.confidence >= 45) note(sd.text, sd.confidence + (isPermit ? 15 : -10))
+          } catch {
+            /* 簡體資料未能下載：只用繁體結果 */
+          }
+        }
+    } finally {
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT, preserve_interword_spaces: '1' })
+    }
+  }
+  const names = [...found.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+  return { texts, names }
+}
