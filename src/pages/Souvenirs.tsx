@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ClipboardList, Gift, Pencil, Plus, ScanLine } from 'lucide-react'
+import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem } from '../db/types'
 import { eligibilityLabel, saveSouvenir } from '../lib/actions'
@@ -79,7 +79,10 @@ export default function Souvenirs() {
                 </p>
                 <div className="souvenir-actions">
                   <Link to={`/e/${ev.id}/scan?p=s:${it.id}`} className="btn btn-primary">
-                    <ScanLine size={18} /> 開始派發
+                    <ScanLine size={18} /> 掃描派發
+                  </Link>
+                  <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=pending`} className="btn btn-mode">
+                    <ListChecks size={18} /> 名單派發
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}`} className="btn btn-ghost">
                     <ClipboardList size={18} /> 派發紀錄

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { eligible, entitlement, undoRedemption } from '../lib/actions'
+import { eligible, entitlement, undoRedemption, verifySouvenir } from '../lib/actions'
+import { feedback } from '../lib/feedback'
+import type { GuestEntry } from '../lib/search'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests } from '../lib/search'
 import { formatTime } from '../lib/util'
@@ -12,10 +14,9 @@ import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, toast } from '../components/ui'
 import { nameOf } from '../lib/names'
 
-// 派發紀錄：哪些嘉賓已領／未領紀念品
+// 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
 export default function SouvenirRecords() {
   const ev = useOutletContext<EventRec>()
-  const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
@@ -62,9 +63,22 @@ export default function SouvenirRecords() {
 
   const qtyTotal = done.reduce((a, x) => a + x.r.qty, 0)
 
+  // 按名單派發：與掃描派發用同一套檢查（資格、數量、庫存）
+  const give = async (e: GuestEntry) => {
+    if (!item) return
+    const o = await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id)
+    if (o.result === 'valid') {
+      feedback('valid')
+      toast(`✓ 已派發「${item.name}」×${o.souvenir?.quantity ?? 1} 給 ${nameOf(e.p)}`)
+    } else {
+      feedback('invalid')
+      toast(o.result === 'duplicate' ? `${nameOf(e.p)} 已經領取` : o.reason || '未能派發')
+    }
+  }
+
   return (
     <div className="page">
-      <PageHeader zh="派發紀錄" en="Distribution Records" back={`/e/${ev.id}/souvenirs`} />
+      <PageHeader zh="名單派發及紀錄" en="Distribute by List" back={`/e/${ev.id}/souvenirs`} />
       <div className="chips">
         {items.map((i) => (
           <FilterChip key={i.id} active={i.id === itemId} onClick={() => set('item', i.id)}>
@@ -83,6 +97,8 @@ export default function SouvenirRecords() {
       <div className="toolbar">
         <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號" />
       </div>
+
+      <p className="hint">{tab === 'pending' ? '點一下嘉賓即派發（不用掃描）。派錯了可到「已領取」點該嘉賓取消。' : '點一下嘉賓可取消領取。'}</p>
 
       {tab === 'done' ? (
         done.length ? (
@@ -112,8 +128,8 @@ export default function SouvenirRecords() {
             <GuestRow
               key={e.p.id}
               e={e}
-              onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}`)}
-              trailing={item && <span className="muted">可領 {entitlement(item, e.p)} 份</span>}
+              onClick={() => give(e)}
+              trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>}
             />
           ))}
         </div>

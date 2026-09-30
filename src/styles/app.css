@@ -4039,3 +4039,8 @@ legend {
 .rc-left-row + .rc-left-row {
   border-top: 1px solid var(--border-soft);
 }
+
+/* 紀念品：掃描派發／名單派發並排，派發紀錄在下一行 */
+.souvenir-actions > :nth-child(3) {
+  grid-column: 1 / -1;
+}
