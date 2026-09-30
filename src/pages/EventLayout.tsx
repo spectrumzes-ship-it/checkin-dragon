@@ -43,9 +43,11 @@ export default function EventLayout() {
     )
 
   const base = `/e/${ev.id}`
+  const gift = ev.mode === 'gift'
   const tabs = [
-    { to: base, icon: <ChartPie size={18} />, zh: '統計', en: 'Dashboard', end: true },
-    { to: `${base}/guests`, icon: <Users size={18} />, zh: '嘉賓', en: 'Guests' },
+    { to: base, icon: <ChartPie size={18} />, zh: gift ? '總覽' : '統計', en: 'Dashboard', end: true },
+    ...(gift ? [{ to: `${base}/souvenirs`, icon: <Gift size={18} />, zh: '禮品', en: 'Gifts' }] : []),
+    { to: `${base}/guests`, icon: <Users size={18} />, zh: gift ? '領取人' : '嘉賓', en: gift ? 'Recipients' : 'Guests' },
     ...(ev.mode === 'banquet' ? [{ to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '圍席座位', en: 'Tables' }] : []),
     ...(ev.mode === 'bus'
       ? [
@@ -54,7 +56,7 @@ export default function EventLayout() {
           { to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '餐席', en: 'Dinner' },
         ]
       : []),
-    { to: `${base}/souvenirs`, icon: <Gift size={18} />, zh: '紀念品', en: 'Souvenirs' },
+    ...(gift ? [] : [{ to: `${base}/souvenirs`, icon: <Gift size={18} />, zh: '紀念品', en: 'Souvenirs' }]),
     { to: `${base}/logs`, icon: <ClipboardList size={18} />, zh: '紀錄', en: 'Logs' },
   ]
 

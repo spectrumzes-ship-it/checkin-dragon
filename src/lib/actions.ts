@@ -11,10 +11,11 @@ import type {
   ScanResultType,
   SeatAssignment,
   SouvenirItem,
+  SouvenirLogic,
   Ticket,
 } from '../db/types'
 import { getSettings } from './settings'
-import { normalize, randomCode, uid } from './util'
+import { formatTime, normalize, randomCode, uid } from './util'
 import { names } from './names'
 
 // 所有會改動資料的操作都集中在這裏：每個操作同時寫入操作紀錄（Audit Log）。
@@ -288,6 +289,9 @@ export interface GuestInput {
   guestCount: number
   tags: string[]
   giftGroups: string[]
+  age: string
+  birthDate: string
+  idPrefix: string
   dietary: string
   remarks: string
   tableId: string
@@ -311,6 +315,9 @@ export const emptyGuest = (): GuestInput => ({
   guestCount: 1,
   tags: [],
   giftGroups: [],
+  age: '',
+  birthDate: '',
+  idPrefix: '',
   dietary: '',
   remarks: '',
   tableId: '',
@@ -332,6 +339,9 @@ const writeSeats = async (eventId: string, pid: string, g: GuestInput) => {
   if (rows.length) await db.seats.bulkAdd(rows)
 }
 
+// 身份證號碼只保留頭 4 位（英文字母＋數字），其餘不保存
+export const idPrefixOf = (v: string) => normalize(v).replace(/[^A-Z0-9]/g, '').slice(0, 4)
+
 export const saveGuest = async (eventId: string, g: GuestInput, existing?: Participant) => {
   const now = Date.now()
   const pid = existing?.id ?? uid()
@@ -347,6 +357,11 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     guestCount: Math.max(1, g.guestCount || 1),
     tags: g.tags,
     giftGroups: g.giftGroups,
+    age: g.age.trim() || undefined,
+    birthDate: g.birthDate || undefined,
+    idPrefix: idPrefixOf(g.idPrefix) || undefined,
+    leftAt: existing?.leftAt,
+    companionOf: existing?.companionOf,
     dietary: g.dietary,
     remarks: g.remarks,
     status: existing?.status ?? 'active',
@@ -399,6 +414,9 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     // 舊的「飲食需要」併入「特別需要」
     tags: p.dietary && !p.tags.includes(p.dietary) ? [...p.tags, p.dietary] : p.tags,
     giftGroups: p.giftGroups ?? [],
+    age: p.age ?? '',
+    birthDate: p.birthDate ?? '',
+    idPrefix: p.idPrefix ?? '',
     dietary: '',
     remarks: p.remarks,
     tableId: mainTable?.resource.id ?? '',
@@ -613,7 +631,27 @@ export const saveSouvenir = async (item: SouvenirItem) => {
   await audit(item.eventId, `設定紀念品 ${item.name}`, 'souvenir', item.id)
 }
 
-export const entitlement = (item: SouvenirItem, p: Participant) => (item.perGuest > 0 ? item.perGuest : p.guestCount)
+// 舊資料沒有 logic／perClaim：perGuest 0 = 按人數每位 1 份；N = 每張請柬 N 份
+export const logicOf = (item: SouvenirItem): SouvenirLogic => item.logic ?? (item.perGuest > 0 ? 'invitation' : 'person')
+export const perClaimOf = (item: SouvenirItem) => Math.max(1, item.perClaim ?? (item.perGuest > 0 ? item.perGuest : 1))
+
+// 這位嘉賓可領多少份：按人頭 = 每位 X 份（一票多人按人數）；按請柬／先到先得 = 每次 X 份
+export const entitlement = (item: SouvenirItem, p: Participant) => (logicOf(item) === 'person' ? perClaimOf(item) * p.guestCount : perClaimOf(item))
+
+export const logicLabel = (item: SouvenirItem) => (logicOf(item) === 'fcfs' ? '限量先到先得' : eligibilityLabel(item.eligibility))
+export const quantityLabel = (item: SouvenirItem, left: number | null) => {
+  const x = perClaimOf(item)
+  const l = logicOf(item)
+  return l === 'person' ? `每人 ${x} 份` : l === 'invitation' ? `每張請柬 ${x} 份` : left === null ? `每次 ${x} 份 · 不限數量` : `剩餘 ${Math.max(0, left)} 份`
+}
+
+// 同一張請柬的所有人：原嘉賓＋分拆出來的同行者
+const invitationGroup = async (p: Participant) => {
+  const rootId = p.companionOf ?? p.id
+  const others = await db.participants.where('eventId').equals(p.eventId).filter((x) => x.companionOf === rootId).toArray()
+  const root = p.id === rootId ? p : await db.participants.get(rootId)
+  return [...(root ? [root] : []), ...others]
+}
 
 export const eligible = (item: SouvenirItem, p: Participant) => {
   if (item.eligibility === 'all') return true
@@ -626,9 +664,6 @@ export const eligible = (item: SouvenirItem, p: Participant) => {
 export const eligibilityLabel = (e: string) =>
   e === 'all' ? '所有人' : e === 'vip' ? '只限 VIP' : e.startsWith('group:') ? `只限「${e.slice(6)}」` : e.startsWith('tag:') ? `只限「${e.slice(4)}」` : e
 
-// 數量說明：0 = 按人數（一票多人每位 1 份）；N = 每張請柬固定 N 份
-export const quantityLabel = (perGuest: number) => (perGuest > 0 ? `每張請柬 ${perGuest} 份` : '每位 1 份（按人數）')
-
 export const redeemedQty = async (itemId: string, participantId?: string) => {
   const rows = participantId
     ? await db.redemptions.where('participantId').equals(participantId).filter((r) => r.itemId === itemId).toArray()
@@ -639,14 +674,37 @@ export const redeemedQty = async (itemId: string, participantId?: string) => {
 export const verifySouvenir = async (eventId: string, itemId: string, raw: string, method: ScanMethod, participantId?: string): Promise<ScanOutcome> => {
   const now = Date.now()
   const item = await db.souvenirs.get(itemId)
-  const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw, method === 'QR')
+  const found = participantId ? { participant: (await db.participants.get(participantId))! } : raw ? await findByCode(raw, method === 'QR') : undefined
   const log = (r: ScanResultType, reason: string, pid: string | null) => logScan(eventId, 'souvenir', raw, method, r, reason, pid)
   if (!item) return { result: 'invalid', reason: '請先設定紀念品', time: now, rawValue: raw }
-  if (!found?.participant || found.participant.eventId !== eventId) {
+  const logic = logicOf(item)
+  const mine = found?.participant && found.participant.eventId === eventId ? found.participant : undefined
+  const { operator, deviceId } = who()
+  const left = async () => (item.stock === null ? Infinity : item.stock - (await redeemedQty(item.id)))
+  const give = async (pid: string, qty: number, who_: string) => {
+    await db.redemptions.add({ id: uid(), eventId, itemId: item.id, participantId: pid, quantity: qty, method, time: now, deviceId, operator, kind: 'redeem', voided: false })
+    await audit(eventId, `領取紀念品 ${item.name} ×${qty}`, 'souvenir', item.id, who_)
+    await log('valid', '', pid || null)
+  }
+
+  // 限量先到先得：不認人、不查重複，到場核銷即扣庫存，扣完即止
+  if (logic === 'fcfs') {
+    const remain = await left()
+    const p = mine?.status === 'active' ? mine : undefined
+    if (remain <= 0) {
+      await log('out_of_stock', '', p?.id ?? null)
+      return { result: 'out_of_stock', reason: '禮物已派發完畢（已售罄）', participant: p, time: now, souvenir: { item, quantity: 0 }, rawValue: raw }
+    }
+    const qty = Math.min(perClaimOf(item), remain)
+    await give(p?.id ?? '', qty, p ? names(p).full : '')
+    return { result: 'valid', participant: p, seats: p ? await seatsFor(p.id) : undefined, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
+  }
+
+  if (!mine) {
     await log('invalid', '找不到嘉賓', null)
     return { result: 'invalid', reason: '找不到此邀請 Invitation Not Found', time: now, rawValue: raw }
   }
-  const p = found.participant
+  const p = mine
   const seats = await seatsFor(p.id)
   if (p.status === 'cancelled') {
     await log('invalid', '已取消', p.id)
@@ -657,25 +715,54 @@ export const verifySouvenir = async (eventId: string, itemId: string, raw: strin
     return { result: 'not_eligible', reason: `不符合領取資格：${eligibilityLabel(item.eligibility)}`, participant: p, seats, time: now, rawValue: raw }
   }
   const quota = entitlement(item, p)
-  const already = await redeemedQty(item.id, p.id)
+  let already = await redeemedQty(item.id, p.id)
+  // 按請柬派發：同一張請柬任何一位領了，其他同行者不可再領
+  if (logic === 'invitation' && already < quota) {
+    for (const m of await invitationGroup(p)) {
+      if (m.id === p.id) continue
+      const last = await db.redemptions.where('participantId').equals(m.id).filter((r) => r.itemId === item.id && !r.voided).last()
+      if (last) {
+        await log('duplicate', '同組同行者已領取', p.id)
+        return {
+          result: 'duplicate',
+          reason: `同組同行者（${names(m).primary}）已於 ${formatTime(last.time)} 領取，不可重複領取`,
+          participant: p,
+          seats,
+          time: now,
+          souvenir: { item, quantity: last.quantity },
+          rawValue: raw,
+        }
+      }
+    }
+  }
   if (already >= quota) {
     const last = await db.redemptions.where('participantId').equals(p.id).filter((r) => r.itemId === item.id && !r.voided).last()
     await log('duplicate', '', p.id)
-    return { result: 'duplicate', participant: p, seats, time: now, previousTime: last?.time, souvenir: { item, quantity: already }, rawValue: raw }
+    return { result: 'duplicate', reason: '此門票／身分已領取過禮品', participant: p, seats, time: now, previousTime: last?.time, souvenir: { item, quantity: already }, rawValue: raw }
   }
   const qty = quota - already
-  if (item.stock !== null) {
-    const used = await redeemedQty(item.id)
-    if (used + qty > item.stock) {
-      await log('out_of_stock', '', p.id)
-      return { result: 'out_of_stock', reason: `庫存已用完（剩 ${Math.max(0, item.stock - used)}）`, participant: p, seats, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
-    }
+  const remain = await left()
+  if (qty > remain) {
+    await log('out_of_stock', '', p.id)
+    return { result: 'out_of_stock', reason: remain <= 0 ? '禮物已派發完畢（已售罄）' : `庫存不足（剩 ${remain}）`, participant: p, seats, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
   }
-  const { operator, deviceId } = who()
-  await db.redemptions.add({ id: uid(), eventId, itemId: item.id, participantId: p.id, quantity: qty, time: now, deviceId, operator, kind: 'redeem', voided: false })
-  await audit(eventId, `領取紀念品 ${item.name} ×${qty}`, 'souvenir', item.id, names(p).full)
-  await log('valid', '', p.id)
+  await give(p.id, qty, names(p).full)
   return { result: 'valid', participant: p, seats, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
+}
+
+// 取消某一筆領取紀錄（限量先到先得沒有領取人時使用）
+export const undoRedemptionById = async (id: string) => {
+  const r = await db.redemptions.get(id)
+  if (!r || r.voided) return
+  await db.redemptions.update(id, { voided: true })
+  const item = await db.souvenirs.get(r.itemId)
+  await audit(r.eventId, `取消領取紀念品 ${item?.name ?? ''} ×${r.quantity}`, 'souvenir', r.itemId)
+}
+
+// 即場登記領取人並派發：名單上沒有的人，登記後立即領取
+export const registerAndRedeem = async (eventId: string, itemId: string, g: GuestInput, method: ScanMethod = 'MANUAL') => {
+  const p = await saveGuest(eventId, g)
+  return verifySouvenir(eventId, itemId, '', method, p.id)
 }
 
 export const undoRedemption = async (itemId: string, p: Participant) => {

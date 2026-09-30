@@ -4,7 +4,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput } from '../lib/actions'
+import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefixOf } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { cx } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
@@ -202,6 +202,20 @@ export default function GuestForm() {
                 </div>
               </div>
             )}
+            <div className="field-row">
+              <label className="field">
+                <span>年齡 Age</span>
+                <input value={g.age} onChange={(e) => up('age', e.target.value)} inputMode="numeric" />
+              </label>
+              <label className="field">
+                <span>出生日期 Date of Birth</span>
+                <input type="date" value={g.birthDate} onChange={(e) => up('birthDate', e.target.value)} />
+              </label>
+            </div>
+            <label className="field">
+              <span>身份證號碼（只保存頭 4 位）</span>
+              <input value={g.idPrefix} onChange={(e) => up('idPrefix', idPrefixOf(e.target.value))} maxLength={4} placeholder="例如 A123" autoCapitalize="characters" />
+            </label>
             <label className="field">
               <span>備註 Remarks</span>
               <textarea rows={2} value={g.remarks} onChange={(e) => up('remarks', e.target.value)} />

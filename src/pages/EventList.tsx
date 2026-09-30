@@ -96,7 +96,7 @@ export default function EventList() {
           <FilterChip active={!mode} onClick={() => set('mode', null)}>
             全部
           </FilterChip>
-          {(['event', 'banquet', 'bus'] as Mode[]).map((md) => (
+          {(['event', 'banquet', 'bus', 'gift'] as Mode[]).map((md) => (
             <FilterChip key={md} active={mode === md} onClick={() => set('mode', md)}>
               <ModeIcon mode={md} size={14} /> {MODE_META[md].zh.replace('模式', '')}
             </FilterChip>

@@ -3,13 +3,19 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec, SouvenirItem } from '../db/types'
-import { eligibilityLabel, quantityLabel, saveSouvenir } from '../lib/actions'
+import type { EventRec, SouvenirItem, SouvenirLogic } from '../db/types'
+import { eligibilityLabel, logicLabel, logicOf, perClaimOf, quantityLabel, saveSouvenir } from '../lib/actions'
 import { uid } from '../lib/util'
 import { useSettings } from '../lib/settings'
 import { GiftArt } from '../illustrations'
 import { EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
 
+
+const LOGICS: [SouvenirLogic, string, string][] = [
+  ['person', '按人頭／門票登記派發', '每位（每張門票）可領一次。適合旅遊巴士、活動、宴會一般情況。'],
+  ['invitation', '按請柬單位派發（同行者共用）', '同一張請柬只可領一次，任何一位領了，其他同行者不可再領。適合宴會家庭請柬。'],
+  ['fcfs', '限量先到先得', '不認人、不查重複，每次核銷即扣庫存，派完即止。適合禮品領取模式。'],
+]
 
 export default function Souvenirs() {
   const ev = useOutletContext<EventRec>()
@@ -18,7 +24,7 @@ export default function Souvenirs() {
   const [edit, setEdit] = useState<SouvenirItem | null>(null)
   const groups = useSettings().giftGroups
 
-  const blank = (): SouvenirItem => ({ id: uid(), eventId: ev.id, name: '', stock: 100, perGuest: 0, eligibility: 'all', sortOrder: (items?.length ?? 0) + 1 })
+  const blank = (): SouvenirItem => ({ id: uid(), eventId: ev.id, name: '', stock: 100, perGuest: 0, perClaim: 1, logic: ev.mode === 'gift' ? 'fcfs' : 'person', eligibility: 'all', sortOrder: (items?.length ?? 0) + 1 })
 
   if (!items) return <div className="page" />
   return (
@@ -60,8 +66,8 @@ export default function Souvenirs() {
                   </span>
                   <div>
                     <h3>{it.name}</h3>
-                    <p className="muted">{eligibilityLabel(it.eligibility)}</p>
-                    <p className="muted">{quantityLabel(it.perGuest)}</p>
+                    <p className="muted">{logicLabel(it)}</p>
+                    <p className="muted">{quantityLabel(it, left)}</p>
                   </div>
                   <button className="icon-btn" aria-label="修改" onClick={() => setEdit(it)}>
                     <Pencil size={18} />
@@ -122,21 +128,6 @@ export default function Souvenirs() {
               <span>名稱 Name</span>
               <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="例如 帆布袋 Tote Bag" autoFocus />
             </label>
-            <div className="field-row">
-              <label className="field">
-                <span>總數量 Stock（留空 = 不限）</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={edit.stock ?? ''}
-                  onChange={(e) => setEdit({ ...edit, stock: e.target.value === '' ? null : Number(e.target.value) })}
-                />
-              </label>
-              <label className="field">
-                <span>每張請柬份數（0 = 按人數）</span>
-                <input type="number" min={0} value={edit.perGuest} onChange={(e) => setEdit({ ...edit, perGuest: Number(e.target.value) })} />
-              </label>
-            </div>
             <label className="field">
               <span>領取資格 Eligibility</span>
               <select value={edit.eligibility} onChange={(e) => setEdit({ ...edit, eligibility: e.target.value })}>
@@ -152,9 +143,43 @@ export default function Souvenirs() {
                 )}
               </select>
             </label>
+            <div className="field-row">
+              <label className="field">
+                <span>總數量 Stock</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={edit.stock ?? ''}
+                  placeholder="不限"
+                  onChange={(e) => setEdit({ ...edit, stock: e.target.value === '' ? null : Number(e.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span>每次領取上限（份）</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={edit.perClaim ?? perClaimOf(edit)}
+                  onChange={(e) => setEdit({ ...edit, logic: logicOf(edit), perClaim: Math.max(1, Number(e.target.value) || 1) })}
+                />
+              </label>
+            </div>
+            <p className="hint">總數量留空 = 不限數量。設了上限後，不論哪一種派發方式，派完即止。</p>
+            <div className="field">
+              <span>派發方式 Distribution</span>
+              <div className="radio-list" role="radiogroup">
+                {LOGICS.map(([v, zh, note]) => (
+                  <label key={v} className={logicOf(edit) === v ? 'active' : ''}>
+                    <input type="radio" name="logic" checked={logicOf(edit) === v} onChange={() => setEdit({ ...edit, perClaim: perClaimOf(edit), logic: v })} />
+                    <span>
+                      <strong>{zh}</strong>
+                      <small>{note}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
             <p className="hint">
-              「每張請柬份數」填 0：一票多人的請柬每位 1 份；填 2：每張請柬固定 2 份。
-              <br />
               想只派給某一類嘉賓？先到 <Link to="/settings">設定 → 禮物組別</Link> 新增組別（例如「贊助商」），再在嘉賓資料選擇組別。
             </p>
           </>

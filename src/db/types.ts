@@ -1,6 +1,6 @@
-// 所有資料的形狀。三種模式共用同一套資料結構。
+// 所有資料的形狀。四種模式共用同一套資料結構。
 
-export type Mode = 'event' | 'banquet' | 'bus'
+export type Mode = 'event' | 'banquet' | 'bus' | 'gift' // gift = 禮品領取（純禮品發放點，不綁定門票或名單）
 export type EventStatus = 'active' | 'completed' | 'archived'
 export type ScanMethod = 'QR' | 'OCR' | 'MANUAL' | 'SEARCH'
 
@@ -56,6 +56,9 @@ export interface Participant {
   checkInMethod: ScanMethod | null
   manual: boolean
   ticketLabel?: string // 不記名門票的票號（沒有姓名時用作顯示名稱）
+  age?: string // 即場登記：年齡
+  birthDate?: string // 即場登記：出生日期 YYYY-MM-DD
+  idPrefix?: string // 即場登記：身份證號碼頭 4 位（私隱考慮，不保存完整號碼）
   leftAt?: number // 巴士行程：中途離開的時間（之後的點名及聚餐安排不再計算此人）
   companionOf?: string // 由請柬分拆出來的同行者：所屬請柬（原嘉賓）的編號
   createdAt: number
@@ -129,12 +132,17 @@ export interface AttendanceRecord {
   operator: string
 }
 
+// 派發邏輯：person = 按人頭／門票；invitation = 按請柬（同行者共用）；fcfs = 限量先到先得（不認人）
+export type SouvenirLogic = 'person' | 'invitation' | 'fcfs'
+
 export interface SouvenirItem {
   id: string
   eventId: string
   name: string
   stock: number | null // null = 不限數量
-  perGuest: number // 0 = 跟嘉賓人數
+  perGuest: number // 舊欄位（已由 logic + perClaim 取代）
+  logic?: SouvenirLogic // 派發邏輯
+  perClaim?: number // 每次領取上限（份）
   eligibility: string // 'all' | 'vip' | 'group:禮物組別'（舊資料可能有 'tag:XXX'）
   sortOrder: number
 }
@@ -143,8 +151,9 @@ export interface SouvenirRedemption {
   id: string
   eventId: string
   itemId: string
-  participantId: string
+  participantId: string // 限量先到先得而沒有登記領取人時為空字串
   quantity: number
+  method?: ScanMethod // 核銷方式（QR／文字掃描／手動）
   time: number
   deviceId: string
   operator: string

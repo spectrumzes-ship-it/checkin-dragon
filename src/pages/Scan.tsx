@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
@@ -69,7 +69,8 @@ export default function Scan() {
   const lastCode = useRef<{ value: string; misses: number }>({ value: '', misses: 0 })
 
   // 掃描目的：簽到／點名／紀念品
-  const purposeKey = params.get('p') ?? 'checkin'
+  // 禮品領取模式沒有簽到：預設掃描目的為第一款禮品
+  const purposeKey = params.get('p') ?? (ev?.mode === 'gift' && souvenirs[0] ? `s:${souvenirs[0].id}` : 'checkin')
   const purpose: 'checkin' | 'rollcall' | 'souvenir' = purposeKey.startsWith('s:') ? 'souvenir' : purposeKey.startsWith('r:') ? 'rollcall' : 'checkin'
   const targetId = purposeKey.slice(2)
 
@@ -316,7 +317,7 @@ export default function Scan() {
             onChange={(e) => setParams({ p: e.target.value }, { replace: true })}
             aria-label="掃描目的"
           >
-            <option value="checkin">簽到 Check-In</option>
+            {ev.mode !== 'gift' && <option value="checkin">簽到 Check-In</option>}
             {sessions.map((s) => (
               <option key={s.id} value={`r:${s.id}`}>
                 點名：{s.name}
@@ -519,6 +520,11 @@ export default function Scan() {
             <div className="manual-results">
               {!dq && <p className="muted pad center">輸入姓名、編號、電話、公司或座位，結果會即時出現</p>}
               {dq && results.length === 0 && <p className="muted pad">找不到「{dq}」</p>}
+              {purpose === 'souvenir' && (
+                <Link className="btn btn-mode manual-register" to={`/e/${ev.id}/souvenirs/records?item=${targetId}&tab=pending&reg=1`}>
+                  ＋ 即場登記領取人
+                </Link>
+              )}
               {results.map((e) => {
                 // 簽到用途：每行可直接「簽到」或「取消簽到」
                 const canToggle = purpose === 'checkin' && e.p.status === 'active'

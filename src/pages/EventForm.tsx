@@ -73,7 +73,7 @@ export default function EventForm() {
         <fieldset className="card">
           <legend>模式 Mode</legend>
           <div className="mode-picker">
-            {(['event', 'banquet', 'bus'] as Mode[]).map((m) => (
+            {(['event', 'banquet', 'bus', 'gift'] as Mode[]).map((m) => (
               <button
                 type="button"
                 key={m}
@@ -130,7 +130,7 @@ export default function EventForm() {
             <span>備註 Notes</span>
             <textarea rows={3} value={f.notes} onChange={(e) => up('notes', e.target.value)} />
           </label>
-          {f.mode !== 'bus' && (
+          {f.mode !== 'bus' && f.mode !== 'gift' && (
             <label className="toggle-row">
               <input type="checkbox" checked={f.anonymous} onChange={(e) => up('anonymous', e.target.checked)} />
               <span>

@@ -16,7 +16,7 @@ export default function Home() {
   const upcoming = events?.filter((e) => e.date > today && e.status === 'active').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
   const recent = events?.filter((e) => e.date < today && e.status !== 'archived').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
   const summaries = useEventSummaries(todays)
-  const counts = { event: 0, banquet: 0, bus: 0 }
+  const counts = { event: 0, banquet: 0, bus: 0, gift: 0 }
   events?.forEach((e) => e.status !== 'archived' && counts[e.mode]++)
 
   if (!events) return <div className="page" />
@@ -67,6 +67,7 @@ export default function Home() {
         <ModeCard mode="event" count={counts.event} />
         <ModeCard mode="banquet" count={counts.banquet} />
         <ModeCard mode="bus" count={counts.bus} />
+        <ModeCard mode="gift" count={counts.gift} />
       </div>
 
       {upcoming && upcoming.length > 0 && (

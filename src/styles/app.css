@@ -4079,3 +4079,91 @@ legend {
   flex: 1;
   min-width: 0;
 }
+
+/* 紀念品：派發方式（三選一） */
+.radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radio-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.radio-list label.active {
+  border-color: var(--mode-ink);
+  background: var(--mode-bg);
+}
+.radio-list input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.radio-list span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.radio-list small {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+/* 限量先到先得 */
+.fcfs-give {
+  width: 100%;
+  min-height: 56px;
+  margin: 8px 0;
+  font-size: var(--fs-body);
+}
+.fcfs-row,
+.gift-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.fcfs-row + .fcfs-row,
+.gift-line + .gift-line {
+  border-top: 1px solid var(--border-soft);
+}
+.fcfs-row > span,
+.gift-line > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gift-line-num {
+  font-weight: 800;
+  white-space: nowrap;
+}
+.gift-line-num small {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.manual-register {
+  margin: 12px;
+}
+/* 首頁：四種模式，手機兩行兩個 */
+@media (max-width: 700px) {
+  .mode-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 701px) {
+  .mode-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

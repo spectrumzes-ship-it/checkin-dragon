@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Archive, CheckCircle2, Copy, Gift, ListChecks, Pencil, Plus, ScanLine, Search, Star, UserX, Users } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { duplicateEvent, setEventStatus, verifyCheckIn, type ScanOutcome } from '../lib/actions'
+import { duplicateEvent, logicLabel, logicOf, quantityLabel, setEventStatus, verifyCheckIn, type ScanOutcome } from '../lib/actions'
 import { computeStats, useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests } from '../lib/search'
 import { formatTime, pct } from '../lib/util'
@@ -12,6 +12,52 @@ import { TableIcon } from '../components/icons'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ConfirmSheet, DonutChart, MetricCard, MiniBarChart, ProgressBar, SearchBar, SectionTitle, Sheet, toast } from '../components/ui'
+
+// 禮品領取模式的總覽：每款禮品派了多少、剩多少
+function GiftSummary({ ev }: { ev: EventRec }) {
+  const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
+  const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
+  const qty = reds.reduce((a, r) => a + r.quantity, 0)
+  return (
+    <>
+      <div className="metrics">
+        <MetricCard zh="禮品款式" en="Gifts" value={items.length} icon={<Gift size={18} />} to={`/e/${ev.id}/souvenirs`} />
+        <MetricCard zh="已派發" en="Given" value={qty} tone="ok" sub="份" icon={<CheckCircle2 size={18} />} />
+        <MetricCard zh="領取次數" en="Claims" value={reds.length} icon={<ListChecks size={18} />} />
+        <MetricCard zh="已登記領取人" en="Recipients" value={new Set(reds.map((r) => r.participantId).filter(Boolean)).size} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
+      </div>
+      <section className="card">
+        <SectionTitle zh="禮品" en="Gifts" />
+        {items.length ? (
+          <div className="list">
+            {items.map((it) => {
+              const given = reds.filter((r) => r.itemId === it.id).reduce((a, r) => a + r.quantity, 0)
+              const left = it.stock === null ? null : it.stock - given
+              return (
+                <Link key={it.id} to={`/e/${ev.id}/souvenirs/records?item=${it.id}${logicOf(it) === 'fcfs' ? '' : '&tab=pending'}`} className="gift-line">
+                  <span>
+                    <strong>{it.name}</strong>
+                    <span className="muted">
+                      {logicLabel(it)} · {quantityLabel(it, left)}
+                    </span>
+                  </span>
+                  <span className="gift-line-num">
+                    {given}
+                    <small>{it.stock !== null ? ` / ${it.stock}` : ''} 已派</small>
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="muted pad">
+            還沒有禮品。<Link to={`/e/${ev.id}/souvenirs`}>新增禮品</Link>
+          </p>
+        )}
+      </section>
+    </>
+  )
+}
 
 export default function Dashboard() {
   const ev = useOutletContext<EventRec>()
@@ -92,6 +138,10 @@ export default function Dashboard() {
         </div>
       )}
 
+      {ev.mode === 'gift' ? (
+        <GiftSummary ev={ev} />
+      ) : (
+        <>
       <div className="metrics">
         <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} ${ev.modeConfig.anonymous ? '張門票' : '張邀請'}`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
         <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} to={`/e/${ev.id}/guests?filter=arrived`} />
@@ -220,6 +270,9 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+        </>
+      )}
 
       <section className="event-actions">
         <Link to={`/e/${ev.id}/edit`} className="btn btn-ghost">

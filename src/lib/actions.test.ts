@@ -5,6 +5,7 @@ import {
   emptyGuest,
   generateTickets,
   mergeCompanion,
+  registerAndRedeem,
   splitCompanion,
   moveSeat,
   saveEvent,
@@ -134,6 +135,57 @@ describe('紀念品', () => {
     await saveSouvenir(bag)
     await verifySouvenir(e.id, bag.id, 'S9', 'QR')
     expect((await db.participants.get(p.id))!.attendance).toBe('not_arrived')
+  })
+})
+
+describe('紀念品派發方式', () => {
+  it('按人頭：每人 X 份，一票多人按人數', async () => {
+    const e = await saveEvent(ev('A'))
+    await guest(e.id, 'CHAN', 'P1', { guestCount: 2 })
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'person' as const, perClaim: 2, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    const r = await verifySouvenir(e.id, it1.id, 'P1', 'QR')
+    expect(r.souvenir!.quantity).toBe(4)
+    const again = await verifySouvenir(e.id, it1.id, 'P1', 'QR')
+    expect(again.result).toBe('duplicate')
+    expect(again.reason).toContain('已領取過禮品')
+  })
+
+  it('按請柬：同行者任何一位領了，其他人不可再領', async () => {
+    const e = await saveEvent(ev('A'))
+    const host = await guest(e.id, 'CHAN', 'I1', { guestCount: 3 })
+    const c = (await splitCompanion(host))!
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'invitation' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    const r = await verifySouvenir(e.id, it1.id, '', 'SEARCH', c.id)
+    expect(r.result).toBe('valid')
+    expect(r.souvenir!.quantity).toBe(1)
+    const r2 = await verifySouvenir(e.id, it1.id, 'I1', 'QR')
+    expect(r2.result).toBe('duplicate')
+    expect(r2.reason).toContain('同組同行者')
+  })
+
+  it('限量先到先得：不認人、可重複、派完即止', async () => {
+    const e = await saveEvent({ ...ev('G'), mode: 'gift' })
+    await guest(e.id, 'CHAN', 'F9')
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: 3, perGuest: 0, logic: 'fcfs' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    expect((await verifySouvenir(e.id, it1.id, 'F9', 'QR')).result).toBe('valid')
+    expect((await verifySouvenir(e.id, it1.id, 'F9', 'QR')).result).toBe('valid')
+    expect((await verifySouvenir(e.id, it1.id, '', 'MANUAL')).result).toBe('valid')
+    const out = await verifySouvenir(e.id, it1.id, 'UNKNOWN', 'QR')
+    expect(out.result).toBe('out_of_stock')
+    expect(out.reason).toContain('已派發完畢')
+  })
+
+  it('即場登記並派發：身份證只保存頭 4 位', async () => {
+    const e = await saveEvent({ ...ev('G'), mode: 'gift' })
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'person' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    const o = await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '陳小明', idPrefix: 'a123456(7)', age: '40' })
+    expect(o.result).toBe('valid')
+    expect(o.participant!.idPrefix).toBe('A123')
+    expect((await db.redemptions.toArray())[0].method).toBe('MANUAL')
   })
 })
 

@@ -1,20 +1,38 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { Gift, UserPlus } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec } from '../db/types'
-import { eligible, entitlement, undoRedemption, verifySouvenir } from '../lib/actions'
+import type { EventRec, ScanMethod } from '../db/types'
+import {
+  eligible,
+  emptyGuest,
+  entitlement,
+  idPrefixOf,
+  logicLabel,
+  logicOf,
+  perClaimOf,
+  quantityLabel,
+  registerAndRedeem,
+  undoRedemption,
+  undoRedemptionById,
+  verifySouvenir,
+  type ScanOutcome,
+} from '../lib/actions'
 import { feedback } from '../lib/feedback'
-import type { GuestEntry } from '../lib/search'
 import { useDebounced, useEventData } from '../lib/hooks'
-import { searchGuests } from '../lib/search'
+import { searchGuests, type GuestEntry } from '../lib/search'
 import { formatTime } from '../lib/util'
 import { GiftArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
-import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, toast } from '../components/ui'
+import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toast } from '../components/ui'
 import { nameOf } from '../lib/names'
 
+const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字掃描', MANUAL: '手動', SEARCH: '名單' }
+const blankReg = () => ({ name: '', englishName: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
+
 // 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
+// 亦可即場登記名單上沒有的領取人；「限量先到先得」可不登記直接派發
 export default function SouvenirRecords() {
   const ev = useOutletContext<EventRec>()
   const [params, setParams] = useSearchParams()
@@ -26,17 +44,29 @@ export default function SouvenirRecords() {
   const tab = params.get('tab') === 'pending' ? 'pending' : 'done'
   const [q, setQ] = useState('')
   const dq = useDebounced(q, 150)
-  const [undo, setUndo] = useState<{ pid: string; name: string } | null>(null)
+  const [undo, setUndo] = useState<{ pid?: string; rid?: string; name: string } | null>(null)
+  const [reg, setReg] = useState<ReturnType<typeof blankReg> | null>(null)
 
   const set = (k: string, v: string) => {
     const n = new URLSearchParams(params)
     n.set(k, v)
+    n.delete('reg')
     setParams(n, { replace: true })
   }
 
+  // 由掃描畫面按「即場登記領取人」進入：直接打開登記表
+  useEffect(() => {
+    if (params.get('reg') === '1') setReg(blankReg())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const logic = item ? logicOf(item) : 'person'
+  const mine = useMemo(() => reds.filter((r) => r.itemId === item?.id).sort((a, b) => b.time - a.time), [reds, item])
+  const given = mine.reduce((a, r) => a + r.quantity, 0)
+  const left = !item || item.stock === null ? null : item.stock - given
+
   const { done, pending } = useMemo(() => {
     if (!item) return { done: [], pending: [] }
-    const mine = reds.filter((r) => r.itemId === item.id)
     const byP = new Map<string, { qty: number; time: number; operator: string }>()
     for (const r of mine) {
       const x = byP.get(r.participantId) ?? { qty: 0, time: 0, operator: '' }
@@ -44,41 +74,64 @@ export default function SouvenirRecords() {
       if (r.time > x.time) Object.assign(x, { time: r.time, operator: r.operator })
       byP.set(r.participantId, x)
     }
+    // 按請柬派發：同一張請柬有人領了，其他同行者不再列入「未領取」
+    const byId = new Map(index.map((e) => [e.p.id, e]))
+    const root = (pid: string) => byId.get(pid)?.p.companionOf ?? pid
+    const claimedRoots = new Set([...byP.keys()].map(root))
     const matched = searchGuests(index, dq).filter((e) => e.p.status === 'active' && eligible(item, e.p))
     const done = matched
       .filter((e) => byP.has(e.p.id))
       .map((e) => ({ e, r: byP.get(e.p.id)! }))
       .sort((a, b) => b.r.time - a.r.time)
-    const pending = matched.filter((e) => !byP.has(e.p.id))
+    const pending = matched.filter((e) => !byP.has(e.p.id) && !(logic === 'invitation' && claimedRoots.has(root(e.p.id))))
     return { done, pending }
-  }, [item, reds, index, dq])
+  }, [item, mine, index, dq, logic])
 
   if (!items.length)
     return (
       <div className="page">
-        <PageHeader zh="派發紀錄" en="Distribution Records" back={`/e/${ev.id}/souvenirs`} />
+        <PageHeader zh="名單派發及紀錄" en="Distribute by List" back={`/e/${ev.id}/souvenirs`} />
         <EmptyState art={<GiftArt />} zh="還沒有紀念品。" en="No souvenirs yet." />
       </div>
     )
 
-  const qtyTotal = done.reduce((a, x) => a + x.r.qty, 0)
-
-  // 按名單派發：與掃描派發用同一套檢查（資格、數量、庫存）
-  const give = async (e: GuestEntry) => {
+  const report = (o: ScanOutcome, who: string) => {
     if (!item) return
-    const o = await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id)
     if (o.result === 'valid') {
       feedback('valid')
-      toast(`✓ 已派發「${item.name}」×${o.souvenir?.quantity ?? 1} 給 ${nameOf(e.p)}`)
+      toast(`✓ 已派發「${item.name}」×${o.souvenir?.quantity ?? 1}${who ? ` 給 ${who}` : ''}`)
     } else {
       feedback('invalid')
-      toast(o.result === 'duplicate' ? `${nameOf(e.p)} 已經領取` : o.reason || '未能派發')
+      toast(o.reason || (o.result === 'duplicate' ? `${who} 已經領取` : '未能派發'))
     }
+  }
+
+  // 按名單派發：與掃描派發用同一套檢查（資格、數量、庫存）
+  const give = async (e: GuestEntry) => item && report(await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id), nameOf(e.p))
+  // 限量先到先得：不登記，直接扣庫存
+  const giveAnonymous = async () => item && report(await verifySouvenir(ev.id, item.id, '', 'MANUAL'), '')
+
+  const submitReg = async () => {
+    if (!reg || !item) return
+    if (!reg.name.trim() && !reg.englishName.trim()) return toast('請輸入中文或英文姓名')
+    const group = item.eligibility.startsWith('group:') ? [item.eligibility.slice(6)] : []
+    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group })
+    setReg(null)
+    report(o, reg.name.trim() || reg.englishName.trim())
   }
 
   return (
     <div className="page">
-      <PageHeader zh="名單派發及紀錄" en="Distribute by List" back={`/e/${ev.id}/souvenirs`} />
+      <PageHeader
+        zh="名單派發及紀錄"
+        en="Distribute by List"
+        back={`/e/${ev.id}/souvenirs`}
+        actions={
+          <button className="btn btn-primary btn-sm" onClick={() => setReg(blankReg())}>
+            <UserPlus size={18} /> 即場登記
+          </button>
+        }
+      />
       <div className="chips">
         {items.map((i) => (
           <FilterChip key={i.id} active={i.id === itemId} onClick={() => set('item', i.id)}>
@@ -86,63 +139,153 @@ export default function SouvenirRecords() {
           </FilterChip>
         ))}
       </div>
-      <div className="tabs" style={{ marginTop: 12 }}>
-        <button className={tab === 'done' ? 'active' : ''} onClick={() => set('tab', 'done')}>
-          已領取<small>Collected · {done.length} 人 · {qtyTotal} 份</small>
-        </button>
-        <button className={tab === 'pending' ? 'active' : ''} onClick={() => set('tab', 'pending')}>
-          未領取<small>Not yet · {pending.length} 人</small>
-        </button>
-      </div>
-      <div className="toolbar">
-        <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號" />
-      </div>
-
-      <p className="hint">{tab === 'pending' ? '點一下嘉賓即派發（不用掃描）。派錯了可到「已領取」點該嘉賓取消。' : '點一下嘉賓可取消領取。'}</p>
-
-      {tab === 'done' ? (
-        done.length ? (
-          <div className="list card">
-            {done.map(({ e, r }) => (
-              <GuestRow
-                key={e.p.id}
-                e={e}
-                onClick={() => setUndo({ pid: e.p.id, name: nameOf(e.p) })}
-                trailing={
-                  <span className="record-meta">
-                    <strong>×{r.qty}</strong>
-                    <span className="muted">
-                      {formatTime(r.time)} · {r.operator}
-                    </span>
-                  </span>
-                }
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="muted pad center">未有人領取</p>
-        )
-      ) : pending.length ? (
-        <div className="list card">
-          {pending.map((e) => (
-            <GuestRow
-              key={e.p.id}
-              e={e}
-              onClick={() => give(e)}
-              trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="muted pad center">全部已領取 ✓</p>
+      {item && (
+        <p className="hint">
+          {logicLabel(item)} · {quantityLabel(item, left)} · 已派 {given} 份
+        </p>
       )}
+
+      {logic === 'fcfs' && item ? (
+        <>
+          <button className="btn btn-primary fcfs-give" onClick={giveAnonymous} disabled={left !== null && left <= 0}>
+            <Gift size={20} /> {left !== null && left <= 0 ? '禮物已派發完畢' : `派發 ×${Math.min(perClaimOf(item), left ?? Infinity)}（不登記）`}
+          </button>
+          <p className="hint">先到先得：點一下即扣庫存，不查重複。要記錄領取人，請按右上角「即場登記」或用掃描派發。點下面的紀錄可取消。</p>
+          {mine.length ? (
+            <div className="list card">
+              {mine.map((r) => {
+                const e = index.find((x) => x.p.id === r.participantId)
+                return (
+                  <button key={r.id} className="fcfs-row" onClick={() => setUndo({ rid: r.id, name: e ? nameOf(e.p) : '未登記領取人' })}>
+                    <span>
+                      <strong>{e ? nameOf(e.p) : '未登記'}</strong>
+                      <span className="muted">
+                        {formatTime(r.time)} · {METHOD[r.method ?? 'MANUAL']} · {r.operator}
+                      </span>
+                    </span>
+                    <strong>×{r.quantity}</strong>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="muted pad center">未有派發紀錄</p>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="tabs" style={{ marginTop: 12 }}>
+            <button className={tab === 'done' ? 'active' : ''} onClick={() => set('tab', 'done')}>
+              已領取<small>Collected · {done.length} 人 · {done.reduce((a, x) => a + x.r.qty, 0)} 份</small>
+            </button>
+            <button className={tab === 'pending' ? 'active' : ''} onClick={() => set('tab', 'pending')}>
+              未領取<small>Not yet · {pending.length} 人</small>
+            </button>
+          </div>
+          <div className="toolbar">
+            <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號／電話" />
+          </div>
+          <p className="hint">
+            {tab === 'pending'
+              ? `點一下嘉賓即派發（不用掃描）。${logic === 'invitation' ? '同一張請柬任何一位領了，其他同行者會自動從這裏消失。' : ''}派錯了可到「已領取」點該嘉賓取消。名單上沒有的人請按「即場登記」。`
+              : '點一下嘉賓可取消領取。'}
+          </p>
+
+          {tab === 'done' ? (
+            done.length ? (
+              <div className="list card">
+                {done.map(({ e, r }) => (
+                  <GuestRow
+                    key={e.p.id}
+                    e={e}
+                    onClick={() => setUndo({ pid: e.p.id, name: nameOf(e.p) })}
+                    trailing={
+                      <span className="record-meta">
+                        <strong>×{r.qty}</strong>
+                        <span className="muted">
+                          {formatTime(r.time)} · {r.operator}
+                        </span>
+                      </span>
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="muted pad center">未有人領取</p>
+            )
+          ) : pending.length ? (
+            <div className="list card">
+              {pending.map((e) => (
+                <GuestRow key={e.p.id} e={e} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
+              ))}
+            </div>
+          ) : (
+            <p className="muted pad center">{dq ? `找不到「${dq}」，可按「即場登記」` : index.length ? '全部已領取 ✓' : '名單上未有領取人，請按「即場登記」'}</p>
+          )}
+        </>
+      )}
+
+      <Sheet
+        open={!!reg}
+        onClose={() => setReg(null)}
+        title="即場登記並派發"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setReg(null)}>
+              取消
+            </button>
+            <button className="btn btn-primary" onClick={submitReg}>
+              登記並派發
+            </button>
+          </>
+        }
+      >
+        {reg && (
+          <>
+            <p className="hint">只有姓名必填（中文或英文其中一個），其他可留空。</p>
+            <div className="field-row">
+              <label className="field">
+                <span>中文姓名 Name</span>
+                <input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} autoFocus />
+              </label>
+              <label className="field">
+                <span>英文姓名 English Name</span>
+                <input value={reg.englishName} onChange={(e) => setReg({ ...reg, englishName: e.target.value })} autoCapitalize="characters" />
+              </label>
+            </div>
+            <div className="field-row">
+              <label className="field">
+                <span>年齡 Age</span>
+                <input value={reg.age} onChange={(e) => setReg({ ...reg, age: e.target.value })} inputMode="numeric" />
+              </label>
+              <label className="field">
+                <span>出生日期 Date of Birth</span>
+                <input type="date" value={reg.birthDate} onChange={(e) => setReg({ ...reg, birthDate: e.target.value })} />
+              </label>
+            </div>
+            <div className="field-row">
+              <label className="field">
+                <span>身份證（只存頭 4 位）</span>
+                <input value={reg.idPrefix} onChange={(e) => setReg({ ...reg, idPrefix: idPrefixOf(e.target.value) })} maxLength={4} placeholder="例如 A123" autoCapitalize="characters" />
+              </label>
+              <label className="field">
+                <span>會員編號 Member ID</span>
+                <input value={reg.memberId} onChange={(e) => setReg({ ...reg, memberId: e.target.value })} />
+              </label>
+            </div>
+          </>
+        )}
+      </Sheet>
 
       <ConfirmSheet
         open={!!undo}
         onClose={() => setUndo(null)}
         onConfirm={async () => {
-          const p = undo && (await db.participants.get(undo.pid))
-          if (p && item) await undoRedemption(item.id, p)
+          if (undo?.rid) await undoRedemptionById(undo.rid)
+          else {
+            const p = undo?.pid && (await db.participants.get(undo.pid))
+            if (p && item) await undoRedemption(item.id, p)
+          }
           toast('已取消領取')
         }}
         title="取消領取"

@@ -19,6 +19,8 @@
   --banquet-ink: #7a4a40;
   --bus-bg: #ddefe6;
   --bus-ink: #2f6650;
+  --gift-bg: #f5ead4;
+  --gift-ink: #7a5718;
   --souvenir-bg: #f7efd9;
   --souvenir-ink: #6e5a22;
 
@@ -89,6 +91,8 @@
     --banquet-ink: #f0cfc6;
     --bus-bg: #1f3329;
     --bus-ink: #bfe6d2;
+    --gift-bg: #3a3020;
+    --gift-ink: #ecd9a8;
     --souvenir-bg: #3a3322;
     --souvenir-ink: #eedfae;
     --ok-bg: #1f3a2a;
@@ -122,6 +126,8 @@
   --banquet-ink: #f0cfc6;
   --bus-bg: #1f3329;
   --bus-ink: #bfe6d2;
+  --gift-bg: #3a3020;
+  --gift-ink: #ecd9a8;
   --souvenir-bg: #3a3322;
   --souvenir-ink: #eedfae;
   --ok-bg: #1f3a2a;
@@ -150,4 +156,8 @@
 [data-mode='bus'] {
   --mode-bg: var(--bus-bg);
   --mode-ink: var(--bus-ink);
+}
+[data-mode='gift'] {
+  --mode-bg: var(--gift-bg);
+  --mode-ink: var(--gift-ink);
 }

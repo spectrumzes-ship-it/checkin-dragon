@@ -1,4 +1,4 @@
-import { Bus, Ticket, UtensilsCrossed, type LucideIcon, type LucideProps } from 'lucide-react'
+import { Bus, Gift, Ticket, UtensilsCrossed, type LucideIcon, type LucideProps } from 'lucide-react'
 import type { Mode } from '../db/types'
 
 export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon; types: string[] }> = {
@@ -15,10 +15,16 @@ export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon;
     types: ['Wedding', 'Annual Dinner', 'Dinner', 'Gala', 'Award Ceremony', 'VIP Dinner'],
   },
   bus: {
-    zh: '巴士模式',
-    en: 'Bus Mode',
+    zh: '旅遊巴士模式',
+    en: 'Tour Bus Mode',
     icon: Bus,
     types: ['Tour', 'School Trip', 'Company Trip', 'Shuttle'],
+  },
+  gift: {
+    zh: '禮品領取模式',
+    en: 'Gift Collection Mode',
+    icon: Gift,
+    types: ['Gift Counter', 'Redemption', 'Promotion'],
   },
 }
 
@@ -41,6 +47,9 @@ export const TYPE_LABEL: Record<string, string> = {
   'School Trip': '學校旅行',
   'Company Trip': '公司旅行',
   Shuttle: '接駁巴士',
+  'Gift Counter': '禮品發放點',
+  Redemption: '換領',
+  Promotion: '推廣活動',
 }
 export const typeLabel = (t: string) => TYPE_LABEL[t] ?? t
 
