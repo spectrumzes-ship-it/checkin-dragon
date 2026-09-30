@@ -93,12 +93,18 @@ export const EventCard = ({ event, stats }: { event: EventRec; stats?: Stats }) 
       </p>
       {stats && (
         <>
-          {event.mode !== 'gift' && <ProgressBar value={stats.arrived} max={stats.total} />}
+          {event.mode !== 'gift' ? <ProgressBar value={stats.arrived} max={stats.total} /> : stats.stock ? <ProgressBar value={stats.given ?? 0} max={stats.stock} /> : null}
           <div className="event-card-foot">
             {event.mode === 'gift' ? (
-              <span>
-                已派 <strong>{stats.given ?? 0}</strong> 份
-              </span>
+              stats.stock ? (
+                <span>
+                  <strong>{stats.given ?? 0}</strong> / {stats.stock} 已派
+                </span>
+              ) : (
+                <span>
+                  <strong>{stats.given ?? 0}</strong> 已派（不限數量）
+                </span>
+              )
             ) : (
               <span>
                 <strong>{stats.arrived}</strong> / {stats.total} 已到
@@ -136,7 +142,7 @@ export const EventRow = ({ event, stats, trailing }: { event: EventRec; stats?: 
         <span className="muted">
           {multiDay(event) && `至 ${formatDate(endDateOf(event))} · `}
           {event.startTime} · {event.venue}
-          {stats && event.mode === 'gift' ? ` · 已派 ${stats.given ?? 0} 份` : stats && stats.total > 0 && ` · ${stats.arrived}/${stats.total}`}
+          {stats && event.mode === 'gift' ? ` · ${stats.given ?? 0}${stats.stock ? `/${stats.stock}` : ''} 已派` : stats && stats.total > 0 && ` · ${stats.arrived}/${stats.total}`}
         </span>
       </span>
     </Link>
