@@ -6,7 +6,7 @@ import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefixOf } from '../lib/actions'
 import { feedback } from '../lib/feedback'
-import { cx, ageFromBirth } from '../lib/util'
+import { cx, ageFromBirth, todayKey } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
 import CardScanner from '../components/CardScanner'
 import { ScanText } from 'lucide-react'
@@ -33,6 +33,7 @@ export default function GuestForm() {
   const buses = resources.filter((r) => r.type === 'bus')
 
   const anonymous = !!ev.modeConfig.anonymous
+  const started = !!gid || todayKey() >= ev.date // 活動當日或之後
   const submit = async (andCheckIn: boolean) => {
     if (!g.name.trim() && !g.englishName.trim() && !(anonymous && g.ticketNumber.trim())) return toast(anonymous ? '請輸入票號或姓名' : '請輸入姓名')
     const p = await saveGuest(ev.id, g, existing ?? undefined)
@@ -268,8 +269,9 @@ export default function GuestForm() {
           <button type="button" className="btn btn-ghost" onClick={() => nav(-1)}>
             取消
           </button>
-          <button className="btn btn-secondary btn-lg">{gid ? '儲存' : '新增'}</button>
-          {!gid && ev.mode !== 'gift' && (
+          {/* 活動日之前是預先輸入名單，只有「新增」；活動當日起才有「新增並簽到」 */}
+          <button className={started ? 'btn btn-secondary btn-lg' : 'btn btn-primary btn-lg'}>{gid ? '儲存' : '新增'}</button>
+          {!gid && ev.mode !== 'gift' && started && (
             <button type="button" className="btn btn-primary btn-lg" onClick={() => submit(true)}>
               新增並簽到
             </button>
