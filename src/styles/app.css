@@ -4004,9 +4004,13 @@ legend {
 .unassigned-go {
   margin-top: 10px;
 }
+.seat-pool header {
+  flex-wrap: wrap;
+}
 .seat-pool header small {
-  margin-left: auto;
+  flex-basis: 100%;
   font-weight: 500;
+  font-size: var(--fs-caption);
 }
 .pool-arrived .guest-chip::before {
   content: '✓';
