@@ -562,6 +562,13 @@ export const setAttendance = async (sessionId: string, eventId: string, p: Parti
   await audit(eventId, present ? '點名：已到' : '點名：取消', 'attendance', sessionId, names(p).full)
 }
 
+// 清空點名：保留這個點名環節，只把所有人改回「未到」，方便重新點名
+export const clearSession = async (sessionId: string, eventId: string, name: string) => {
+  const n = await db.attendance.where('sessionId').equals(sessionId).delete()
+  await audit(eventId, `清空點名 ${name}（${n} 筆紀錄）`, 'session', sessionId)
+  return n
+}
+
 export const deleteSession = async (sessionId: string, eventId: string, name: string) => {
   await db.attendance.where('sessionId').equals(sessionId).delete()
   await db.sessions.delete(sessionId)

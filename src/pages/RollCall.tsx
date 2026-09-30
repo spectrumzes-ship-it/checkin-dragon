@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Phone, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Eraser, Phone, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
-import { createSession, deleteSession, setAttendance } from '../lib/actions'
+import { clearSession, createSession, deleteSession, setAttendance } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
@@ -140,6 +140,7 @@ export function RollCallSession() {
   const { data, index } = useEventData(ev.id)
   const [bus, setBus] = useState<string>('all')
   const [confirmDel, setConfirmDel] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const present = useMemo(() => new Set(recs.filter((r) => r.status === 'present').map((r) => r.participantId)), [recs])
   const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
@@ -199,14 +200,9 @@ export function RollCallSession() {
         en={`${session.time}${session.location ? ` · ${session.location}` : ''}`}
         back={`/e/${ev.id}/rollcall`}
         actions={
-          <>
-            <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
-              <ScanLine size={18} /> 掃描
-            </Link>
-            <button className="icon-btn" aria-label="刪除點名" onClick={() => setConfirmDel(true)}>
-              <Trash2 size={18} />
-            </button>
-          </>
+          <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
+            <ScanLine size={18} /> 掃描
+          </Link>
         }
       />
 
@@ -263,6 +259,37 @@ export function RollCallSession() {
         ))}
       </section>
 
+      <section className="rc-manage card">
+        <div>
+          <button className="btn btn-ghost" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
+            <Eraser size={18} /> 清空
+          </button>
+          <span className="muted">保留這個點名，所有人改回「未到」，重新點名</span>
+        </div>
+        <div>
+          <button className="btn btn-danger-ghost" onClick={() => setConfirmDel(true)}>
+            <Trash2 size={18} /> 刪除
+          </button>
+          <span className="muted">整個點名環節連同紀錄一併刪除</span>
+        </div>
+      </section>
+
+      <ConfirmSheet
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={async () => {
+          await clearSession(session.id, ev.id, session.name)
+          toast('已清空，可以重新點名')
+        }}
+        title="清空點名"
+        message={
+          <p>
+            把「{session.name}」已點的 {present.size} 人全部改回「未到」？點名環節會保留，可以重新點名。
+          </p>
+        }
+        confirmText="清空"
+        danger
+      />
       <ConfirmSheet
         open={confirmDel}
         onClose={() => setConfirmDel(false)}
@@ -272,7 +299,7 @@ export function RollCallSession() {
           nav(`/e/${ev.id}/rollcall`)
         }}
         title="刪除點名"
-        message={<p>刪除「{session.name}」及其所有點名紀錄？</p>}
+        message={<p>刪除「{session.name}」這個點名環節及其所有點名紀錄？刪除後不能復原。</p>}
         confirmText="刪除"
         danger
       />
