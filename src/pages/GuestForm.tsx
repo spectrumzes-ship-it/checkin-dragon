@@ -8,6 +8,8 @@ import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefix
 import { feedback } from '../lib/feedback'
 import { cx, ageFromBirth } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
+import CardScanner from '../components/CardScanner'
+import { ScanText } from 'lucide-react'
 
 
 export default function GuestForm() {
@@ -19,6 +21,7 @@ export default function GuestForm() {
   const resources = useLiveQuery(() => db.resources.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const [g, setG] = useState<GuestInput>(emptyGuest)
   const [more, setMore] = useState(false)
+  const [scan, setScan] = useState(false)
 
   useEffect(() => {
     if (existing) guestToInput(existing).then((x) => (setG(x), setMore(true)))
@@ -45,6 +48,30 @@ export default function GuestForm() {
   return (
     <div className="page narrow">
       <PageHeader zh={gid ? '修改嘉賓' : '新增嘉賓'} en={gid ? 'Edit Guest' : 'Add Guest'} back />
+      {/* 登記參加者：文字辨識（自動填寫）或手動輸入；不需要掃描 QR */}
+      <button type="button" className="btn btn-mode btn-block scan-fill" onClick={() => setScan(true)}>
+        <ScanText size={18} /> 文字辨識 · 自動填寫
+      </button>
+      {scan && (
+        <CardScanner
+          onClose={() => setScan(false)}
+          onUse={(f) => {
+            setG((s) => ({
+              ...s,
+              name: f.name || s.name,
+              englishName: f.englishName || s.englishName,
+              memberId: f.memberId || s.memberId,
+              phone: f.phone || s.phone,
+              birthDate: f.birthDate || s.birthDate,
+              age: ageFromBirth(f.birthDate) || s.age,
+              idPrefix: f.idPrefix || s.idPrefix,
+            }))
+            setMore(true)
+            setScan(false)
+            toast('已填入辨識到的資料，請核對')
+          }}
+        />
+      )}
       <form
         className="form"
         onSubmit={(e) => {

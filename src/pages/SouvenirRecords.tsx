@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Gift, UserPlus } from 'lucide-react'
+import { Gift, ScanText, UserPlus } from 'lucide-react'
+import CardScanner from '../components/CardScanner'
 import { db } from '../db/db'
 import type { EventRec, ScanMethod } from '../db/types'
 import {
@@ -28,7 +29,7 @@ import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toast } from '../components/ui'
 import { nameOf } from '../lib/names'
 
-const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字掃描', MANUAL: '手動', SEARCH: '名單' }
+const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字辨識', MANUAL: '手動', SEARCH: '名單' }
 const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
 const TICK = { accentColor: 'var(--mode-ink)' }
 
@@ -47,6 +48,8 @@ export default function SouvenirRecords() {
   const dq = useDebounced(q, 150)
   const [undo, setUndo] = useState<{ pid?: string; rid?: string; name: string } | null>(null)
   const [reg, setReg] = useState<ReturnType<typeof blankReg> | null>(null)
+  const [scan, setScan] = useState(false)
+  const [usedOcr, setUsedOcr] = useState(false)
   const [joinEvent, setJoinEvent] = useState(false) // 即場登記：false = 只領禮品；true = 同時參加活動
 
   const set = (k: string, v: string) => {
@@ -122,8 +125,9 @@ export default function SouvenirRecords() {
     if (!reg || !item) return
     if (!reg.name.trim() && !reg.englishName.trim()) return toast('請輸入中文或英文姓名')
     const group = item.eligibility.startsWith('group:') ? [item.eligibility.slice(6)] : []
-    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg ? (pre.method ?? 'OCR') : 'MANUAL', ev.mode !== 'gift' && !joinEvent)
+    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg || usedOcr ? 'OCR' : 'MANUAL', ev.mode !== 'gift' && !joinEvent)
     setReg(null)
+    setUsedOcr(false)
     report(o, reg.name.trim() || reg.englishName.trim())
   }
 
@@ -279,7 +283,10 @@ export default function SouvenirRecords() {
                 </label>
               </div>
             )}
-            <p className="hint">{pre?.reg ? '以下資料由文字掃描自動填入，請核對後才提交。' : ''}只有姓名必填（中文或英文其中一個），其他可留空。</p>
+            <button type="button" className="btn btn-mode btn-block scan-fill" onClick={() => setScan(true)}>
+              <ScanText size={18} /> 文字辨識 · 自動填寫
+            </button>
+            <p className="hint">{pre?.reg ? '以下資料由文字辨識自動填入，請核對後才提交。' : ''}只有姓名必填（中文或英文其中一個），其他可留空。</p>
             <div className="field-row">
               <label className="field">
                 <span>中文姓名 Name</span>
@@ -317,6 +324,26 @@ export default function SouvenirRecords() {
           </>
         )}
       </Sheet>
+
+      {scan && reg && (
+        <CardScanner
+          onClose={() => setScan(false)}
+          onUse={(f) => {
+            setReg({
+              ...reg,
+              name: f.name || reg.name,
+              englishName: f.englishName || reg.englishName,
+              memberId: f.memberId || reg.memberId,
+              phone: f.phone || reg.phone,
+              birthDate: f.birthDate || reg.birthDate,
+              age: ageFromBirth(f.birthDate) || reg.age,
+              idPrefix: f.idPrefix || reg.idPrefix,
+            })
+            setUsedOcr(true)
+            setScan(false)
+          }}
+        />
+      )}
 
       <ConfirmSheet
         open={!!undo}
