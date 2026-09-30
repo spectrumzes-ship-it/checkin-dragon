@@ -244,6 +244,7 @@ export interface CardFields {
   idPrefix: string // 香港身份證號碼頭 4 位
   permitNo: string // 回鄉證號碼（H／M＋8 位數字）
   permitExpiry: string // 回鄉證有效期至 YYYY-MM-DD
+  gender: '' | 'M' | 'F' // 性別（身份證「男 M／女 F」、回鄉證「性別 男」）
   memberId: string
   phone: string
 }
@@ -264,10 +265,20 @@ const DOC_EN = new Set([
 ])
 
 export const extractFields = (text: string): CardFields => {
-  const out: CardFields = { name: '', englishName: '', birthDate: '', idPrefix: '', permitNo: '', permitExpiry: '', memberId: '', phone: '' }
+  const out: CardFields = { name: '', englishName: '', birthDate: '', idPrefix: '', permitNo: '', permitExpiry: '', gender: '', memberId: '', phone: '' }
   // 文字辨識常在中文字之間加空格（「李 智 能」）：只合併「逐個字分開」的情況，不會把姓名和旁邊的字詞黏在一起
   let t = (text || '').normalize('NFKC').toUpperCase().replace(/(?<![\u3400-\u9fff])[\u3400-\u9fff](?:[ \t][\u3400-\u9fff](?![\u3400-\u9fff]))+/g, (x) => x.replace(/[ \t]/g, ''))
   const isDoc = /身[份分]證|IDENTITY|通行[證证]|PERMIT/.test(t)
+
+  // ---- 性別 ----
+  // 回鄉證「性別 男」；身份證「男 M」「女 F」（出生日期旁）；英文 SEX M／MALE／FEMALE
+  const gm =
+    /性\s?[別别]\s*[:：]?\s*([男女])/.exec(t) ??
+    /([男女])\s?[MF](?![A-Z])/.exec(t) ??
+    /(?<![\u3400-\u9fff])([男女])(?![\u3400-\u9fff])/.exec(t)
+  const ge = /\bSEX\s*[:：]?\s*(M|F)\b/.exec(t) ?? /\b(FEMALE|MALE)\b/.exec(t) ?? /\d\s+(M|F)(?![A-Z])/.exec(t)
+  if (gm) out.gender = gm[1] === '男' ? 'M' : 'F'
+  else if (ge) out.gender = ge[1].startsWith('F') ? 'F' : 'M'
 
   // ---- 證件號碼 ----
   // 回鄉證：H／M＋8 位數字（其後可能有 2 位換證次數）；要先於身份證判斷，否則會被當成身份證

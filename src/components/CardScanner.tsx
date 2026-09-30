@@ -6,6 +6,7 @@ import { extractFields, isDocWord, type CardFields } from '../lib/search'
 const LABELS: [keyof CardFields, string][] = [
   ['name', '中文姓名'],
   ['englishName', '英文姓名'],
+  ['gender', '性別'],
   ['birthDate', '出生日期'],
   ['idPrefix', '身份證頭 4 位'],
   ['permitNo', '回鄉證號碼'],
@@ -76,7 +77,7 @@ export default function CardScanner({ onUse, onClose }: { onUse: (f: CardFields)
               {LABELS.filter(([k]) => found[k]).map(([k, zh]) => (
                 <div key={k} style={{ display: 'contents' }}>
                   <dt>{zh}</dt>
-                  <dd>{found[k]}</dd>
+                  <dd>{k === 'gender' ? (found.gender === 'M' ? '男' : '女') : found[k]}</dd>
                 </div>
               ))}
             </dl>

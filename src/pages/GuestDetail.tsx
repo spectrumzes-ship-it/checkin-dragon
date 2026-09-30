@@ -153,6 +153,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<Clock size={18} />} zh="簽到時間" value={ev.mode === 'gift' ? '' : p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
         <Row icon={<Armchair size={18} />} zh="特別需要" value={p.tags.includes(p.dietary) ? '' : p.dietary} />
         <Row icon={<Gift size={18} />} zh="禮物組別" value={p.giftGroups?.join('、')} />
+        <Row icon={<UserRound size={18} />} zh="性別" value={p.gender === 'M' ? '男' : p.gender === 'F' ? '女' : ''} />
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />
         <Row icon={<UserRound size={18} />} zh="出生日期" value={p.birthDate} />
         <Row icon={<Armchair size={18} />} zh="房間" value={entry.room ? `${entry.room.label}（${entry.room.capacity === 1 ? '單人房' : `${entry.room.capacity} 人房`}）` : ''} />

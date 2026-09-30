@@ -8,6 +8,8 @@ import {
   assignRoom,
   autoAssignRooms,
   clearRooms,
+  deleteRoom,
+  updateRoom,
   mergeCompanion,
   registerAndRedeem,
   splitCompanion,
@@ -286,6 +288,40 @@ describe('旅遊模式房間', () => {
     expect(await roomOf(b.id)).toBe(await roomOf(c.id))
     expect(await roomOf(f.id)).not.toBe(await roomOf(b.id))
   })
+  it('自動分房：沒有同行人士的人，同性別才同住', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const m1 = await guest(e.id, 'M1', 'G1', { gender: 'M' })
+    const f1 = await guest(e.id, 'F1', 'G2', { gender: 'F' })
+    const m2 = await guest(e.id, 'M2', 'G3', { gender: 'M' })
+    const f2 = await guest(e.id, 'F2', 'G4', { gender: 'F' })
+    const m3 = await guest(e.id, 'M3', 'G5', { gender: 'M' })
+    expect(await autoAssignRooms(e.id, [m1.id, f1.id, m2.id, f2.id, m3.id])).toBe(3)
+    const roomOf = async (pid: string) => (await db.seats.where('participantId').equals(pid).first())!.resourceId
+    expect(await roomOf(m1.id)).toBe(await roomOf(m2.id))
+    expect(await roomOf(f1.id)).toBe(await roomOf(f2.id))
+    expect(await roomOf(m3.id)).not.toBe(await roomOf(m1.id))
+  })
+  it('自動分房先填滿空房，有人入住的房間不再加人；刪除後房號自動補上', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const ids = []
+    for (const n of ['A', 'B', 'C', 'D', 'E']) ids.push((await guest(e.id, n, 'Q' + n)).id)
+    const r1 = await addRoom(e.id)
+    const r2 = await addRoom(e.id)
+    const r3 = await addRoom(e.id)
+    await assignRoom(e.id, ids[0], r1.id) // 1 號房已有一人
+    await autoAssignRooms(e.id, ids.slice(1)) // 4 人 → 2 號、3 號房，不用新增
+    const rooms = async () => (await db.resources.toArray()).filter((r) => r.type === 'room').sort((a, b) => a.sortOrder - b.sortOrder)
+    expect((await rooms()).length).toBe(3)
+    expect(await db.seats.where('resourceId').equals(r1.id).count()).toBe(1)
+    expect(await db.seats.where('resourceId').equals(r2.id).count()).toBe(2)
+    expect(await db.seats.where('resourceId').equals(r3.id).count()).toBe(2)
+    await deleteRoom(r2)
+    expect((await rooms()).map((r) => r.label)).toEqual(['1', '2'])
+    await updateRoom((await rooms())[0], { label: '1203' })
+    await addRoom(e.id)
+    await deleteRoom((await rooms())[1])
+    expect((await rooms()).map((r) => r.label)).toEqual(['1203', '2'])
+  })
   it('清空房間：保留房間或連房間刪除', async () => {
     const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
     const a = await guest(e.id, 'A', 'Z1')
@@ -340,6 +376,7 @@ describe('證件文字抽取', () => {
     expect(f.englishName).toBe('LEE CHI NAN')
     expect(f.birthDate).toBe('1985-01-01')
     expect(f.idPrefix).toBe('Z683')
+    expect(f.gender).toBe('M')
     expect(f.phone).toBe('')
     expect(f.memberId).toBe('')
   })
@@ -351,6 +388,7 @@ describe('證件文字抽取', () => {
     expect(f.englishName).toBe('CHAN TAI MAN')
     expect(f.birthDate).toBe('1980-01-01')
     expect(f.permitNo).toBe('H12345678')
+    expect(f.gender).toBe('M')
     expect(f.permitExpiry).toBe('2023-01-01')
     expect(f.idPrefix).toBe('')
     expect(f.phone).toBe('')
@@ -368,6 +406,9 @@ describe('證件文字抽取', () => {
   it('複姓的英文姓名（AU YEUNG, Wai Shan）', () => {
     const f = extractFields('歐陽慧珊\nAU YEUNG, Wai Shan\n2962 7122 1979 3790\n23-07-1992\nY123456(A)')
     expect(f.englishName).toBe('AU YEUNG WAI SHAN')
+    expect(extractFields('歐陽慧珊\nAU YEUNG, Wai Shan\n23-07-1992 女 F\nY123456(A)').gender).toBe('F')
+    expect(extractFields('性别 女\n姓名 刘国强').gender).toBe('F')
+    expect(f.gender).toBe('')
     expect(f.name).toBe('歐陽慧珊')
     expect(f.idPrefix).toBe('Y123')
   })

@@ -61,6 +61,7 @@ export interface Participant {
   age?: string // 即場登記：年齡
   birthDate?: string // 即場登記：出生日期 YYYY-MM-DD
   idPrefix?: string // 即場登記：身份證號碼頭 4 位（私隱考慮，不保存完整號碼）
+  gender?: 'M' | 'F' // 性別
   partnerId?: string // 旅遊模式：同行人士（自動分房時會安排同一間房）
   permitNo?: string // 旅遊巴士：回鄉證號碼
   permitExpiry?: string // 旅遊巴士：證件有效期至 YYYY-MM-DD

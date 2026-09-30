@@ -70,6 +70,7 @@ export default function GuestForm() {
               birthDate: f.birthDate || s.birthDate,
               age: ageFromBirth(f.birthDate) || s.age,
               // 旅遊巴士保存回鄉證號碼及有效期；其他模式只保留證件號碼頭 4 位
+              gender: f.gender || s.gender,
               idPrefix: f.idPrefix || (ev.mode === 'bus' ? '' : f.permitNo.slice(0, 4)) || s.idPrefix,
               ...(ev.mode === 'bus' ? { permitNo: f.permitNo || s.permitNo, permitExpiry: f.permitExpiry || s.permitExpiry } : {}),
             }))
@@ -182,6 +183,29 @@ export default function GuestForm() {
               <input type="number" min={1} max={20} value={g.guestCount} onChange={(e) => up('guestCount', Number(e.target.value))} />
             </label>
           </div>
+          <div className="field">
+            <span>性別 Gender</span>
+            <div className="seg" role="radiogroup">
+              {([['', '未填'], ['M', '男'], ['F', '女']] as const).map(([v, zh]) => (
+                <button type="button" key={v} role="radio" aria-checked={(g.gender ?? '') === v} className={(g.gender ?? '') === v ? 'active' : ''} onClick={() => up('gender', v)}>
+                  {zh}
+                </button>
+              ))}
+            </div>
+          </div>
+          {ev.mode === 'bus' && (
+            <label className="field">
+              <span>同行人士（自動分房同住一間）</span>
+              <select value={g.partnerId ?? ''} onChange={(e) => up('partnerId', e.target.value)}>
+                <option value="">沒有／未定</option>
+                {partners.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {names(p).full}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </fieldset>
 
         {!more ? (
@@ -250,19 +274,6 @@ export default function GuestForm() {
               <span>身份證號碼（只保存頭 4 位）</span>
               <input value={g.idPrefix} onChange={(e) => up('idPrefix', idPrefixOf(e.target.value))} maxLength={4} placeholder="例如 A123" autoCapitalize="characters" />
             </label>
-            {ev.mode === 'bus' && (
-              <label className="field">
-                <span>同行人士（自動分房時同住一間）</span>
-                <select value={g.partnerId ?? ''} onChange={(e) => up('partnerId', e.target.value)}>
-                  <option value="">沒有／未定</option>
-                  {partners.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {names(p).full}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
             {ev.mode === 'bus' && (
               <div className="field-row">
                 <label className="field">

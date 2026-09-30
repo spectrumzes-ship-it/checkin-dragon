@@ -26,6 +26,7 @@ function NewRecipient({ text, onGo, compact }: { text: string; onGo: (f: CardFie
   const rows: [string, string][] = [
     ['中文姓名', f.name],
     ['英文姓名', f.englishName],
+    ['性別', f.gender === 'M' ? '男' : f.gender === 'F' ? '女' : ''],
     ['出生日期', f.birthDate],
     ['身份證頭 4 位', f.idPrefix],
     ['回鄉證號碼', f.permitNo],

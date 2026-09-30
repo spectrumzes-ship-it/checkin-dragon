@@ -30,7 +30,7 @@ import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toa
 import { nameOf } from '../lib/names'
 
 const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字辨識', MANUAL: '手動', SEARCH: '名單' }
-const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '', permitNo: '', permitExpiry: '' })
+const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '', permitNo: '', permitExpiry: '', gender: '' as '' | 'M' | 'F' })
 const TICK = { accentColor: 'var(--mode-ink)' }
 
 // 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
@@ -305,6 +305,16 @@ export default function SouvenirRecords() {
                 <input value={reg.englishName} onChange={(e) => setReg({ ...reg, englishName: e.target.value })} autoCapitalize="characters" />
               </label>
             </div>
+            <div className="field">
+              <span>性別 Gender</span>
+              <div className="seg" role="radiogroup">
+                {([['', '未填'], ['M', '男'], ['F', '女']] as const).map(([v, zh]) => (
+                  <button type="button" key={v} role="radio" aria-checked={(reg.gender ?? '') === v} className={(reg.gender ?? '') === v ? 'active' : ''} onClick={() => setReg({ ...reg, gender: v })}>
+                    {zh}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="field">
               <span>電話號碼 Phone</span>
               <input value={reg.phone} onChange={(e) => setReg({ ...reg, phone: e.target.value })} inputMode="tel" />
@@ -357,6 +367,7 @@ export default function SouvenirRecords() {
               phone: f.phone || reg.phone,
               birthDate: f.birthDate || reg.birthDate,
               age: ageFromBirth(f.birthDate) || reg.age,
+              gender: f.gender || reg.gender,
               idPrefix: f.idPrefix || (ev.mode === 'bus' ? '' : f.permitNo.slice(0, 4)) || reg.idPrefix,
               permitNo: ev.mode === 'bus' ? f.permitNo || reg.permitNo : '',
               permitExpiry: ev.mode === 'bus' ? f.permitExpiry || reg.permitExpiry : '',

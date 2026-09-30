@@ -296,6 +296,7 @@ export interface GuestInput {
   permitNo?: string
   permitExpiry?: string
   partnerId?: string
+  gender?: '' | 'M' | 'F'
   walkIn?: boolean
   giftOnly?: boolean
   dietary: string
@@ -368,6 +369,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     idPrefix: idPrefixOf(g.idPrefix) || undefined,
     permitNo: g.permitNo !== undefined ? normalize(g.permitNo).replace(/[^A-Z0-9]/g, '') || undefined : existing?.permitNo,
     permitExpiry: g.permitExpiry !== undefined ? g.permitExpiry || undefined : existing?.permitExpiry,
+    gender: g.gender !== undefined ? g.gender || undefined : existing?.gender,
     partnerId: g.partnerId !== undefined ? g.partnerId || undefined : existing?.partnerId,
     leftAt: existing?.leftAt,
     walkIn: g.walkIn ?? existing?.walkIn,
@@ -431,6 +433,7 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     permitNo: p.permitNo ?? '',
     permitExpiry: p.permitExpiry ?? '',
     partnerId: p.partnerId ?? '',
+    gender: p.gender ?? '',
     dietary: '',
     remarks: p.remarks,
     tableId: mainTable?.resource.id ?? '',
@@ -900,19 +903,32 @@ const roomsOf = (eventId: string) => db.resources.where('eventId').equals(eventI
 // 新增房間：預設雙人房；之後人數跟隨實際入住人數
 export const addRoom = async (eventId: string, capacity = 2, label = '') => {
   const rooms = await roomsOf(eventId)
-  const n = rooms.reduce((m, r) => Math.max(m, r.sortOrder), 0) + 1
-  const room: Resource = { id: uid(), eventId, type: 'room', label: label.trim() || String(n), capacity, purpose: '', sortOrder: n }
+  const n = rooms.length + 1
+  const room: Resource = { id: uid(), eventId, type: 'room', label: label.trim() || String(n), capacity, purpose: label.trim() ? 'custom' : '', sortOrder: n }
   await db.resources.add(room)
   return room
 }
 
+// 房號按次序 1、2、3…；刪除後後面的房間自動補上。用戶自己改過的房號（purpose = 'custom'）不會被改動
+const renumberRooms = async (eventId: string) => {
+  const rooms = (await roomsOf(eventId)).sort((a, b) => a.sortOrder - b.sortOrder)
+  for (const [i, r] of rooms.entries()) {
+    const patch = { sortOrder: i + 1, ...(r.purpose === 'custom' ? {} : { label: String(i + 1) }) }
+    if (r.sortOrder !== patch.sortOrder || (patch.label && patch.label !== r.label)) await db.resources.update(r.id, patch)
+  }
+}
+
+// 改房號：改成自訂名稱後不再跟隨次序；清空名稱 = 變回按次序的房號
 export const updateRoom = async (room: Resource, patch: { label?: string }) => {
-  await db.resources.update(room.id, { label: patch.label?.trim() || room.label })
+  const label = patch.label?.trim() ?? ''
+  await db.resources.update(room.id, label ? { label, purpose: label === String(room.sortOrder) ? '' : 'custom' } : { purpose: '' })
+  if (!label) await renumberRooms(room.eventId)
 }
 
 export const deleteRoom = async (room: Resource) => {
   await db.seats.where('resourceId').equals(room.id).delete()
   await db.resources.delete(room.id)
+  await renumberRooms(room.eventId)
   await audit(room.eventId, `刪除房間 ${room.label}`, 'resource', room.id)
 }
 
@@ -950,7 +966,7 @@ export const clearRooms = async (eventId: string, keepRooms: boolean) => {
   await audit(eventId, keepRooms ? `清空房間（${ids.length} 間）` : `刪除全部房間（${ids.length} 間）`, 'event', eventId)
 }
 
-// 自動分房：先把「同行人士」安排在同一間房（互相連結的人算一組，最多 4 人一間），
+// 自動分房：先把「同行人士」安排在同一間房（互相連結的人算一組，最多 4 人一間），優先填滿現有的空房，
 // 其餘的人按傳入的次序每兩人一間（最後剩一人就單人一間）。回傳新增的房間數
 export const autoAssignRooms = async (eventId: string, pids: string[]) => {
   const want = new Set(pids)
@@ -967,12 +983,27 @@ export const autoAssignRooms = async (eventId: string, pids: string[]) => {
     if (g.length === 1) singles.push(g[0])
     else for (let i = 0; i < g.length; i += 4) rooms.push(g.slice(i, i + 4))
   }
-  for (let i = 0; i < singles.length; i += 2) rooms.push(singles.slice(i, i + 2))
+  // 沒有同行人士的人：同性別的兩人一間（次序不變）；未填性別的另外配對；剩下的單人一間
+  const genderOf = new Map(all.map((p) => [p.id, p.gender ?? '']))
+  for (const g of ['M', 'F', '']) {
+    const same = singles.filter((id) => genderOf.get(id) === g)
+    for (let i = 0; i < same.length; i += 2) rooms.push(same.slice(i, i + 2))
+  }
+  // 先用現有的空房（按房號次序）；已有人入住的房間不會再加人；空房用完才新增房間
+  const existing = (await roomsOf(eventId)).sort((a, b) => a.sortOrder - b.sortOrder)
+  const empty: Resource[] = []
+  for (const r of existing) if ((await db.seats.where('resourceId').equals(r.id).count()) === 0) empty.push(r)
+  let created = 0
   for (const members of rooms) {
-    const room = await addRoom(eventId, members.length)
+    let room = empty.shift()
+    if (room) await db.resources.update(room.id, { capacity: members.length })
+    else {
+      room = await addRoom(eventId, members.length)
+      created++
+    }
     for (const pid of members) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
   }
-  if (rooms.length) await audit(eventId, `自動分房：新增 ${rooms.length} 間房`, 'event', eventId)
+  if (rooms.length) await audit(eventId, `自動分房：安排 ${rooms.length} 間房（新增 ${created} 間）`, 'event', eventId)
   return rooms.length
 }
 

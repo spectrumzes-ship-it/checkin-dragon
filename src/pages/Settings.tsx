@@ -248,7 +248,14 @@ export default function Settings() {
         <img src={logo} alt="點名龍 Logo" width={96} height={96} />
         <div>
           <h3>Check-In Dragon 點名龍</h3>
-          <p className="muted">活動・宴會・巴士出席管理</p>
+          <p className="muted">活動・宴會・旅遊、禮品管理</p>
+          <p className="muted">製作者：Kevin</p>
+          <p className="muted">版權所有 SPARKY</p>
+          <p>
+            <a href="https://www.sparky.hk" target="_blank" rel="noreferrer">
+              www.sparky.hk
+            </a>
+          </p>
           <p className="muted">版本 0.3.0 · 核心功能（第 3 階段）</p>
           <p className="muted">更新時間 {__BUILD_TIME__}</p>
           <p className="muted">

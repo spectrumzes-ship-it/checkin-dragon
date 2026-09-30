@@ -150,12 +150,12 @@ export default function Rooms() {
         onClose={() => setAuto(false)}
         onConfirm={async () => {
           const n = await autoAssignRooms(ev.id, [...unassigned].sort((a, b) => busOrder(a).localeCompare(busOrder(b))).map((e) => e.p.id))
-          toast(`已新增 ${n} 間房，請檢查並調整`)
+          toast(`已安排 ${n} 間房，請檢查並調整`)
         }}
         title="自動分房"
         message={
           <p>
-            先把已填「同行人士」的人安排在同一間房；其餘的人按巴士座位次序每兩人一間，人數是單數時最後一人單人一間。系統不知道性別，分好後請逐間檢查，再拖拉調整。
+            先用現有的空房（已有人入住的房間不會再加人），空房不夠才新增房間。已填「同行人士」的人同住一間；其餘的人按巴士座位次序，同性別的每兩人一間（未填性別的另外配對），剩下的單人一間。分好後請逐間檢查，再拖拉調整。
           </p>
         }
         confirmText="自動分房"
@@ -177,14 +177,12 @@ export default function Rooms() {
         onClose={() => setManage(null)}
         onConfirm={async () => {
           await clearRooms(ev.id, false)
-          const everyone = people.filter((e) => !e.p.leftAt).sort((a, b) => busOrder(a).localeCompare(busOrder(b)))
-          const n = await autoAssignRooms(ev.id, everyone.map((e) => e.p.id))
-          toast(`已重新安排：${n} 間房，請檢查並調整`)
+          toast('已刪除所有房間，所有人回到「未安排房間」')
         }}
         title="重新安排房間"
         message={
           <p>
-            刪除現有的 {rooms.length} 間房（包括你改過的房號及手動調整），然後重新自動分房：同行人士同住一間，其餘的人按巴士座位次序每兩人一間。
+            刪除現有的 {rooms.length} 間房（包括你改過的房號及手動調整），已安排的 {housed} 人全部放回「未安排房間」。之後可以新增房間再拖拉，或按「自動分房」。
           </p>
         }
         confirmText="重新安排"
@@ -213,6 +211,7 @@ const Person = ({ e, onOpen, onRemove }: { e: GuestEntry; onOpen: (e: GuestEntry
     <span ref={drag.setNodeRef} {...drag.listeners} {...drag.attributes} className={cx('room-person', drag.isDragging && 'ghost')} onClick={() => onOpen(e)}>
       <span>
         <strong>{names(e.p).primary}</strong>
+        {e.p.gender && <small className="muted">{e.p.gender === 'M' ? '男' : '女'}</small>}
         {e.p.leftAt && <SoftTag tone="warn">中途離開</SoftTag>}
       </span>
       {onRemove && (
@@ -239,7 +238,8 @@ const RoomCard = ({ room, who, onOpen, onAdd, onDelete, onRemove }: { room: Reso
     <section ref={drop.setNodeRef} className={cx('card room-card', drop.isOver && 'drop')}>
       <header>
         {n === 1 ? <BedSingle size={20} /> : <BedDouble size={20} />}
-        <input className="room-label" defaultValue={room.label} aria-label="房號" onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== room.label && updateRoom(room, { label: e.target.value })} />
+        <input className="room-label" defaultValue={room.label} aria-label="房號" key={room.label}
+          onBlur={(e) => e.target.value.trim() !== room.label && updateRoom(room, { label: e.target.value })} />
         <SoftTag tone={who.length ? 'mode' : undefined}>
           {roomType(n)}
           {who.length === 0 && ' · 空房'}
