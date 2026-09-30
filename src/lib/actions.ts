@@ -295,6 +295,7 @@ export interface GuestInput {
   idPrefix: string
   permitNo?: string
   permitExpiry?: string
+  partnerId?: string
   walkIn?: boolean
   giftOnly?: boolean
   dietary: string
@@ -367,6 +368,7 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     idPrefix: idPrefixOf(g.idPrefix) || undefined,
     permitNo: g.permitNo !== undefined ? normalize(g.permitNo).replace(/[^A-Z0-9]/g, '') || undefined : existing?.permitNo,
     permitExpiry: g.permitExpiry !== undefined ? g.permitExpiry || undefined : existing?.permitExpiry,
+    partnerId: g.partnerId !== undefined ? g.partnerId || undefined : existing?.partnerId,
     leftAt: existing?.leftAt,
     walkIn: g.walkIn ?? existing?.walkIn,
     giftOnly: g.giftOnly ?? existing?.giftOnly,
@@ -428,6 +430,7 @@ export const guestToInput = async (p: Participant): Promise<GuestInput> => {
     idPrefix: p.idPrefix ?? '',
     permitNo: p.permitNo ?? '',
     permitExpiry: p.permitExpiry ?? '',
+    partnerId: p.partnerId ?? '',
     dietary: '',
     remarks: p.remarks,
     tableId: mainTable?.resource.id ?? '',
@@ -937,17 +940,40 @@ export const assignRoom = async (eventId: string, pid: string, roomId: string | 
   return true
 }
 
-// 自動分房：把未分房的人按次序每兩人一間（最後剩一人就單人一間）。回傳新增的房間數
+// 清空房間：所有人移出（keepRooms = true 保留空房；false = 連房間一併刪除，用於重新安排）
+export const clearRooms = async (eventId: string, keepRooms: boolean) => {
+  const rooms = await roomsOf(eventId)
+  const ids = rooms.map((r) => r.id)
+  await db.seats.where('resourceId').anyOf(ids).delete()
+  if (keepRooms) for (const id of ids) await db.resources.update(id, { capacity: 2 })
+  else await db.resources.bulkDelete(ids)
+  await audit(eventId, keepRooms ? `清空房間（${ids.length} 間）` : `刪除全部房間（${ids.length} 間）`, 'event', eventId)
+}
+
+// 自動分房：先把「同行人士」安排在同一間房（互相連結的人算一組，最多 4 人一間），
+// 其餘的人按傳入的次序每兩人一間（最後剩一人就單人一間）。回傳新增的房間數
 export const autoAssignRooms = async (eventId: string, pids: string[]) => {
-  let made = 0
-  for (let i = 0; i < pids.length; i += 2) {
-    const pair = pids.slice(i, i + 2)
-    const room = await addRoom(eventId, pair.length)
-    for (const pid of pair) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
-    made++
+  const want = new Set(pids)
+  const all = await db.participants.where('eventId').equals(eventId).toArray()
+  // 同行連結（任何一方填了都算）；只考慮這次要分房的人
+  const parent = new Map(pids.map((id) => [id, id]))
+  const find = (x: string): string => (parent.get(x) === x ? x : (parent.set(x, find(parent.get(x)!)), parent.get(x)!))
+  for (const p of all) if (p.partnerId && want.has(p.id) && want.has(p.partnerId)) parent.set(find(p.id), find(p.partnerId))
+  const groups = new Map<string, string[]>()
+  for (const id of pids) groups.set(find(id), [...(groups.get(find(id)) ?? []), id])
+  const rooms: string[][] = []
+  const singles: string[] = []
+  for (const g of groups.values()) {
+    if (g.length === 1) singles.push(g[0])
+    else for (let i = 0; i < g.length; i += 4) rooms.push(g.slice(i, i + 4))
   }
-  if (made) await audit(eventId, `自動分房：新增 ${made} 間房`, 'event', eventId)
-  return made
+  for (let i = 0; i < singles.length; i += 2) rooms.push(singles.slice(i, i + 2))
+  for (const members of rooms) {
+    const room = await addRoom(eventId, members.length)
+    for (const pid of members) await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: room.id, seatLabel: '' })
+  }
+  if (rooms.length) await audit(eventId, `自動分房：新增 ${rooms.length} 間房`, 'event', eventId)
+  return rooms.length
 }
 
 // 巴士車位：把乘客移到某架車的某個座位；目標座位有人就對調。回傳移動前的狀態，可用 undoMoveSeat 復原。

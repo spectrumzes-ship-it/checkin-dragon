@@ -301,7 +301,7 @@ export default function SouvenirRecords() {
                 <input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} autoFocus />
               </label>
               <label className="field">
-                <span>英文姓名 English Name</span>
+                <span>英文姓名 English</span>
                 <input value={reg.englishName} onChange={(e) => setReg({ ...reg, englishName: e.target.value })} autoCapitalize="characters" />
               </label>
             </div>
@@ -332,11 +332,11 @@ export default function SouvenirRecords() {
             {ev.mode === 'bus' && (
               <div className="field-row">
                 <label className="field">
-                  <span>回鄉證號碼 Permit No.</span>
+                  <span>回鄉證號碼</span>
                   <input value={reg.permitNo} onChange={(e) => setReg({ ...reg, permitNo: e.target.value.toUpperCase() })} placeholder="例如 H12345678" autoCapitalize="characters" />
                 </label>
                 <label className="field">
-                  <span>證件有效期至 Valid Until</span>
+                  <span>證件有效期至</span>
                   <input type="date" value={reg.permitExpiry} onChange={(e) => setReg({ ...reg, permitExpiry: e.target.value })} />
                 </label>
               </div>

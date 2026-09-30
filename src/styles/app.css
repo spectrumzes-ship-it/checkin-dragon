@@ -4478,3 +4478,36 @@ legend {
 .room-card.drop .room-person {
   background: var(--surface);
 }
+
+/* 文字不跨行（除非必須）：欄位名稱、表頭、按鈕、標籤 */
+.field > span,
+.field-label,
+.log-table th,
+.print-table th,
+.btn,
+.chip,
+.seg button,
+.tabs button,
+.bi-zh,
+.bi-en {
+  white-space: nowrap;
+}
+.field > span,
+.field-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.about h3,
+.set-about h3 {
+  white-space: nowrap;
+}
+/* 房間：字體與其他名單一致 */
+.room-add,
+.room-person,
+.room-pool-list .room-person {
+  font-size: var(--fs-label);
+}
+.room-add {
+  min-height: 36px;
+}

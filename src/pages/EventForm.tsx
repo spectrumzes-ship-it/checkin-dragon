@@ -118,7 +118,7 @@ export default function EventForm() {
             </label>
             {f.mode !== 'banquet' && (
               <label className="field">
-                <span>結束日期（單日可留空）</span>
+                <span>結束日期（可留空）</span>
                 <input type="date" value={f.endDate} min={f.date} onChange={(e) => up('endDate', e.target.value)} />
               </label>
             )}
@@ -161,7 +161,7 @@ export default function EventForm() {
                 <input type="number" min={0} max={300} value={f.tableCount} onChange={(e) => up('tableCount', Number(e.target.value))} />
               </label>
               <label className="field">
-                <span>每席人數（一圍幾位） Seats / Table</span>
+                <span>每席人數（一圍幾位）</span>
                 <input type="number" min={1} max={30} value={f.seatsPerTable} onChange={(e) => up('seatsPerTable', Number(e.target.value))} />
               </label>
             </div>
@@ -238,11 +238,11 @@ export default function EventForm() {
             </button>
             <div className="field-row">
               <label className="field">
-                <span>聚餐席數（沒有聚餐填 0） Dinner Tables</span>
+                <span>聚餐席數（0 = 沒有）</span>
                 <input type="number" min={0} value={f.dinnerTables} onChange={(e) => up('dinnerTables', Number(e.target.value))} />
               </label>
               <label className="field">
-                <span>每席人數 Seats / Table</span>
+                <span>每席人數</span>
                 <input type="number" min={1} max={30} value={f.dinnerSeats} onChange={(e) => up('dinnerSeats', Number(e.target.value))} />
               </label>
             </div>

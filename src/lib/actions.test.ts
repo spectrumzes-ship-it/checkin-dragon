@@ -7,6 +7,7 @@ import {
   addRoom,
   assignRoom,
   autoAssignRooms,
+  clearRooms,
   mergeCompanion,
   registerAndRedeem,
   splitCompanion,
@@ -271,6 +272,30 @@ describe('旅遊模式房間', () => {
     const idx = buildIndex(ps, ts, ss, rs)
     expect(idx.find((x) => x.p.id === a.id)!.room!.id).toBe(room.id)
     expect(idx.find((x) => x.p.id === a.id)!.seats.some((x) => x.resource.type === 'room')).toBe(false)
+  })
+  it('自動分房：同行人士同住一間，其餘每兩人一間', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const a = await guest(e.id, 'A', 'Y1')
+    const b = await guest(e.id, 'B', 'Y2')
+    const c = await guest(e.id, 'C', 'Y3')
+    const d = await guest(e.id, 'D', 'Y4', { partnerId: a.id }) // D 與 A 同行
+    const f = await guest(e.id, 'F', 'Y5')
+    expect(await autoAssignRooms(e.id, [a.id, b.id, c.id, d.id, f.id])).toBe(3)
+    const roomOf = async (pid: string) => (await db.seats.where('participantId').equals(pid).toArray()).find((s) => s.seatLabel === '')!.resourceId
+    expect(await roomOf(a.id)).toBe(await roomOf(d.id))
+    expect(await roomOf(b.id)).toBe(await roomOf(c.id))
+    expect(await roomOf(f.id)).not.toBe(await roomOf(b.id))
+  })
+  it('清空房間：保留房間或連房間刪除', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const a = await guest(e.id, 'A', 'Z1')
+    await autoAssignRooms(e.id, [a.id])
+    const rooms = async () => (await db.resources.toArray()).filter((r) => r.type === 'room')
+    await clearRooms(e.id, true)
+    expect((await rooms()).map((r) => r.capacity)).toEqual([2])
+    expect(await db.seats.where('participantId').equals(a.id).count()).toBe(0)
+    await clearRooms(e.id, false)
+    expect((await rooms()).length).toBe(0)
   })
   it('自動分房：每兩人一間，單數時最後一人單人房', async () => {
     const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })

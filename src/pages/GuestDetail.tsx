@@ -20,6 +20,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
   const logs = useLiveQuery(() => db.auditLogs.where('eventId').equals(ev.id).filter((l) => l.objectId === gid).reverse().sortBy('time'), [ev.id, gid]) ?? []
   const souvenirs = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const host = useLiveQuery(async () => (entry?.p.companionOf ? await db.participants.get(entry.p.companionOf) : undefined), [entry?.p.companionOf])
+  const partner = useLiveQuery(async () => (entry?.p.partnerId ? await db.participants.get(entry.p.partnerId) : undefined), [entry?.p.partnerId])
   const reds = useLiveQuery(() => db.redemptions.where('participantId').equals(gid).filter((r) => !r.voided).toArray(), [gid]) ?? []
 
   if (!entry) return <p className="muted pad">找不到此嘉賓</p>
@@ -155,6 +156,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />
         <Row icon={<UserRound size={18} />} zh="出生日期" value={p.birthDate} />
         <Row icon={<Armchair size={18} />} zh="房間" value={entry.room ? `${entry.room.label}（${entry.room.capacity === 1 ? '單人房' : `${entry.room.capacity} 人房`}）` : ''} />
+        <Row icon={<UsersRound size={18} />} zh="同行人士" value={partner ? names(partner).full : ''} />
         <Row icon={<IdCard size={18} />} zh="回鄉證號碼" value={p.permitNo} />
         <Row
           icon={<IdCard size={18} />}

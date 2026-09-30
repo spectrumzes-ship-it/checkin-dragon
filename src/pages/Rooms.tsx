@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { BedDouble, BedSingle, Plus, Trash2, UserPlus, Wand2, X } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
-import { addRoom, assignRoom, autoAssignRooms, deleteRoom, updateRoom } from '../lib/actions'
+import { addRoom, assignRoom, autoAssignRooms, clearRooms, deleteRoom, updateRoom } from '../lib/actions'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { nameOf, names } from '../lib/names'
@@ -23,6 +23,7 @@ export default function Rooms() {
   const dq = useDebounced(q, 150)
   const [del, setDel] = useState<Resource | null>(null)
   const [auto, setAuto] = useState(false)
+  const [manage, setManage] = useState<null | 'clear' | 'redo'>(null)
   const [dragging, setDragging] = useState<GuestEntry | null>(null)
   const lastDrag = useRef(0)
   // 電腦按住移動即拖；手機按住約 0.3 秒才開始（快速掃動仍是捲動畫面）
@@ -74,6 +75,17 @@ export default function Rooms() {
           zh="房間"
           en="Rooms"
           actions={
+            <>
+              {rooms.length > 0 && (
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setManage('clear')} disabled={housed === 0}>
+                    清空
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setManage('redo')}>
+                    重新安排
+                  </button>
+                </>
+              )}
             <button
               className="btn btn-primary btn-sm"
               onClick={async () => {
@@ -83,6 +95,7 @@ export default function Rooms() {
             >
               <Plus size={18} /> 新增房間
             </button>
+            </>
           }
         />
         <p className="hint">
@@ -142,10 +155,40 @@ export default function Rooms() {
         title="自動分房"
         message={
           <p>
-            把未安排的 {unassigned.length} 人按巴士座位次序，每兩人一間（相鄰座位通常是同行的人）；如果人數是單數，最後一人單人一間。系統不知道性別及誰與誰同行，分好後請逐間檢查，再拖拉調整。
+            先把已填「同行人士」的人安排在同一間房；其餘的人按巴士座位次序每兩人一間，人數是單數時最後一人單人一間。系統不知道性別，分好後請逐間檢查，再拖拉調整。
           </p>
         }
         confirmText="自動分房"
+      />
+      <ConfirmSheet
+        open={manage === 'clear'}
+        onClose={() => setManage(null)}
+        onConfirm={async () => {
+          await clearRooms(ev.id, true)
+          toast('已清空，所有人變回未安排房間')
+        }}
+        title="清空房間"
+        message={<p>把已安排的 {housed} 人全部移出房間？{rooms.length} 間房會保留（變回空的雙人房），房號不變。</p>}
+        confirmText="清空"
+        danger
+      />
+      <ConfirmSheet
+        open={manage === 'redo'}
+        onClose={() => setManage(null)}
+        onConfirm={async () => {
+          await clearRooms(ev.id, false)
+          const everyone = people.filter((e) => !e.p.leftAt).sort((a, b) => busOrder(a).localeCompare(busOrder(b)))
+          const n = await autoAssignRooms(ev.id, everyone.map((e) => e.p.id))
+          toast(`已重新安排：${n} 間房，請檢查並調整`)
+        }}
+        title="重新安排房間"
+        message={
+          <p>
+            刪除現有的 {rooms.length} 間房（包括你改過的房號及手動調整），然後重新自動分房：同行人士同住一間，其餘的人按巴士座位次序每兩人一間。
+          </p>
+        }
+        confirmText="重新安排"
+        danger
       />
       <ConfirmSheet
         open={!!del}

@@ -22,7 +22,7 @@ export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon;
   },
   gift: {
     zh: '禮品領取',
-    en: 'Gift Collection',
+    en: 'Gifts',
     icon: Gift,
     types: ['Gift Counter', 'Redemption', 'Promotion'],
   },

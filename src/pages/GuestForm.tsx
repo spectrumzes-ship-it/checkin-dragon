@@ -10,6 +10,7 @@ import { cx, ageFromBirth, todayKey } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
 import CardScanner from '../components/CardScanner'
 import { ScanText } from 'lucide-react'
+import { names } from '../lib/names'
 
 
 export default function GuestForm() {
@@ -33,6 +34,9 @@ export default function GuestForm() {
   const buses = resources.filter((r) => r.type === 'bus')
 
   const anonymous = !!ev.modeConfig.anonymous
+  const partners = (useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active' && !p.giftOnly && p.id !== gid).toArray(), [ev.id, gid]) ?? []).sort((a, b) =>
+    names(a).full.localeCompare(names(b).full, 'zh-Hant'),
+  )
   const started = !!gid || todayKey() >= ev.date // 活動當日或之後
   const submit = async (andCheckIn: boolean) => {
     if (!g.name.trim() && !g.englishName.trim() && !(anonymous && g.ticketNumber.trim())) return toast(anonymous ? '請輸入票號或姓名' : '請輸入姓名')
@@ -91,11 +95,11 @@ export default function GuestForm() {
           )}
           <div className="field-row">
             <label className="field">
-              <span>中文姓名 Name{anonymous && '（可留空）'}</span>
+              <span>中文姓名{anonymous ? '（可留空）' : ' Name'}</span>
               <input value={g.name} onChange={(e) => up('name', e.target.value)} autoFocus={!gid && !anonymous} />
             </label>
             <label className="field">
-              <span>英文姓名 English Name</span>
+              <span>英文姓名 English</span>
               <input value={g.englishName} onChange={(e) => up('englishName', e.target.value)} autoCapitalize="characters" />
             </label>
           </div>
@@ -247,13 +251,26 @@ export default function GuestForm() {
               <input value={g.idPrefix} onChange={(e) => up('idPrefix', idPrefixOf(e.target.value))} maxLength={4} placeholder="例如 A123" autoCapitalize="characters" />
             </label>
             {ev.mode === 'bus' && (
+              <label className="field">
+                <span>同行人士（自動分房時同住一間）</span>
+                <select value={g.partnerId ?? ''} onChange={(e) => up('partnerId', e.target.value)}>
+                  <option value="">沒有／未定</option>
+                  {partners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {names(p).full}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {ev.mode === 'bus' && (
               <div className="field-row">
                 <label className="field">
-                  <span>回鄉證號碼 Permit No.</span>
+                  <span>回鄉證號碼</span>
                   <input value={g.permitNo ?? ''} onChange={(e) => up('permitNo', e.target.value.toUpperCase())} placeholder="例如 H12345678" autoCapitalize="characters" />
                 </label>
                 <label className="field">
-                  <span>證件有效期至 Valid Until</span>
+                  <span>證件有效期至</span>
                   <input type="date" value={g.permitExpiry ?? ''} onChange={(e) => up('permitExpiry', e.target.value)} />
                 </label>
               </div>
