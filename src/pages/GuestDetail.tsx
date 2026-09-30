@@ -66,7 +66,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         </button>
       </div>
 
-      {p.status === 'active' && (
+      {p.status === 'active' && ev.mode !== 'gift' && (
         <div className="detail-primary">
           {p.attendance === 'not_arrived' ? (
             <button
@@ -148,7 +148,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
       )}
 
       <div className="detail-section">
-        <Row icon={<Clock size={18} />} zh="簽到時間" value={p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
+        <Row icon={<Clock size={18} />} zh="簽到時間" value={ev.mode === 'gift' ? '' : p.checkedInAt ? formatDateTime(p.checkedInAt) : '未簽到'} />
         <Row icon={<Armchair size={18} />} zh="特別需要" value={p.tags.includes(p.dietary) ? '' : p.dietary} />
         <Row icon={<Gift size={18} />} zh="禮物組別" value={p.giftGroups?.join('、')} />
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />

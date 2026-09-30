@@ -23,6 +23,7 @@ export default function Souvenirs() {
   const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
   const [edit, setEdit] = useState<SouvenirItem | null>(null)
   const groups = useSettings().giftGroups
+  const word = ev.mode === 'gift' ? '禮品' : '紀念品'
 
   const blank = (): SouvenirItem => ({ id: uid(), eventId: ev.id, name: '', stock: 100, perGuest: 0, perClaim: 1, logic: ev.mode === 'gift' ? 'fcfs' : 'person', eligibility: 'all', sortOrder: (items?.length ?? 0) + 1 })
 
@@ -30,23 +31,23 @@ export default function Souvenirs() {
   return (
     <div className="page">
       <PageHeader
-        zh="紀念品"
-        en="Souvenirs"
+        zh={word}
+        en={ev.mode === 'gift' ? 'Gifts' : 'Souvenirs'}
         actions={
           <button className="btn btn-primary btn-sm" onClick={() => setEdit(blank())}>
-            <Plus size={18} /> 新增紀念品
+            <Plus size={18} /> 新增{word}
           </button>
         }
       />
-      <p className="hint">紀念品站獨立運作，與簽到狀態無關。在掃描畫面頂部把「掃描目的」改為紀念品即可開始派發。</p>
+      <p className="hint">{ev.mode === 'gift' ? '每款禮品可用掃描、領取登記或名單派發。' : '紀念品站獨立運作，與簽到狀態無關。在掃描畫面頂部把「掃描目的」改為紀念品即可開始派發。'}</p>
       {items.length === 0 ? (
         <EmptyState
           art={<GiftArt />}
-          zh="還沒有紀念品。"
+          zh={`還沒有${word}。`}
           en="No souvenirs yet."
           action={
             <button className="btn btn-primary" onClick={() => setEdit(blank())}>
-              <Plus size={18} /> 新增紀念品
+              <Plus size={18} /> 新增{word}
             </button>
           }
         />
@@ -102,7 +103,7 @@ export default function Souvenirs() {
       <Sheet
         open={!!edit}
         onClose={() => setEdit(null)}
-        title={items.some((i) => i.id === edit?.id) ? '修改紀念品' : '新增紀念品'}
+        title={`${items.some((i) => i.id === edit?.id) ? '修改' : '新增'}${word}`}
         footer={
           <>
             <button className="btn btn-ghost" onClick={() => setEdit(null)}>
@@ -128,6 +129,8 @@ export default function Souvenirs() {
               <span>名稱 Name</span>
               <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="例如 帆布袋 Tote Bag" autoFocus />
             </label>
+            {/* 先到先得不認人，所以沒有領取資格 */}
+            {logicOf(edit) !== 'fcfs' && (
             <label className="field">
               <span>領取資格 Eligibility</span>
               <select value={edit.eligibility} onChange={(e) => setEdit({ ...edit, eligibility: e.target.value })}>
@@ -143,6 +146,7 @@ export default function Souvenirs() {
                 )}
               </select>
             </label>
+            )}
             <div className="field-row">
               <label className="field">
                 <span>總數量 Stock</span>

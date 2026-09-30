@@ -762,8 +762,23 @@ export const undoRedemptionById = async (id: string) => {
 }
 
 // 即場登記領取人並派發：名單上沒有的人，登記後立即領取
-export const registerAndRedeem = async (eventId: string, itemId: string, g: GuestInput, method: ScanMethod = 'MANUAL') => {
-  const p = await saveGuest(eventId, g)
+export const registerAndRedeem = async (eventId: string, itemId: string, g: GuestInput, method: ScanMethod = 'MANUAL'): Promise<ScanOutcome> => {
+  const now = Date.now()
+  const item = await db.souvenirs.get(itemId)
+  if (!item) return { result: 'invalid', reason: '請先設定紀念品', time: now, rawValue: '' }
+  // 先檢查，避免登記了卻派不到
+  if (item.stock !== null && item.stock - (await redeemedQty(item.id)) <= 0)
+    return { result: 'out_of_stock', reason: '禮物已派發完畢（已售罄）', time: now, souvenir: { item, quantity: 0 }, rawValue: '' }
+  if (logicOf(item) !== 'fcfs' && item.eligibility === 'vip')
+    return { result: 'not_eligible', reason: '此禮品只限 VIP，即場登記的人不符合資格（請先在名單把該嘉賓設為 VIP）', time: now, rawValue: '' }
+  // 同一個人再次登記（會員編號相同；或姓名＋電話／出生日期相同）：沿用原有紀錄，這樣「已領取」才查得到
+  const same = (a: string, b: string) => !!a && !!b && normalize(a) === normalize(b)
+  const sameName = (p: Participant) => same(p.name, g.name) || same(p.englishName, g.englishName)
+  const all = await db.participants.where('eventId').equals(eventId).filter((p) => p.status === 'active').toArray()
+  const existing =
+    all.find((p) => same(p.memberId, g.memberId)) ??
+    all.find((p) => sameName(p) && (same(p.phone, g.phone) || (!!g.birthDate && p.birthDate === g.birthDate)))
+  const p = existing ?? (await saveGuest(eventId, g))
   return verifySouvenir(eventId, itemId, '', method, p.id)
 }
 

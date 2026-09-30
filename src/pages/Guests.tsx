@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Ticket } from 'lucide-react'
+import { Plus, Ticket, Gift } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
@@ -122,14 +122,15 @@ export default function Guests() {
 
   if (!data) return <div className="page" />
 
+  // 禮品領取模式沒有簽到：不顯示「已到／未到」，圓圈改為顯示是否已領取
+  const gift = ev.mode === 'gift'
   const chips: [Filter, string][] = [
     ['all', '全部'],
-    ['arrived', '已到'],
-    ['not_arrived', '未到'],
+    ...(gift ? [] : ([['arrived', '已到'], ['not_arrived', '未到']] as [Filter, string][])),
     ['vip', 'VIP'],
     ['cancelled', '已取消'],
-    ['manual', '手動'],
-    ...(hasSouvenirs ? ([['souvenir', '已領紀念品'], ['no_souvenir', '未領紀念品']] as [Filter, string][]) : []),
+    ...(gift ? [] : ([['manual', '手動']] as [Filter, string][])),
+    ...(hasSouvenirs ? ([['souvenir', gift ? '已領取' : '已領紀念品'], ['no_souvenir', gift ? '未領取' : '未領紀念品']] as [Filter, string][]) : []),
   ]
 
   const showList = wide || !gid
@@ -209,10 +210,17 @@ export default function Guests() {
                     <GuestRow
                       e={e}
                       selected={e.p.id === gid}
-                      souvenir={collected.has(e.p.id)}
+                      souvenir={!gift && collected.has(e.p.id)}
                       seating={hasSeating}
+                      mark={
+                        gift ? (
+                          <span className={collected.has(e.p.id) ? 'gift-mark done' : 'gift-mark'} aria-label={collected.has(e.p.id) ? '已領取' : '未領取'}>
+                            <Gift size={18} />
+                          </span>
+                        ) : undefined
+                      }
                       onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}${params.size ? `?${params}` : ''}`)}
-                      onMarkClick={async () => {
+                      onMarkClick={gift ? undefined : async () => {
                         if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
                         await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
                         feedback('valid')

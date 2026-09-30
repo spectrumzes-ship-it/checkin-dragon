@@ -368,7 +368,7 @@ export default function Scan() {
             ))}
             {souvenirs.map((s) => (
               <option key={s.id} value={`s:${s.id}`}>
-                紀念品：{s.name}
+                {ev.mode === 'gift' ? '禮品' : '紀念品'}：{s.name}
               </option>
             ))}
           </select>

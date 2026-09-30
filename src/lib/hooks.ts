@@ -31,6 +31,7 @@ export const useEventData = (eventId: string | undefined) => {
 }
 
 export interface Stats {
+  given?: number // 禮品領取模式：已派發的份數
   total: number // 人數（計算一票多人）
   arrived: number
   notArrived: number
@@ -72,6 +73,8 @@ export const useEventSummaries = (events: EventRec[] | undefined) =>
     for (const e of events) {
       const ps = await db.participants.where('eventId').equals(e.id).toArray()
       out[e.id] = computeStats(ps)
+      if (e.mode === 'gift')
+        out[e.id].given = (await db.redemptions.where('eventId').equals(e.id).toArray()).filter((r) => !r.voided).reduce((a, r) => a + r.quantity, 0)
     }
     return out
   }, [events]) ?? {}

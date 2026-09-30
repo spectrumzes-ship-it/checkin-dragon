@@ -228,7 +228,7 @@ export default function GuestForm() {
             取消
           </button>
           <button className="btn btn-secondary btn-lg">{gid ? '儲存' : '新增'}</button>
-          {!gid && (
+          {!gid && ev.mode !== 'gift' && (
             <button type="button" className="btn btn-primary btn-lg" onClick={() => submit(true)}>
               新增並簽到
             </button>

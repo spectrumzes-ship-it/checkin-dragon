@@ -190,6 +190,24 @@ describe('紀念品派發方式', () => {
   })
 })
 
+describe('即場登記的邏輯', () => {
+  it('同一位會員再次登記：沿用原有紀錄，按人頭不可重複領', async () => {
+    const e = await saveEvent({ ...ev('G'), mode: 'gift' })
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'person' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    expect((await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '陳小明', memberId: 'M001' })).result).toBe('valid')
+    expect((await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '陳小明', memberId: 'm001' })).result).toBe('duplicate')
+    expect(await db.participants.count()).toBe(1)
+  })
+  it('已派完：不會新增領取人', async () => {
+    const e = await saveEvent({ ...ev('G'), mode: 'gift' })
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: 0, perGuest: 0, logic: 'person' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    expect((await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '陳小明' })).result).toBe('out_of_stock')
+    expect(await db.participants.count()).toBe(0)
+  })
+})
+
 describe('證件文字抽取', () => {
   it('抽出姓名、出生日期、身份證頭 4 位、會員編號', () => {
     const f = extractFields('姓名 陳大文\nCHAN TAI MAN\n出生日期 25-12-1990\nA123456(7)\n會員編號: M00123')
