@@ -87,7 +87,7 @@ export default function Souvenirs() {
                     <ScanLine size={18} /> 掃描派發
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=pending`} className="btn btn-mode">
-                    <ListChecks size={18} /> 名單派發
+                    <ListChecks size={18} /> {logicOf(it) === 'fcfs' ? '領取登記' : '名單派發'}
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}`} className="btn btn-ghost">
                     <ClipboardList size={18} /> 派發紀錄

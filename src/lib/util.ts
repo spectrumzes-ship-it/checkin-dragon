@@ -65,3 +65,13 @@ export const isOnDay = (e: Dated, day: string) => e.date <= day && day <= endDat
 export const isUpcoming = (e: Dated, day: string) => e.date > day
 export const isPast = (e: Dated, day: string) => endDateOf(e) < day
 export const formatDateRange = (e: Dated) => (endDateOf(e) === e.date ? formatDate(e.date) : `${formatDate(e.date)} – ${formatDate(endDateOf(e))}`)
+
+// 由出生日期（YYYY-MM-DD）計算現在的年齡；日期無效則回傳空字串
+export const ageFromBirth = (birth: string, now = new Date()) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birth)
+  if (!m) return ''
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  let age = now.getFullYear() - y
+  if (now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) age--
+  return age >= 0 && age < 150 ? String(age) : ''
+}

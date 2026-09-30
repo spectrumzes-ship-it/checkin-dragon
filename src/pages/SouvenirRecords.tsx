@@ -22,14 +22,14 @@ import {
 import { feedback } from '../lib/feedback'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
-import { formatTime } from '../lib/util'
+import { ageFromBirth, formatTime } from '../lib/util'
 import { GiftArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toast } from '../components/ui'
 import { nameOf } from '../lib/names'
 
 const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字掃描', MANUAL: '手動', SEARCH: '名單' }
-const blankReg = () => ({ name: '', englishName: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
+const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
 
 // 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
 // 亦可即場登記名單上沒有的領取人；「限量先到先得」可不登記直接派發
@@ -109,6 +109,7 @@ export default function SouvenirRecords() {
   // 按名單派發：與掃描派發用同一套檢查（資格、數量、庫存）
   const give = async (e: GuestEntry) => item && report(await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id), nameOf(e.p))
   // 限量先到先得：不登記，直接扣庫存
+  const soldOut = left !== null && left <= 0
   const giveAnonymous = async () => item && report(await verifySouvenir(ev.id, item.id, '', 'MANUAL'), '')
 
   const submitReg = async () => {
@@ -123,13 +124,15 @@ export default function SouvenirRecords() {
   return (
     <div className="page">
       <PageHeader
-        zh="名單派發及紀錄"
-        en="Distribute by List"
+        zh={logic === 'fcfs' ? '領取登記及紀錄' : '名單派發及紀錄'}
+        en={logic === 'fcfs' ? 'Collection Register' : 'Distribute by List'}
         back={`/e/${ev.id}/souvenirs`}
         actions={
-          <button className="btn btn-primary btn-sm" onClick={() => setReg(blankReg())}>
-            <UserPlus size={18} /> 即場登記
-          </button>
+          logic !== 'fcfs' && (
+            <button className="btn btn-primary btn-sm" onClick={() => setReg(blankReg())}>
+              <UserPlus size={18} /> 即場登記
+            </button>
+          )
         }
       />
       <div className="chips">
@@ -147,10 +150,15 @@ export default function SouvenirRecords() {
 
       {logic === 'fcfs' && item ? (
         <>
-          <button className="btn btn-primary fcfs-give" onClick={giveAnonymous} disabled={left !== null && left <= 0}>
-            <Gift size={20} /> {left !== null && left <= 0 ? '禮物已派發完畢' : `派發 ×${Math.min(perClaimOf(item), left ?? Infinity)}（不登記）`}
+          <button className="btn btn-primary fcfs-give" onClick={() => setReg(blankReg())} disabled={soldOut}>
+            <UserPlus size={20} /> {soldOut ? '禮物已派發完畢' : `領取登記（派發 ×${Math.min(perClaimOf(item), left ?? Infinity)}）`}
           </button>
-          <p className="hint">先到先得：點一下即扣庫存，不查重複。要記錄領取人，請按右上角「即場登記」或用掃描派發。點下面的紀錄可取消。</p>
+          {!soldOut && (
+            <button className="btn btn-ghost fcfs-give" onClick={giveAnonymous}>
+              <Gift size={20} /> 不登記，直接派發
+            </button>
+          )}
+          <p className="hint">先到先得：每次登記或派發即扣庫存，不查重複，派完即止。點下面的紀錄可取消。</p>
           {mine.length ? (
             <div className="list card">
               {mine.map((r) => {
@@ -228,7 +236,7 @@ export default function SouvenirRecords() {
       <Sheet
         open={!!reg}
         onClose={() => setReg(null)}
-        title="即場登記並派發"
+        title={logic === 'fcfs' ? '領取登記' : '即場登記並派發'}
         footer={
           <>
             <button className="btn btn-ghost" onClick={() => setReg(null)}>
@@ -253,14 +261,18 @@ export default function SouvenirRecords() {
                 <input value={reg.englishName} onChange={(e) => setReg({ ...reg, englishName: e.target.value })} autoCapitalize="characters" />
               </label>
             </div>
+            <label className="field">
+              <span>電話號碼 Phone</span>
+              <input value={reg.phone} onChange={(e) => setReg({ ...reg, phone: e.target.value })} inputMode="tel" />
+            </label>
             <div className="field-row">
               <label className="field">
-                <span>年齡 Age</span>
-                <input value={reg.age} onChange={(e) => setReg({ ...reg, age: e.target.value })} inputMode="numeric" />
+                <span>出生日期 Date of Birth</span>
+                <input type="date" value={reg.birthDate} onChange={(e) => setReg({ ...reg, birthDate: e.target.value, age: ageFromBirth(e.target.value) || reg.age })} />
               </label>
               <label className="field">
-                <span>出生日期 Date of Birth</span>
-                <input type="date" value={reg.birthDate} onChange={(e) => setReg({ ...reg, birthDate: e.target.value })} />
+                <span>年齡 Age（填出生日期會自動計算）</span>
+                <input value={reg.age} onChange={(e) => setReg({ ...reg, age: e.target.value })} inputMode="numeric" />
               </label>
             </div>
             <div className="field-row">

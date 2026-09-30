@@ -6,7 +6,7 @@ import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefixOf } from '../lib/actions'
 import { feedback } from '../lib/feedback'
-import { cx } from '../lib/util'
+import { cx, ageFromBirth } from '../lib/util'
 import { PageHeader, toast } from '../components/ui'
 
 
@@ -209,7 +209,7 @@ export default function GuestForm() {
               </label>
               <label className="field">
                 <span>出生日期 Date of Birth</span>
-                <input type="date" value={g.birthDate} onChange={(e) => up('birthDate', e.target.value)} />
+                <input type="date" value={g.birthDate} onChange={(e) => setG((s) => ({ ...s, birthDate: e.target.value, age: ageFromBirth(e.target.value) || s.age }))} />
               </label>
             </div>
             <label className="field">

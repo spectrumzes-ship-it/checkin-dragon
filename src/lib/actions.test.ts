@@ -19,7 +19,7 @@ import {
   type EventInput,
 } from './actions'
 import { buildIndex, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
-import { uid } from './util'
+import { ageFromBirth, uid } from './util'
 
 const ev = (name: string): EventInput => ({
   name,
@@ -187,6 +187,15 @@ describe('紀念品派發方式', () => {
     expect(o.result).toBe('valid')
     expect(o.participant!.idPrefix).toBe('A123')
     expect((await db.redemptions.toArray())[0].method).toBe('MANUAL')
+  })
+})
+
+describe('年齡計算', () => {
+  it('由出生日期計算年齡（生日未到要減一歲）', () => {
+    const now = new Date(2026, 8, 30)
+    expect(ageFromBirth('1986-09-30', now)).toBe('40')
+    expect(ageFromBirth('1986-10-01', now)).toBe('39')
+    expect(ageFromBirth('', now)).toBe('')
   })
 })
 
