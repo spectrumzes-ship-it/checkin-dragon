@@ -13,6 +13,18 @@ import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ConfirmSheet, DonutChart, MetricCard, MiniBarChart, ProgressBar, SearchBar, SectionTitle, Sheet, toast } from '../components/ui'
 
+// 禮品領取模式的「完成活動」摘要：派發數字
+function GiftNumbers({ ev }: { ev: EventRec }) {
+  const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
+  return (
+    <div className="summary-grid">
+      <MetricCard zh="已派發" en="Given" value={reds.reduce((a, r) => a + r.quantity, 0)} sub="份" tone="ok" />
+      <MetricCard zh="領取次數" en="Claims" value={reds.length} />
+      <MetricCard zh="已登記領取人" en="Recipients" value={new Set(reds.map((r) => r.participantId).filter(Boolean)).size} />
+    </div>
+  )
+}
+
 // 禮品領取模式的總覽：每款禮品派了多少、剩多少
 function GiftSummary({ ev }: { ev: EventRec }) {
   const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
@@ -112,10 +124,11 @@ export default function Dashboard() {
     return { total: tables.length, withArrivals }
   }, [data])
 
-  const passengerCount = data?.participants.filter((p) => p.status === 'active').length ?? 0
+  const passengerCount = data?.participants.filter((p) => p.status === 'active' && !p.giftOnly).length ?? 0
 
   if (!data) return <div className="page" />
 
+  const leftCount = data?.participants.filter((p) => p.status === 'active' && p.leftAt).length ?? 0
   const tapGuest = async (pid: string) => {
     setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', pid))
     setQ('')
@@ -148,6 +161,7 @@ export default function Dashboard() {
         <MetricCard zh="未到" en="Not Arrived" value={stats.notArrived} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=not_arrived`} />
         <MetricCard zh="出席率" en="Attendance" value={`${stats.rate}%`} tone="mode" sub={<ProgressBar value={stats.arrived} max={stats.total} />} />
         <MetricCard zh="VIP" en="VIP" value={`${stats.vipArrived} / ${stats.vipTotal}`} icon={<Star size={18} />} to={`/e/${ev.id}/guests?filter=vip`} />
+        {leftCount > 0 && <MetricCard zh="中途離開" en="Left Early" value={leftCount} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=left`} />}
         {ev.mode === 'banquet' && (
           <MetricCard zh="總席數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 席已有人到`} icon={<TableIcon size={18} />} to={`/e/${ev.id}/tables`} />
         )}
@@ -321,12 +335,16 @@ export default function Dashboard() {
           </>
         }
       >
-        <div className="summary-grid">
-          <MetricCard zh="總人數" en="Total" value={stats.total} />
-          <MetricCard zh="出席" en="Attended" value={stats.arrived} tone="ok" />
-          <MetricCard zh="缺席" en="Absent" value={stats.notArrived} />
-          <MetricCard zh="出席率" en="Attendance" value={`${pct(stats.arrived, stats.total)}%`} tone="mode" />
-        </div>
+        {ev.mode === 'gift' ? (
+          <GiftNumbers ev={ev} />
+        ) : (
+          <div className="summary-grid">
+            <MetricCard zh="總人數" en="Total" value={stats.total} />
+            <MetricCard zh="出席" en="Attended" value={stats.arrived} tone="ok" />
+            <MetricCard zh="缺席" en="Absent" value={stats.notArrived} />
+            <MetricCard zh="出席率" en="Attendance" value={`${pct(stats.arrived, stats.total)}%`} tone="mode" />
+          </div>
+        )}
         <p className="hint">完成後仍可查看及修改。匯出報告功能將在第 4 階段加入。</p>
       </Sheet>
 

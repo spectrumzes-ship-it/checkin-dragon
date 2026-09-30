@@ -16,7 +16,7 @@ import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
 import { nameOf } from '../lib/names'
 
-type Filter = 'all' | 'arrived' | 'not_arrived' | 'vip' | 'cancelled' | 'manual' | 'souvenir' | 'no_souvenir'
+type Filter = 'all' | 'left' | 'gift_only' | 'arrived' | 'not_arrived' | 'vip' | 'cancelled' | 'manual' | 'souvenir' | 'no_souvenir'
 type Sort = 'name' | 'seat' | 'time' | 'status'
 
 const seatKey = (e: GuestEntry) => {
@@ -49,7 +49,7 @@ export default function Guests() {
   const collected = useMemo(() => new Set(redemptions.filter((r) => !r.voided).map((r) => r.participantId)), [redemptions])
 
   const counts = useMemo(() => {
-    const c = { all: 0, arrived: 0, not_arrived: 0, vip: 0, cancelled: 0, manual: 0, souvenir: 0, no_souvenir: 0 }
+    const c = { all: 0, left: 0, gift_only: 0, arrived: 0, not_arrived: 0, vip: 0, cancelled: 0, manual: 0, souvenir: 0, no_souvenir: 0 }
     for (const e of index) {
       const p = e.p
       c.all++
@@ -57,7 +57,9 @@ export default function Guests() {
         c.cancelled++
         continue
       }
-      if (p.attendance !== 'not_arrived') c.arrived++
+      if (p.leftAt) c.left++
+      if (p.giftOnly) c.gift_only++
+      else if (p.attendance !== 'not_arrived') c.arrived++
       else c.not_arrived++
       if (p.vip) c.vip++
       if (p.manual) c.manual++
@@ -73,9 +75,13 @@ export default function Guests() {
       const p = e.p
       switch (filter) {
         case 'arrived':
-          return p.status === 'active' && p.attendance !== 'not_arrived'
+          return p.status === 'active' && !p.giftOnly && p.attendance !== 'not_arrived'
         case 'not_arrived':
-          return p.status === 'active' && p.attendance === 'not_arrived'
+          return p.status === 'active' && !p.giftOnly && p.attendance === 'not_arrived'
+        case 'left':
+          return p.status === 'active' && !!p.leftAt
+        case 'gift_only':
+          return p.status === 'active' && !!p.giftOnly
         case 'vip':
           return p.status === 'active' && p.vip
         case 'cancelled':
@@ -130,6 +136,8 @@ export default function Guests() {
     ['vip', 'VIP'],
     ['cancelled', '已取消'],
     ...(gift ? [] : ([['manual', '手動']] as [Filter, string][])),
+    ...(counts.left ? ([['left', '中途離開']] as [Filter, string][]) : []),
+    ...(counts.gift_only ? ([['gift_only', '只領禮品']] as [Filter, string][]) : []),
     ...(hasSouvenirs ? ([['souvenir', gift ? '已領取' : '已領紀念品'], ['no_souvenir', gift ? '未領取' : '未領紀念品']] as [Filter, string][]) : []),
   ]
 

@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X, UsersRound, UserPlus, Merge, LogIn, LogOut } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant } from '../db/types'
-import { setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import { setGiftOnly, setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
@@ -55,6 +55,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
               <Star size={14} fill={p.vip ? 'currentColor' : 'none'} /> {p.vip ? 'VIP' : '設為 VIP'}
             </button>
             {p.leftAt && <SoftTag tone="warn">已中途離開 · {formatTime(p.leftAt)}</SoftTag>}
+            {p.giftOnly && <SoftTag tone="info">只領禮品（不計入出席）</SoftTag>}
             {p.guestCount > 1 && <SoftTag>{p.guestCount} 位</SoftTag>}
             {p.tags.map((x) => (
               <SoftTag key={x}>{x}</SoftTag>
@@ -66,7 +67,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         </button>
       </div>
 
-      {p.status === 'active' && ev.mode !== 'gift' && (
+      {p.status === 'active' && ev.mode !== 'gift' && !p.giftOnly && (
         <div className="detail-primary">
           {p.attendance === 'not_arrived' ? (
             <button
@@ -230,6 +231,17 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         {p.companionOf && (
           <button className="btn btn-ghost" onClick={() => setConfirm('merge')}>
             <Merge size={18} /> 合併回原請柬
+          </button>
+        )}
+        {ev.mode !== 'gift' && p.status === 'active' && (p.giftOnly || p.walkIn) && (
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              await setGiftOnly(p, !p.giftOnly)
+              toast(p.giftOnly ? `${nameOf(p)} 已加入嘉賓名單（參加活動）` : `${nameOf(p)} 已改為只領禮品`)
+            }}
+          >
+            <Gift size={18} /> {p.giftOnly ? '改為參加活動' : '改為只領禮品'}
           </button>
         )}
         {ev.mode === 'bus' &&

@@ -292,6 +292,8 @@ export interface GuestInput {
   age: string
   birthDate: string
   idPrefix: string
+  walkIn?: boolean
+  giftOnly?: boolean
   dietary: string
   remarks: string
   tableId: string
@@ -361,6 +363,8 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     birthDate: g.birthDate || undefined,
     idPrefix: idPrefixOf(g.idPrefix) || undefined,
     leftAt: existing?.leftAt,
+    walkIn: g.walkIn ?? existing?.walkIn,
+    giftOnly: g.giftOnly ?? existing?.giftOnly,
     companionOf: existing?.companionOf,
     dietary: g.dietary,
     remarks: g.remarks,
@@ -435,6 +439,12 @@ export const setGuestCancelled = async (p: Participant, cancelled: boolean) => {
   for (const t of tickets)
     await db.tickets.update(t.id, { status: cancelled ? 'cancelled' : t.usedAt ? 'used' : 'valid' })
   await audit(p.eventId, cancelled ? '取消嘉賓 Cancel Guest' : '恢復嘉賓 Restore Guest', 'participant', p.id, names(p).full)
+}
+
+// 「只領禮品」與「參加活動」互相轉換
+export const setGiftOnly = async (p: Participant, giftOnly: boolean) => {
+  await db.participants.update(p.id, { giftOnly: giftOnly || undefined, updatedAt: Date.now() })
+  await audit(p.eventId, giftOnly ? '改為只領禮品' : '改為參加活動', 'participant', p.id, names(p).full)
 }
 
 // 巴士行程：中途離開／恢復行程。離開後，未點到的點名不再計算此人，亦不再列入「未安排餐席」
@@ -517,7 +527,7 @@ export const saveEvent = async (input: EventInput, existing?: EventRec) => {
     mode: input.mode,
     type: input.type,
     date: input.date,
-    endDate: input.endDate > input.date ? input.endDate : undefined,
+    endDate: input.mode !== 'banquet' && input.endDate > input.date ? input.endDate : undefined, // 宴會不跨日
     startTime: input.startTime,
     endTime: input.endTime,
     venue: input.venue.trim(),
@@ -693,6 +703,14 @@ export const verifySouvenir = async (eventId: string, itemId: string, raw: strin
   if (logic === 'fcfs') {
     const remain = await left()
     const p = mine?.status === 'active' ? mine : undefined
+    // 有名單（預先輸入／匯入的會員資料）時，掃描只接受名單上的 QR，避免掃到不相關的 QR 也扣庫存
+    if (remain > 0 && raw && !participantId && !p) {
+      const hasList = (await db.participants.where('eventId').equals(eventId).filter((x) => x.status === 'active' && !x.walkIn).count()) > 0
+      if (hasList) {
+        await log('invalid', '不在名單上', null)
+        return { result: 'invalid', reason: mine ? '此票已取消 Cancelled Ticket' : '此 QR 不在名單上 Not on the list', time: now, rawValue: raw }
+      }
+    }
     if (remain <= 0) {
       await log('out_of_stock', '', p?.id ?? null)
       return { result: 'out_of_stock', reason: '禮物已派發完畢（已售罄）', participant: p, time: now, souvenir: { item, quantity: 0 }, rawValue: raw }
@@ -762,7 +780,8 @@ export const undoRedemptionById = async (id: string) => {
 }
 
 // 即場登記領取人並派發：名單上沒有的人，登記後立即領取
-export const registerAndRedeem = async (eventId: string, itemId: string, g: GuestInput, method: ScanMethod = 'MANUAL'): Promise<ScanOutcome> => {
+// giftOnly：只領禮品（不計入出席、座位及點名）；false = 同時加入嘉賓名單參加活動
+export const registerAndRedeem = async (eventId: string, itemId: string, g: GuestInput, method: ScanMethod = 'MANUAL', giftOnly = false): Promise<ScanOutcome> => {
   const now = Date.now()
   const item = await db.souvenirs.get(itemId)
   if (!item) return { result: 'invalid', reason: '請先設定紀念品', time: now, rawValue: '' }
@@ -778,7 +797,7 @@ export const registerAndRedeem = async (eventId: string, itemId: string, g: Gues
   const existing =
     all.find((p) => same(p.memberId, g.memberId)) ??
     all.find((p) => sameName(p) && (same(p.phone, g.phone) || (!!g.birthDate && p.birthDate === g.birthDate)))
-  const p = existing ?? (await saveGuest(eventId, g))
+  const p = existing ?? (await saveGuest(eventId, { ...g, walkIn: true, giftOnly: giftOnly || undefined }))
   return verifySouvenir(eventId, itemId, '', method, p.id)
 }
 

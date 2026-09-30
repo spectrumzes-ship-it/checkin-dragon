@@ -4,7 +4,6 @@ import { useSettings } from '../lib/settings'
 import { cx } from '../lib/util'
 import { ToastHost } from './ui'
 
-const logo = `${import.meta.env.BASE_URL}icons/logo-256.png`
 
 // 整體版面：手機 = 底部選單；平板 = 窄側欄；電腦 = 完整側欄
 export const AppShell = () => {
@@ -32,13 +31,6 @@ export const AppShell = () => {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <NavLink to="/" className="sidebar-brand">
-          <img src={logo} alt="" width={40} height={40} />
-          <span className="bi">
-            <span className="bi-zh">點名龍</span>
-            <span className="bi-en">Check-In Dragon</span>
-          </span>
-        </NavLink>
         <nav>
           {side.map((i) => (
             <Link key={i.zh} to={i.to} className={cx('side-item', i.active && 'active')} aria-current={i.active ? 'page' : undefined}>

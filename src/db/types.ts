@@ -60,6 +60,8 @@ export interface Participant {
   age?: string // 即場登記：年齡
   birthDate?: string // 即場登記：出生日期 YYYY-MM-DD
   idPrefix?: string // 即場登記：身份證號碼頭 4 位（私隱考慮，不保存完整號碼）
+  walkIn?: boolean // 由「即場登記」新增（不是預先匯入／輸入的名單）
+  giftOnly?: boolean // 只領禮品：不計入出席、座位及點名
   leftAt?: number // 巴士行程：中途離開的時間（之後的點名及聚餐安排不再計算此人）
   companionOf?: string // 由請柬分拆出來的同行者：所屬請柬（原嘉賓）的編號
   createdAt: number

@@ -20,6 +20,7 @@ import {
 } from './actions'
 import { buildIndex, extractFields, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
 import { ageFromBirth, uid } from './util'
+import { computeStats } from './hooks'
 
 const ev = (name: string): EventInput => ({
   name,
@@ -205,6 +206,37 @@ describe('即場登記的邏輯', () => {
     await saveSouvenir(it1)
     expect((await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '陳小明' })).result).toBe('out_of_stock')
     expect(await db.participants.count()).toBe(0)
+  })
+})
+
+describe('只領禮品與名單上的 QR', () => {
+  it('即場登記「只領禮品」不計入出席人數；「參加活動」會計入', async () => {
+    const e = await saveEvent(ev('A'))
+    await guest(e.id, 'CHAN', 'K1')
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'person' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '只領' }, 'MANUAL', true)
+    expect(computeStats(await db.participants.toArray()).total).toBe(1)
+    await registerAndRedeem(e.id, it1.id, { ...emptyGuest(), name: '參加' }, 'MANUAL', false)
+    expect(computeStats(await db.participants.toArray()).total).toBe(2)
+  })
+  it('先到先得：有名單時只接受名單上的 QR；沒有名單時任何 QR 都可以', async () => {
+    const e = await saveEvent({ ...ev('G'), mode: 'gift' })
+    const it1 = { id: uid(), eventId: e.id, name: 'A', stock: null, perGuest: 0, logic: 'fcfs' as const, perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    await saveSouvenir(it1)
+    expect((await verifySouvenir(e.id, it1.id, 'ANYTHING', 'QR')).result).toBe('valid')
+    await guest(e.id, 'CHAN', 'L1')
+    const bad = await verifySouvenir(e.id, it1.id, 'ANYTHING', 'QR')
+    expect(bad.result).toBe('invalid')
+    expect(bad.reason).toContain('不在名單上')
+    expect((await verifySouvenir(e.id, it1.id, 'L1', 'QR')).result).toBe('valid')
+    expect((await verifySouvenir(e.id, it1.id, '', 'MANUAL')).result).toBe('valid')
+  })
+  it('宴會不跨日', async () => {
+    const e = await saveEvent({ ...ev('A'), endDate: '2026-10-25' })
+    expect(e.endDate).toBeUndefined()
+    const g = await saveEvent({ ...ev('G'), mode: 'gift', endDate: '2026-10-25' })
+    expect(g.endDate).toBe('2026-10-25')
   })
 })
 

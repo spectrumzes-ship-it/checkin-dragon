@@ -28,7 +28,7 @@ export default function RollCall() {
   const nav = useNavigate()
   const sessions = useLiveQuery(() => db.sessions.where('eventId').equals(ev.id).sortBy('time'), [ev.id])
   const attendance = useLiveQuery(() => db.attendance.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
-  const active = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active').toArray(), [ev.id]) ?? []
+  const active = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active' && !p.giftOnly).toArray(), [ev.id]) ?? []
   const [open, setOpen] = useState(false)
   const [f, setF] = useState({ name: '', time: '', location: '', notes: '' })
 
@@ -150,7 +150,7 @@ export function RollCallSession() {
   const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
   const people = useMemo(() => {
     // 中途離開的人不用再點名（這次點名已點到的仍然保留）
-    const active = index.filter((e) => e.p.status === 'active' && (!e.p.leftAt || present.has(e.p.id)))
+    const active = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly && (!e.p.leftAt || present.has(e.p.id)))
     const inBus = bus === 'all' ? active : active.filter((e) => e.seats.some((s) => s.resource.id === bus))
     const busSeat = (e: GuestEntry) => e.seats.find((s) => s.resource.type === 'bus')
     return inBus.sort((a, b) => {

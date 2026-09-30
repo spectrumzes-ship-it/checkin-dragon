@@ -112,13 +112,15 @@ export default function EventForm() {
           </label>
           <div className="field-row">
             <label className="field">
-              <span>開始日期 Start Date</span>
+              <span>{f.mode === 'banquet' ? '日期 Date' : '開始日期 Start Date'}</span>
               <input type="date" value={f.date} onChange={(e) => up('date', e.target.value)} />
             </label>
-            <label className="field">
-              <span>結束日期（單日可留空）</span>
-              <input type="date" value={f.endDate} min={f.date} onChange={(e) => up('endDate', e.target.value)} />
-            </label>
+            {f.mode !== 'banquet' && (
+              <label className="field">
+                <span>結束日期（單日可留空）</span>
+                <input type="date" value={f.endDate} min={f.date} onChange={(e) => up('endDate', e.target.value)} />
+              </label>
+            )}
           </div>
           <div className="field-row">
             <label className="field">

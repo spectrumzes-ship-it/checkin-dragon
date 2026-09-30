@@ -150,7 +150,7 @@ function Unassigned({ ev, entries }: { ev: EventRec; entries: GuestEntry[] }) {
 const useUnassigned = (ev: EventRec) => {
   const { index } = useEventData(ev.id)
   // 中途離開行程的人不用再安排
-  return useMemo(() => index.filter((e) => e.p.status === 'active' && !e.p.leftAt && !e.seats.some((s) => s.resource.type === 'table')), [index])
+  return useMemo(() => index.filter((e) => e.p.status === 'active' && !e.p.leftAt && !e.p.giftOnly && !e.seats.some((s) => s.resource.type === 'table')), [index])
 }
 
 function TablesList() {

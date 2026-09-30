@@ -83,7 +83,7 @@ export default function SeatingPlan() {
       }
       slotsByTable.set(t.id, slots)
     }
-    const unassigned = index.filter((e) => e.p.status === 'active' && !e.seats.some((s) => ids.has(s.resource.id)))
+    const unassigned = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly && !e.seats.some((s) => ids.has(s.resource.id)))
     return { tables, slotsByTable, unassigned, byId }
   }, [data, index, purpose])
 

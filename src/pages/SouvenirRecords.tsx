@@ -30,6 +30,7 @@ import { nameOf } from '../lib/names'
 
 const METHOD: Record<ScanMethod, string> = { QR: 'QR', OCR: '文字掃描', MANUAL: '手動', SEARCH: '名單' }
 const blankReg = () => ({ name: '', englishName: '', phone: '', age: '', birthDate: '', idPrefix: '', memberId: '' })
+const TICK = { accentColor: 'var(--mode-ink)' }
 
 // 名單派發及紀錄：哪些嘉賓已領／未領紀念品；在「未領取」名單點一下嘉賓即可派發（不用掃描 QR）
 // 亦可即場登記名單上沒有的領取人；「限量先到先得」可不登記直接派發
@@ -46,6 +47,7 @@ export default function SouvenirRecords() {
   const dq = useDebounced(q, 150)
   const [undo, setUndo] = useState<{ pid?: string; rid?: string; name: string } | null>(null)
   const [reg, setReg] = useState<ReturnType<typeof blankReg> | null>(null)
+  const [joinEvent, setJoinEvent] = useState(false) // 即場登記：false = 只領禮品；true = 同時參加活動
 
   const set = (k: string, v: string) => {
     const n = new URLSearchParams(params)
@@ -120,7 +122,7 @@ export default function SouvenirRecords() {
     if (!reg || !item) return
     if (!reg.name.trim() && !reg.englishName.trim()) return toast('請輸入中文或英文姓名')
     const group = item.eligibility.startsWith('group:') ? [item.eligibility.slice(6)] : []
-    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg ? (pre.method ?? 'OCR') : 'MANUAL')
+    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg ? (pre.method ?? 'OCR') : 'MANUAL', ev.mode !== 'gift' && !joinEvent)
     setReg(null)
     report(o, reg.name.trim() || reg.englishName.trim())
   }
@@ -259,6 +261,24 @@ export default function SouvenirRecords() {
       >
         {reg && (
           <>
+            {ev.mode !== 'gift' && (
+              <div className="radio-list" role="radiogroup" style={{ marginBottom: 12 }}>
+                <label className={!joinEvent ? 'active' : ''}>
+                  <input type="radio" name="join" style={TICK} checked={!joinEvent} onChange={() => setJoinEvent(false)} />
+                  <span>
+                    <strong>只領禮品</strong>
+                    <small>不計入出席人數、座位及點名。</small>
+                  </span>
+                </label>
+                <label className={joinEvent ? 'active' : ''}>
+                  <input type="radio" name="join" style={TICK} checked={joinEvent} onChange={() => setJoinEvent(true)} />
+                  <span>
+                    <strong>即場登記參加活動</strong>
+                    <small>加入嘉賓名單，可簽到及安排座位。</small>
+                  </span>
+                </label>
+              </div>
+            )}
             <p className="hint">{pre?.reg ? '以下資料由文字掃描自動填入，請核對後才提交。' : ''}只有姓名必填（中文或英文其中一個），其他可留空。</p>
             <div className="field-row">
               <label className="field">

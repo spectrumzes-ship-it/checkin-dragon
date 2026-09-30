@@ -54,6 +54,7 @@ export const computeStats = (ps: Participant[]): Stats => {
       cancelled++
       continue
     }
+    if (p.giftOnly) continue // 只領禮品的人不計入出席
     invitations++
     total += p.guestCount
     arrived += p.arrivedCount
