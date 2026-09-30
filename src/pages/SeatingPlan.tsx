@@ -167,6 +167,7 @@ export default function SeatingPlan() {
           <Pool
             entries={pool}
             total={unassigned.length}
+            arrived={ev.mode === 'bus' ? null : unassigned.filter((e) => e.p.attendance !== 'not_arrived').length}
             q={q}
             setQ={setQ}
             selected={selected}
@@ -235,6 +236,7 @@ const SeatSlot = ({ id, slot, over, selected, onTap }: { id: string; slot: Slot;
 const Pool = ({
   entries,
   total,
+  arrived,
   q,
   setQ,
   selected,
@@ -243,6 +245,7 @@ const Pool = ({
 }: {
   entries: GuestEntry[]
   total: number
+  arrived: number | null // 未安排座位之中已簽到的人數（巴士聚餐不適用）
   q: string
   setQ: (v: string) => void
   selected: string | null
@@ -253,13 +256,18 @@ const Pool = ({
   return (
     <aside ref={setNodeRef} className={cx('seat-pool card', isOver && 'drop', selected && 'targetable')} onClick={(e) => e.target === e.currentTarget && onTapPool()}>
       <header onClick={onTapPool}>
-        <Users size={18} /> 未安排 <SoftTag>{total}</SoftTag>
+        <Users size={18} /> 未安排座位 <SoftTag>{total}</SoftTag>
+        {arrived !== null && total > 0 && (
+          <small className="muted">
+            已簽到 {arrived} · 未簽到 {total - arrived}
+          </small>
+        )}
       </header>
       {total > 8 && <SearchBar value={q} onChange={setQ} placeholder="搜尋未安排嘉賓" />}
       <div className="seat-pool-list" onClick={(e) => e.target === e.currentTarget && onTapPool()}>
         {entries.length ? (
           entries.map((e) => (
-            <span key={e.p.id} onClick={(ev) => (ev.stopPropagation(), onTap(e.p.id))}>
+            <span key={e.p.id} className={cx(arrived !== null && e.p.attendance !== 'not_arrived' && 'pool-arrived')} onClick={(ev) => (ev.stopPropagation(), onTap(e.p.id))}>
               <Chip e={e} selected={selected === e.p.id} />
             </span>
           ))

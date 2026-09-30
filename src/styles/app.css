@@ -3999,3 +3999,18 @@ legend {
   flex-shrink: 0;
   min-width: 96px;
 }
+
+/* 未安排座位：與簽到狀態分開顯示 */
+.unassigned-go {
+  margin-top: 10px;
+}
+.seat-pool header small {
+  margin-left: auto;
+  font-weight: 500;
+}
+.pool-arrived .guest-chip::before {
+  content: '✓';
+  color: var(--ok-ink, var(--mode-ink));
+  font-weight: 800;
+  margin-right: 4px;
+}

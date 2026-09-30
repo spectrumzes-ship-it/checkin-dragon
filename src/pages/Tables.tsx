@@ -5,14 +5,16 @@ import TableSeatList from '../components/TableSeatList'
 import { TableIcon } from '../components/icons'
 import type { EventRec, Resource } from '../db/types'
 import { List, Minus, MoveHorizontal, Plus, Printer } from 'lucide-react'
-import { setTableCapacity, type ScanOutcome } from '../lib/actions'
+import { checkIn, setTableCapacity, undoCheckIn, type ScanOutcome } from '../lib/actions'
+import { feedback } from '../lib/feedback'
+import { nameOf } from '../lib/names'
 import { normalize } from '../lib/util'
 import { useDebounced, useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
 import { TableArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
-import { EmptyState, FilterChip, PageHeader, ProgressBar, SearchBar, SectionTitle, Sheet } from '../components/ui'
+import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, SearchBar, SectionTitle, Sheet, toast } from '../components/ui'
 
 // 圓桌圖形：中間是席號，外圍小圓點 = 座位（實心 = 已到）
 const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: number; seated: number }) => {
@@ -95,6 +97,61 @@ export default function Tables() {
 }
 
 // 席位名單：每席用與單一席相同的清單（包括空位、同行），可上下拖拉調整座位；搜尋可找出某人坐在哪一席
+// 未安排座位的嘉賓：與「未簽到」是兩回事，所以獨立列出，並分開顯示當中已簽到／未簽到的人數
+function Unassigned({ ev, entries }: { ev: EventRec; entries: GuestEntry[] }) {
+  const nav = useNavigate()
+  const dinner = ev.mode === 'bus'
+  const [undoP, setUndoP] = useState<GuestEntry | null>(null)
+  if (!entries.length) return null
+  const arrived = entries.filter((e) => e.p.attendance !== 'not_arrived').length
+  const toggle = async (e: GuestEntry) => {
+    if (e.p.attendance !== 'not_arrived') return setUndoP(e)
+    await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
+    feedback('valid')
+    toast(`✓ ${nameOf(e.p)} 已簽到`)
+  }
+  return (
+    <section className="unassigned">
+      <SectionTitle zh={`${dinner ? '未安排餐席' : '未安排座位'} · ${entries.length} 位`} en="Not assigned" />
+      {!dinner && (
+        <p className="hint">
+          這些嘉賓只是未有座位，不代表未簽到：已簽到 {arrived} 位 · 未簽到 {entries.length - arrived} 位。
+        </p>
+      )}
+      <div className="list card">
+        {entries.map((e) => (
+          <GuestRow
+            key={e.p.id}
+            e={e}
+            onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}`)}
+            onMarkClick={dinner ? undefined : () => toggle(e)}
+            trailing={dinner ? <span className="muted">未安排</span> : <span />}
+          />
+        ))}
+      </div>
+      <Link to={`/e/${ev.id}/tables?view=plan`} className="btn btn-mode unassigned-go">
+        <MoveHorizontal size={18} /> 到「座位分配」安排座位
+      </Link>
+      <ConfirmSheet
+        open={!!undoP}
+        onClose={() => setUndoP(null)}
+        onConfirm={async () => {
+          if (undoP) await undoCheckIn(undoP.p)
+          toast('已取消簽到')
+        }}
+        title="取消簽到"
+        message={<p>把 {undoP && nameOf(undoP.p)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
+        confirmText="取消簽到"
+      />
+    </section>
+  )
+}
+
+const useUnassigned = (ev: EventRec) => {
+  const { index } = useEventData(ev.id)
+  return useMemo(() => index.filter((e) => e.p.status === 'active' && !e.seats.some((s) => s.resource.type === 'table')), [index])
+}
+
 function TablesList() {
   const ev = useOutletContext<EventRec>()
   const nav = useNavigate()
@@ -104,6 +161,7 @@ function TablesList() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [printOpen, setPrintOpen] = useState(false)
   const dinner = ev.mode === 'bus'
+  const unassigned = useUnassigned(ev)
   if (!tables) return <div className="page" />
   const nq = normalize(dq)
   const shown = nq ? tables.filter((x) => x.guests.some((g) => g.e.hay.includes(nq))) : tables
@@ -119,7 +177,7 @@ function TablesList() {
         <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號，看看坐在哪一席" />
       </div>
       <p className="hint">拖拉姓名可調整座位（手機：按住約半秒），目標有人會對調；點勾號簽到，點姓名看詳情。</p>
-      {shown.length === 0 && <p className="muted pad center">找不到「{dq}」</p>}
+      {shown.length === 0 && !unassigned.some((e) => e.hay.includes(nq)) && <p className="muted pad center">找不到「{dq}」</p>}
       {shown.map(({ t, guests, arrived, seated }) => (
         <section key={t.id} className="table-list-card">
           <Link to={`/e/${ev.id}/tables/${t.id}`} className="table-list-head">
@@ -133,6 +191,7 @@ function TablesList() {
           <TableSeatList ev={ev} table={t} guests={guests} compact allowCheckIn={!dinner} onOpen={(e) => nav(`/e/${ev.id}/guests/${e.p.id}`)} />
         </section>
       ))}
+      <Unassigned ev={ev} entries={nq ? unassigned.filter((e) => e.hay.includes(nq)) : unassigned} />
       <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} eventId={ev.id} />
       {outcome && <ScanResult outcome={outcome} purpose="checkin" onDone={() => setOutcome(null)} />}
     </div>
@@ -171,13 +230,11 @@ export const PrintSheet = ({ open, onClose, eventId, tableId }: { open: boolean;
 
 function TablesOverview() {
   const ev = useOutletContext<EventRec>()
-  const nav = useNavigate()
   const tables = useTables(ev)
-  const { index } = useEventData(ev.id)
+  const unassigned = useUnassigned(ev)
   const [filter, setFilter] = useState<'all' | 'open' | 'full'>('all')
   // 巴士模式：這裏是聚餐的餐席，顯示「已安排」人數（上車與否不代表已到餐廳）
   const dinner = ev.mode === 'bus'
-  const unassigned = dinner ? index.filter((e) => e.p.status === 'active' && !e.seats.some((s) => s.resource.type === 'table')) : []
   if (!tables) return <div className="page" />
   if (!tables.length)
     return (
@@ -237,16 +294,7 @@ function TablesOverview() {
           )
         })}
       </div>
-      {dinner && unassigned.length > 0 && (
-        <section className="unassigned">
-          <SectionTitle zh={`未安排餐席 · ${unassigned.length} 位`} en="Not assigned" />
-          <div className="list card">
-            {unassigned.map((e) => (
-              <GuestRow key={e.p.id} e={e} onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}/edit`)} trailing={<span className="btn btn-sm btn-mode">安排</span>} />
-            ))}
-          </div>
-        </section>
-      )}
+      <Unassigned ev={ev} entries={unassigned} />
     </div>
   )
 }
