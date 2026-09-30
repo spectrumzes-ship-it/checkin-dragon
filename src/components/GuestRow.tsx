@@ -52,6 +52,7 @@ export const GuestRow = ({
           {e.sameName && <SoftTag tone="info">同名 · #{p.memberId || e.tickets[0]?.invitationId || '—'}</SoftTag>}
           {p.vip && <VipBadge />}
           {p.companionOf && <SoftTag tone="mode">同行</SoftTag>}
+          {p.leftAt && <SoftTag tone="warn">已離開</SoftTag>}
           {p.guestCount > 1 && <SoftTag>{p.attendance === 'partial' ? `${p.arrivedCount}/` : ''}{p.guestCount} 位</SoftTag>}
         </span>
         <span className="guest-row-sub">

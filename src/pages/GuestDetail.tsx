@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X, UsersRound, UserPlus, Merge } from 'lucide-react'
+import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X, UsersRound, UserPlus, Merge, LogIn, LogOut } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant } from '../db/types'
-import { mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import { setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime } from '../lib/util'
@@ -16,7 +16,7 @@ import { nameOf, names } from '../lib/names'
 const METHOD = { QR: 'QR 掃描', OCR: '文字辨識', MANUAL: '手動', SEARCH: '搜尋' }
 
 export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec; gid: string; entry?: GuestEntry; onClose: () => void }) {
-  const [confirm, setConfirm] = useState<null | 'undo' | 'cancel' | 'delete' | 'merge'>(null)
+  const [confirm, setConfirm] = useState<null | 'undo' | 'cancel' | 'delete' | 'merge' | 'leave'>(null)
   const logs = useLiveQuery(() => db.auditLogs.where('eventId').equals(ev.id).filter((l) => l.objectId === gid).reverse().sortBy('time'), [ev.id, gid]) ?? []
   const souvenirs = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const host = useLiveQuery(async () => (entry?.p.companionOf ? await db.participants.get(entry.p.companionOf) : undefined), [entry?.p.companionOf])
@@ -54,6 +54,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
             >
               <Star size={14} fill={p.vip ? 'currentColor' : 'none'} /> {p.vip ? 'VIP' : '設為 VIP'}
             </button>
+            {p.leftAt && <SoftTag tone="warn">已中途離開 · {formatTime(p.leftAt)}</SoftTag>}
             {p.guestCount > 1 && <SoftTag>{p.guestCount} 位</SoftTag>}
             {p.tags.map((x) => (
               <SoftTag key={x}>{x}</SoftTag>
@@ -227,6 +228,23 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
             <Merge size={18} /> 合併回原請柬
           </button>
         )}
+        {ev.mode === 'bus' &&
+          p.status === 'active' &&
+          (p.leftAt ? (
+            <button
+              className="btn btn-ghost"
+              onClick={async () => {
+                await setLeftTrip(p, false)
+                toast(`${nameOf(p)} 已恢復行程，之後的點名會再次計算`)
+              }}
+            >
+              <LogIn size={18} /> 恢復行程
+            </button>
+          ) : (
+            <button className="btn btn-ghost" onClick={() => setConfirm('leave')}>
+              <LogOut size={18} /> 中途離開
+            </button>
+          ))}
         {p.status === 'active' ? (
           <button className="btn btn-ghost" onClick={() => setConfirm('cancel')}>
             取消嘉賓
@@ -290,6 +308,17 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         title="取消簽到"
         message={<p>把 {nameOf(p)} 改回「未到」？此操作會記錄在操作紀錄。</p>}
         confirmText="取消簽到"
+      />
+      <ConfirmSheet
+        open={confirm === 'leave'}
+        onClose={() => setConfirm(null)}
+        onConfirm={async () => {
+          await setLeftTrip(p, true)
+          toast(`${nameOf(p)} 已標記為中途離開`)
+        }}
+        title="中途離開"
+        message={<p>{nameOf(p)} 不再繼續行程？之後的點名不會再計算此人，亦不用再安排餐席。已點到的紀錄會保留，可隨時「恢復行程」。</p>}
+        confirmText="中途離開"
       />
       <ConfirmSheet
         open={confirm === 'cancel'}

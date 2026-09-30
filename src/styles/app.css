@@ -4014,3 +4014,24 @@ legend {
   font-weight: 800;
   margin-right: 4px;
 }
+
+/* 巴士：中途離開 */
+.bus-seat.left {
+  opacity: 0.45;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-3);
+}
+.bus-seat.left span {
+  text-decoration: line-through;
+}
+.rc-left-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 14px;
+  color: var(--text-2);
+}
+.rc-left-row + .rc-left-row {
+  border-top: 1px solid var(--border-soft);
+}

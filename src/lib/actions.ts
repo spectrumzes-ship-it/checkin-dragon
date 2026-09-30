@@ -414,6 +414,12 @@ export const setGuestCancelled = async (p: Participant, cancelled: boolean) => {
   await audit(p.eventId, cancelled ? '取消嘉賓 Cancel Guest' : '恢復嘉賓 Restore Guest', 'participant', p.id, names(p).full)
 }
 
+// 巴士行程：中途離開／恢復行程。離開後，未點到的點名不再計算此人，亦不再列入「未安排餐席」
+export const setLeftTrip = async (p: Participant, left: boolean) => {
+  await db.participants.update(p.id, { leftAt: left ? Date.now() : undefined, updatedAt: Date.now() })
+  await audit(p.eventId, left ? '中途離開行程' : '恢復行程', 'participant', p.id, names(p).full)
+}
+
 export const deleteGuestPermanently = async (p: Participant) => {
   await db.transaction('rw', [db.participants, db.tickets, db.seats, db.attendance, db.auditLogs], async () => {
     await db.participants.delete(p.id)

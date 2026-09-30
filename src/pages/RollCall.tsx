@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Eraser, Phone, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Eraser, LogOut, Phone, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { clearSession, createSession, deleteSession, setAttendance } from '../lib/actions'
@@ -28,7 +28,7 @@ export default function RollCall() {
   const nav = useNavigate()
   const sessions = useLiveQuery(() => db.sessions.where('eventId').equals(ev.id).sortBy('time'), [ev.id])
   const attendance = useLiveQuery(() => db.attendance.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
-  const total = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active').count(), [ev.id]) ?? 0
+  const active = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active').toArray(), [ev.id]) ?? []
   const [open, setOpen] = useState(false)
   const [f, setF] = useState({ name: '', time: '', location: '', notes: '' })
 
@@ -66,7 +66,11 @@ export default function RollCall() {
       ) : (
         <div className="session-list card">
           {sessions.map((s) => {
-            const present = attendance.filter((a) => a.sessionId === s.id && a.status === 'present').length
+            const hereIds = new Set(attendance.filter((a) => a.sessionId === s.id && a.status === 'present').map((a) => a.participantId))
+            // 中途離開的人：只有在這次點名已點到才計算，否則不用點名
+            const counted = active.filter((p) => !p.leftAt || hereIds.has(p.id))
+            const total = counted.length
+            const present = counted.filter((p) => hereIds.has(p.id)).length
             return (
               <Link key={s.id} to={`/e/${ev.id}/rollcall/${s.id}`} className="session-row">
                 <span className="session-name">
@@ -145,7 +149,8 @@ export function RollCallSession() {
   const present = useMemo(() => new Set(recs.filter((r) => r.status === 'present').map((r) => r.participantId)), [recs])
   const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
   const people = useMemo(() => {
-    const active = index.filter((e) => e.p.status === 'active')
+    // 中途離開的人不用再點名（這次點名已點到的仍然保留）
+    const active = index.filter((e) => e.p.status === 'active' && (!e.p.leftAt || present.has(e.p.id)))
     const inBus = bus === 'all' ? active : active.filter((e) => e.seats.some((s) => s.resource.id === bus))
     const busSeat = (e: GuestEntry) => e.seats.find((s) => s.resource.type === 'bus')
     return inBus.sort((a, b) => {
@@ -153,12 +158,13 @@ export function RollCallSession() {
         sb = busSeat(b)
       return (sa?.resource.label ?? '').localeCompare(sb?.resource.label ?? '') || Number(sa?.seatLabel || 999) - Number(sb?.seatLabel || 999)
     })
-  }, [index, bus])
+  }, [index, bus, present])
 
   if (!session || !data) return <div className="page" />
   const total = people.length
   const here = people.filter((e) => present.has(e.p.id)).length
   const missing = people.filter((e) => !present.has(e.p.id))
+  const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !present.has(e.p.id) && (bus === 'all' || e.seats.some((s) => s.resource.id === bus)))
 
   const toggle = async (e: GuestEntry) => {
     const isHere = present.has(e.p.id)
@@ -259,6 +265,22 @@ export function RollCallSession() {
         ))}
       </section>
 
+      {leftOut.length > 0 && (
+        <section className="rc-all rc-left">
+          <h3>
+            <LogOut size={18} /> 已中途離開（不用點名）· {leftOut.length}
+          </h3>
+          <div className="list card">
+            {leftOut.map((e) => (
+              <Link key={e.p.id} to={`/e/${ev.id}/guests/${e.p.id}`} className="rc-left-row">
+                <strong>{names(e.p).primary}</strong>
+                <span className="muted">{names(e.p).secondary}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="rc-manage card">
         <div>
           <button className="btn btn-ghost" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
@@ -341,9 +363,9 @@ export function BusSeats() {
                     return (
                       <button
                         key={k}
-                        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived')}
+                        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived', !!e?.p.leftAt && 'left')}
                         onClick={() => e && nav(`/e/${ev.id}/guests/${e.p.id}`)}
-                        title={e ? names(e.p).full : `${n} 號空位`}
+                        title={e ? `${names(e.p).full}${e.p.leftAt ? '（已中途離開）' : ''}` : `${n} 號空位`}
                       >
                         <small>{n}</small>
                         <span>{e ? nameOf(e.p) : ''}</span>

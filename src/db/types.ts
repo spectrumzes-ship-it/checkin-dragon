@@ -55,6 +55,7 @@ export interface Participant {
   checkInMethod: ScanMethod | null
   manual: boolean
   ticketLabel?: string // 不記名門票的票號（沒有姓名時用作顯示名稱）
+  leftAt?: number // 巴士行程：中途離開的時間（之後的點名及聚餐安排不再計算此人）
   companionOf?: string // 由請柬分拆出來的同行者：所屬請柬（原嘉賓）的編號
   createdAt: number
   updatedAt: number
