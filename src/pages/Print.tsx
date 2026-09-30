@@ -1,3 +1,4 @@
+import { busRows, defaultLayout } from '../lib/busLayout'
 import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
@@ -66,7 +67,7 @@ export default function Print() {
   return (
     <div className="print-page">
       <div className="print-toolbar no-print">
-        <Link to={`/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
+        <Link to={type === 'bus' ? `/e/${ev.id}/seats` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
           <ChevronLeft size={22} />
         </Link>
         <strong>列印預覽</strong>
@@ -75,7 +76,67 @@ export default function Print() {
         </button>
       </div>
 
-      {type === 'all' ? (
+      {type === 'bus' ? (
+        data.resources
+          .filter((r) => r.type === 'bus')
+          .map((b) => {
+            const bySeat = new Map<string, GuestEntry>()
+            index.forEach((e) => e.seats.forEach((s) => s.resource.id === b.id && e.p.status === 'active' && bySeat.set(s.seatLabel, e)))
+            const layout = ev.modeConfig.buses?.find((x) => x.label === b.label)?.layout ?? defaultLayout(b.capacity)
+            const rows = busRows(b.capacity, layout)
+            return (
+              <section key={b.id} className="print-sheet page">
+                {head(`${b.label} 車 · ${bySeat.size} / ${b.capacity} 位`)}
+                <div className="print-bus">
+                  <div className="print-bus-map">
+                    <div className="print-bus-front">車頭</div>
+                    {rows.map((row, r) => (
+                      <div key={r} className="print-bus-row" style={{ gridTemplateColumns: row.map((n) => (n === null ? '10px' : 'minmax(0, 1fr)')).join(' ') }}>
+                        {row.map((n, k) =>
+                          n ? (
+                            <span key={k} className={bySeat.get(String(n)) ? 'seat taken' : 'seat'}>
+                              <small>{n}</small>
+                              {bySeat.get(String(n)) ? nameOf(bySeat.get(String(n))!.p) : ''}
+                            </span>
+                          ) : (
+                            <span key={k} />
+                          ),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th className="no">座位</th>
+                        <th>姓名</th>
+                        <th>英文姓名</th>
+                        <th>電話</th>
+                        <th>備註</th>
+                        <th>上車</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...bySeat.entries()]
+                        .sort((a, b2) => Number(a[0]) - Number(b2[0]))
+                        .map(([seat, e]) => (
+                          <tr key={seat}>
+                            <td className="no">{seat}</td>
+                            <td className="b">{names(e.p).primary}</td>
+                            <td>{names(e.p).secondary}</td>
+                            <td>{e.p.phone}</td>
+                            <td>{[extra(e), e.p.leftAt ? '中途離開' : ''].filter(Boolean).join('、')}</td>
+                            <td className="check">☐</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <footer className="print-foot">列印時間 {now}</footer>
+              </section>
+            )
+          })
+      ) : type === 'all' ? (
         <section className="print-sheet">
           {head(`總名單 · ${all.length} 張邀請`)}
           <table className="print-table">

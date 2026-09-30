@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDr
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Eraser, LogOut, Phone, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Eraser, LogOut, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { clearSession, createSession, deleteSession, moveBusSeat, setAttendance, undoMoveSeat } from '../lib/actions'
@@ -380,10 +380,15 @@ export function BusSeats() {
     >
       <div className="page">
         <div className="seatlist-head">
-          <span className="muted">拖拉名字可調整車位（手機：按住約半秒），目標有人會對調，亦可拖到另一架車；點名字看詳情。座位排列可在「修改活動」更改。</span>
-          <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
-            <Undo2 size={16} /> 復原
-          </button>
+          <span className="muted">拖拉名字可調整座位（手機：按住約半秒），目標有人會對調，亦可拖到另一架車；點名字看詳情。座位排列可在「修改活動」更改。</span>
+          <span className="seatlist-tools">
+            <Link className="btn btn-ghost btn-sm" to={`/e/${ev.id}/print?type=bus`}>
+              <Printer size={16} /> 列印
+            </Link>
+            <button className="btn btn-ghost btn-sm" onClick={undo} disabled={!history.current.length}>
+              <Undo2 size={16} /> 復原
+            </button>
+          </span>
         </div>
         {buses.map((b) => {
           const bySeat = new Map<string, GuestEntry>()

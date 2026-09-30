@@ -907,8 +907,8 @@ export const moveBusSeat = async (eventId: string, pid: string, target: SeatTarg
     if (mine) await db.seats.update(mine.id, { resourceId: target.resourceId, seatLabel: target.seatLabel })
     else await db.seats.add({ id: uid(), eventId, participantId: pid, resourceId: target.resourceId, seatLabel: target.seatLabel })
     const from = mine ? `${label(mine.resourceId)} 車 ${mine.seatLabel} 號` : '未安排'
-    await audit(eventId, `調車位：${from} → ${label(target.resourceId)} 車 ${target.seatLabel} 號`, 'participant', pid, p ? names(p).full : '')
-    if (occupant) await audit(eventId, `調車位（對調）：→ ${from}`, 'participant', occupant.participantId, q ? names(q).full : '')
+    await audit(eventId, `調座位：${from} → ${label(target.resourceId)} 車 ${target.seatLabel} 號`, 'participant', pid, p ? names(p).full : '')
+    if (occupant) await audit(eventId, `調座位（對調）：→ ${from}`, 'participant', occupant.participantId, q ? names(q).full : '')
   })
   return { pid, affected, before }
 }

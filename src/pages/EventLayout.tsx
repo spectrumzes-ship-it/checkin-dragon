@@ -52,7 +52,7 @@ export default function EventLayout() {
     ...(ev.mode === 'bus'
       ? [
           { to: `${base}/rollcall`, icon: <ListChecks size={18} />, zh: '點名', en: 'Roll Call' },
-          { to: `${base}/seats`, icon: <Armchair size={18} />, zh: '車位', en: 'Bus Seats' },
+          { to: `${base}/seats`, icon: <Armchair size={18} />, zh: '座位', en: 'Seats' },
           { to: `${base}/tables`, icon: <TableIcon size={18} />, zh: '餐席', en: 'Dinner' },
         ]
       : []),

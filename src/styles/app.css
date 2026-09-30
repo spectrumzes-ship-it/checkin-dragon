@@ -4300,3 +4300,62 @@ legend {
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
+
+/* 巴士座位：列印 */
+.seatlist-tools {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.print-bus {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 16px;
+  align-items: start;
+}
+.print-bus-map {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.print-bus-front {
+  text-align: center;
+  font-size: 10px;
+  border: 1px dashed #999;
+  border-radius: 6px 6px 2px 2px;
+  padding: 2px;
+}
+.print-bus-row {
+  display: grid;
+  gap: 3px;
+}
+.print-bus-row .seat {
+  border: 1px solid #999;
+  border-radius: 4px;
+  min-height: 30px;
+  font-size: 10px;
+  line-height: 1.15;
+  padding: 1px 2px;
+  text-align: center;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.print-bus-row .seat small {
+  font-size: 8px;
+  color: #666;
+}
+.print-bus-row .seat.taken {
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .print-bus {
+    grid-template-columns: 1fr;
+  }
+}
+@media print {
+  .print-bus {
+    grid-template-columns: 5fr 7fr;
+  }
+}
