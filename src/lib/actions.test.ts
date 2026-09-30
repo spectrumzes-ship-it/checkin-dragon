@@ -18,7 +18,7 @@ import {
   verifySouvenir,
   type EventInput,
 } from './actions'
-import { buildIndex, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
+import { buildIndex, extractFields, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
 import { ageFromBirth, uid } from './util'
 
 const ev = (name: string): EventInput => ({
@@ -187,6 +187,23 @@ describe('紀念品派發方式', () => {
     expect(o.result).toBe('valid')
     expect(o.participant!.idPrefix).toBe('A123')
     expect((await db.redemptions.toArray())[0].method).toBe('MANUAL')
+  })
+})
+
+describe('證件文字抽取', () => {
+  it('抽出姓名、出生日期、身份證頭 4 位、會員編號', () => {
+    const f = extractFields('姓名 陳大文\nCHAN TAI MAN\n出生日期 25-12-1990\nA123456(7)\n會員編號: M00123')
+    expect(f.name).toBe('陳大文')
+    expect(f.englishName).toBe('CHAN TAI MAN')
+    expect(f.birthDate).toBe('1990-12-25')
+    expect(f.idPrefix).toBe('A123')
+    expect(f.memberId).toBe('M00123')
+  })
+  it('只有會員證：姓名＋編號', () => {
+    const f = extractFields('MEMBER NO. VIP-A0265\n何浩然')
+    expect(f.name).toBe('何浩然')
+    expect(f.memberId).toBe('VIPA0265')
+    expect(f.birthDate).toBe('')
   })
 })
 

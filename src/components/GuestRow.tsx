@@ -32,6 +32,7 @@ export const GuestRow = ({
   souvenir,
   trailing,
   onMarkClick,
+  mark,
   seating = true,
 }: {
   e: GuestEntry
@@ -39,6 +40,7 @@ export const GuestRow = ({
   selected?: boolean
   souvenir?: boolean
   trailing?: ReactNode
+  mark?: ReactNode // 取代左邊的簽到狀態圖示（例如紀念品名單顯示「已領取」圖案）
   onMarkClick?: () => void // 按左邊狀態圓圈：快速簽到／取消簽到
   seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
 }) => {
@@ -76,7 +78,7 @@ export const GuestRow = ({
   if (!onMarkClick || p.status === 'cancelled')
     return (
       <button type="button" className={cls} onClick={onClick}>
-        <StatusMark e={e} />
+        {mark ? <span className="status-mark">{mark}</span> : <StatusMark e={e} />}
         {row}
       </button>
     )

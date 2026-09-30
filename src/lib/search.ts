@@ -224,3 +224,70 @@ export const nameIdConflict = (ms: FuzzyMatch[]) => {
 }
 
 export { searchNorm }
+
+// ---- 由證件／會員證的辨識文字抽出登記欄位 ----
+export interface CardFields {
+  name: string
+  englishName: string
+  birthDate: string // YYYY-MM-DD
+  idPrefix: string // 身份證頭 4 位
+  memberId: string
+  phone: string
+}
+
+const pad2 = (n: string) => n.padStart(2, '0')
+const validDate = (y: number, m: number, d: number) => y >= 1900 && y <= new Date().getFullYear() && m >= 1 && m <= 12 && d >= 1 && d <= 31
+
+export const extractFields = (text: string): CardFields => {
+  const t = (text || '').normalize('NFKC').toUpperCase()
+  const out: CardFields = { name: '', englishName: '', birthDate: '', idPrefix: '', memberId: '', phone: '' }
+  let rest = t
+
+  // 出生日期：1990-12-25／1990年12月25日／25-12-1990／25/12/1990
+  const ymd = /(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/.exec(t)
+  const dmy = /(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/.exec(t)
+  if (ymd && validDate(+ymd[1], +ymd[2], +ymd[3])) {
+    out.birthDate = `${ymd[1]}-${pad2(ymd[2])}-${pad2(ymd[3])}`
+    rest = rest.replace(ymd[0], ' ')
+  } else if (dmy && validDate(+dmy[3], +dmy[2], +dmy[1])) {
+    out.birthDate = `${dmy[3]}-${pad2(dmy[2])}-${pad2(dmy[1])}`
+    rest = rest.replace(dmy[0], ' ')
+  }
+
+  // 香港身份證：1–2 個英文字母＋6 位數字＋括號內 1 位；只取頭 4 位
+  const hkid = /\b([A-Z]{1,2})\s?(\d{6})\s?\(?([0-9A])\)?/.exec(rest)
+  if (hkid) {
+    out.idPrefix = (hkid[1] + hkid[2]).slice(0, 4)
+    rest = rest.replace(hkid[0], ' ')
+  }
+
+  // 電話：8 位數字（香港）
+  const phone = /(?<!\d)([2-9]\d{3})\s?(\d{4})(?!\d)/.exec(rest)
+  if (phone) {
+    out.phone = phone[1] + phone[2]
+    rest = rest.replace(phone[0], ' ')
+  }
+
+  // 會員編號：優先取「會員編號／MEMBER／NO.」後面的一段；否則取第一個含數字的編號
+  const labelled = /(?:會員(?:編號|號碼|證號)?|MEMBER(?:SHIP)?(?:\s*(?:NO|ID|NUMBER))?|編號|NO)\s*[.:：#]?\s*([A-Z0-9][A-Z0-9\-]{2,})/.exec(rest)
+  const anyId = (rest.match(/[A-Z0-9][A-Z0-9\-]{3,}/g) ?? []).find((x) => /\d/.test(x))
+  const mid = (labelled && /\d/.test(labelled[1]) ? labelled[1] : anyId) ?? ''
+  out.memberId = mid.replace(/[^A-Z0-9]/g, '')
+  if (mid) rest = rest.replace(mid, ' ')
+
+  // 中文姓名：2–4 個中文字，不是標籤字
+  let cleaned = rest
+  for (const l of [...LABELS, '出生日期', '出生', '日期', '身份證', '身分證', '號碼', '香港', '永久性居民', '居民', '會員', '會員證', '有效期', '性別', '年齡'].sort((a, b) => b.length - a.length))
+    cleaned = cleaned.split(l).join(' ')
+  out.name = (cleaned.match(CJK) ?? []).find((r) => r.length >= 2 && r.length <= 4) ?? ''
+
+  // 英文姓名：同一行內連續 2–4 個英文字（不是標籤字）
+  for (const line of rest.split(/\n/)) {
+    const words = (line.match(/[A-Z]+/g) ?? []).filter((w) => w.length >= 2 && !EN_LABELS.has(w) && !['DATE', 'OF', 'BIRTH', 'DOB', 'HONG', 'KONG', 'IDENTITY', 'CARD', 'SEX', 'AGE', 'PHONE', 'TEL', 'MEMBERSHIP', 'NUMBER', 'ENGLISH', 'CHINESE'].includes(w))
+    if (words.length >= 2) {
+      out.englishName = words.slice(0, 4).join(' ')
+      break
+    }
+  }
+  return out
+}

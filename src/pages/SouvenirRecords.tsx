@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
+import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Gift, UserPlus } from 'lucide-react'
 import { db } from '../db/db'
@@ -41,7 +41,7 @@ export default function SouvenirRecords() {
   const { index } = useEventData(ev.id)
   const itemId = params.get('item') ?? items[0]?.id
   const item = items.find((i) => i.id === itemId)
-  const tab = params.get('tab') === 'pending' ? 'pending' : 'done'
+  const tab = params.get('tab') === 'done' ? 'done' : 'pending' // 預設先看「未領取」
   const [q, setQ] = useState('')
   const dq = useDebounced(q, 150)
   const [undo, setUndo] = useState<{ pid?: string; rid?: string; name: string } | null>(null)
@@ -55,10 +55,14 @@ export default function SouvenirRecords() {
   }
 
   // 由掃描畫面按「即場登記領取人」進入：直接打開登記表
+  // 由文字掃描進入時會帶來辨識到的欄位（不放在網址內），登記表會預先填好
+  const loc = useLocation()
+  const pre = loc.state as { reg?: Partial<ReturnType<typeof blankReg>>; method?: ScanMethod } | null
   useEffect(() => {
-    if (params.get('reg') === '1') setReg(blankReg())
+    if (pre?.reg) setReg({ ...blankReg(), ...pre.reg, age: ageFromBirth(pre.reg.birthDate ?? '') })
+    else if (params.get('reg') === '1') setReg(blankReg())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loc.key])
 
   const logic = item ? logicOf(item) : 'person'
   const mine = useMemo(() => reds.filter((r) => r.itemId === item?.id).sort((a, b) => b.time - a.time), [reds, item])
@@ -116,7 +120,7 @@ export default function SouvenirRecords() {
     if (!reg || !item) return
     if (!reg.name.trim() && !reg.englishName.trim()) return toast('請輸入中文或英文姓名')
     const group = item.eligibility.startsWith('group:') ? [item.eligibility.slice(6)] : []
-    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group })
+    const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg ? (pre.method ?? 'OCR') : 'MANUAL')
     setReg(null)
     report(o, reg.name.trim() || reg.englishName.trim())
   }
@@ -183,11 +187,11 @@ export default function SouvenirRecords() {
       ) : (
         <>
           <div className="tabs" style={{ marginTop: 12 }}>
-            <button className={tab === 'done' ? 'active' : ''} onClick={() => set('tab', 'done')}>
-              已領取<small>Collected · {done.length} 人 · {done.reduce((a, x) => a + x.r.qty, 0)} 份</small>
-            </button>
             <button className={tab === 'pending' ? 'active' : ''} onClick={() => set('tab', 'pending')}>
               未領取<small>Not yet · {pending.length} 人</small>
+            </button>
+            <button className={tab === 'done' ? 'active' : ''} onClick={() => set('tab', 'done')}>
+              已領取<small>Collected · {done.length} 人 · {done.reduce((a, x) => a + x.r.qty, 0)} 份</small>
             </button>
           </div>
           <div className="toolbar">
@@ -206,6 +210,11 @@ export default function SouvenirRecords() {
                   <GuestRow
                     key={e.p.id}
                     e={e}
+                    mark={
+                      <span className="gift-mark done" aria-label="已領取">
+                        <Gift size={18} />
+                      </span>
+                    }
                     onClick={() => setUndo({ pid: e.p.id, name: nameOf(e.p) })}
                     trailing={
                       <span className="record-meta">
@@ -224,7 +233,7 @@ export default function SouvenirRecords() {
           ) : pending.length ? (
             <div className="list card">
               {pending.map((e) => (
-                <GuestRow key={e.p.id} e={e} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
+                <GuestRow key={e.p.id} e={e} mark={<span className="gift-mark" aria-label="未領取" />} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
               ))}
             </div>
           ) : (
@@ -250,7 +259,7 @@ export default function SouvenirRecords() {
       >
         {reg && (
           <>
-            <p className="hint">只有姓名必填（中文或英文其中一個），其他可留空。</p>
+            <p className="hint">{pre?.reg ? '以下資料由文字掃描自動填入，請核對後才提交。' : ''}只有姓名必填（中文或英文其中一個），其他可留空。</p>
             <div className="field-row">
               <label className="field">
                 <span>中文姓名 Name</span>

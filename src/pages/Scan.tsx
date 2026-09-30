@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
@@ -6,7 +6,7 @@ import { db } from '../db/db'
 import type { Participant, ScanMethod } from '../db/types'
 import { checkIn, undoCheckIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
-import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch } from '../lib/search'
+import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, normalize } from '../lib/util'
 import { nameOf } from '../lib/names'
@@ -20,6 +20,38 @@ type ScanMode = 'qr' | 'text' | 'manual'
 
 
 // 萬用掃描：QR／文字／手動三合一，全程不離開相機畫面
+// 文字掃描找不到會員時：列出抽取到的主要資料，可一按新增領取人
+function NewRecipient({ text, onGo, compact }: { text: string; onGo: (f: CardFields) => void; compact?: boolean }) {
+  const f = extractFields(text)
+  const rows: [string, string][] = [
+    ['中文姓名', f.name],
+    ['英文姓名', f.englishName],
+    ['出生日期', f.birthDate],
+    ['身份證頭 4 位', f.idPrefix],
+    ['會員編號', f.memberId],
+    ['電話', f.phone],
+  ]
+  return (
+    <div className="ocr-new">
+      {!compact && (
+        <dl className="ocr-fields">
+          {rows
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <Fragment key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </Fragment>
+            ))}
+        </dl>
+      )}
+      <button className="btn btn-mode btn-block" onClick={() => onGo(f)}>
+        {compact ? '都不是？新增領取人' : '＋ 新增領取人並登記'}
+      </button>
+    </div>
+  )
+}
+
 export default function Scan() {
   const { id } = useParams()
   const nav = useNavigate()
@@ -220,6 +252,7 @@ export default function Scan() {
   }
 
   // 自動辨識：文字模式下持續讀取，找到相符嘉賓（吻合度 80% 以上）即列出讓工作人員確認
+  const autoRedeem = purpose === 'souvenir' && ev?.mode === 'gift'
   const autoOcr = mode === 'text' && cam.status === 'ready' && !outcome && !ocr
   useEffect(() => {
     if (!autoOcr) return
@@ -238,7 +271,13 @@ export default function Scan() {
             const same = top.entry.p.id === last.pid && similarity(normalize(r.text), last.text) >= 0.8
             setSameCard(same)
             if (same) last.misses = 0
-            else {
+            else if (autoRedeem && top.score >= 0.95 && r.matches.filter((m) => m.score >= 0.95).length === 1 && !nameIdConflict(r.matches) && !nameMismatch(r.matches, r.text)) {
+              // 禮品領取：完全吻合唯一一位會員 → 自動登記領取，不用再點選
+              lastOcrPid.current = { pid: top.entry.p.id, text: normalize(r.text), misses: 0 }
+              setTextBoxes([])
+              run(r.text, 'OCR', top.entry.p.id)
+              return
+            } else {
               lastOcrPid.current = { pid: '', text: '', misses: 0 }
               setTextBoxes([])
               setOcr({ text: r.text, matches: r.matches })
@@ -277,6 +316,10 @@ export default function Scan() {
       busy.current = false
     }
   }
+
+  // 名單上沒有這個人：帶同辨識到的欄位去「領取登記」（資料經畫面狀態傳遞，不放在網址）
+  const registerFromOcr = (fields: CardFields) =>
+    nav(`/e/${id}/souvenirs/records?item=${targetId}&tab=pending`, { state: { reg: fields, method: 'OCR' } })
 
   // 清除：拿走辨識結果及文字框，立即重新開始自動辨識（同一張名牌亦會重新辨識）
   const clearOcr = () => {
@@ -453,7 +496,7 @@ export default function Scan() {
                         : sameCard
                           ? '已處理這張名牌，請換下一張'
                           : liveText
-                          ? <>看到「<b>{liveText.slice(0, 30)}</b>」，未找到相符嘉賓</>
+                          ? <>看到「<b>{liveText.slice(0, 30)}</b>」，未找到相符嘉賓{purpose === 'souvenir' && '；按「立即辨識」可新增領取人'}</>
                           : '自動辨識中 · 把名牌或門票放在框內'}
                   </span>
                 </div>
@@ -470,9 +513,13 @@ export default function Scan() {
                 <p className="hint">
                   目前活動：{ev.name} · 共 {index.length} 位嘉賓。如嘉賓屬於另一個活動，請按左上角 × 返回後切換活動。
                 </p>
-                <div className="demo-btns">
-                  <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>
-                </div>
+                {purpose === 'souvenir' ? (
+                  <NewRecipient text={ocr.text} onGo={registerFromOcr} />
+                ) : (
+                  <div className="demo-btns">
+                    <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>
+                  </div>
+                )}
               </div>
             ) : (
               (() => {
@@ -505,8 +552,9 @@ export default function Scan() {
                     ) : (
                       mismatch && <p className="ocr-warn">⚠ 編號吻合，但卡上姓名與此嘉賓不符，請核對後才簽到</p>
                     )}
-                    <p className="ocr-group">可能的嘉賓 Possible matches · 點選以簽到</p>
+                    <p className="ocr-group">可能的嘉賓 Possible matches · {purpose === 'souvenir' ? '點選以登記領取' : '點選以簽到'}</p>
                     {list.map(row)}
+                    {purpose === 'souvenir' && <NewRecipient text={ocr.text} onGo={registerFromOcr} compact />}
                   </div>
                 )
               })()
