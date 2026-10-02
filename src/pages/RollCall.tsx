@@ -204,6 +204,7 @@ export default function RollCall() {
 const ICON = { present: 'arrived', pending: 'waiting', on_the_way: 'otw', excused: 'excused', no_show: 'warn' } as const
 
 type View = 'roll' | 'present' | 'pending' | 'on_the_way' | 'excused'
+const EVERYONE = 'everyone'
 
 export function RollCallSession() {
   const ev = useOutletContext<EventRec>()
@@ -217,6 +218,8 @@ export function RollCallSession() {
   const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
   const [view, setView] = useState<View>('roll')
   const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
+  const [pane, setPane] = useState('') // 點名頁顯示哪一組：巴士 id／'none'／'everyone'（全員名單）
+  const swipe = useRef<{ x: number; y: number } | null>(null)
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -233,6 +236,8 @@ export function RollCallSession() {
     .map((g) => ({ ...g, list: people.filter((e) => busKey(e) === g.key).sort((a, b) => seatNo(a) - seatNo(b)) }))
     .filter((g) => g.list.length)
   const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !recOf.has(e.p.id))
+  const panes = [...groups.map((x) => ({ key: x.key, label: x.label })), { key: EVERYONE, label: '全員名單' }]
+  const current = panes.some((p) => p.key === pane) ? pane : panes[0].key
 
   // 點一下名字：未上車 → 已上車；已上車 → 改回（已發車的車會變回未到）。已發車後補登記為遲到
   const toggle = async (e: GuestEntry) => {
@@ -342,7 +347,30 @@ export function RollCallSession() {
 
       {view === 'roll' ? (
         <>
-          {groups.map((grp) => {
+          {/* A 車／B 車／全員名單：按上面切換，或在名單上左右掃動 */}
+          <div className="seg rc-panes" role="tablist">
+            {panes.map((p) => (
+              <button key={p.key} role="tab" aria-selected={current === p.key} className={current === p.key ? 'active' : ''} onClick={() => setPane(p.key)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="rc-pane"
+            onTouchStart={(e) => (swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
+            onTouchEnd={(e) => {
+              const s0 = swipe.current
+              swipe.current = null
+              if (!s0) return
+              const dx = e.changedTouches[0].clientX - s0.x
+              const dy = e.changedTouches[0].clientY - s0.y
+              if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+              const i = panes.findIndex((p) => p.key === current)
+              const next = panes[i + (dx < 0 ? 1 : -1)]
+              if (next) setPane(next.key)
+            }}
+          >
+          {groups.filter((x) => x.key === current).map((grp) => {
             const closedAt = busClosedAt(session, grp.key)
             const here = countIn(grp.list, 'present')
             const exp = grp.list.length - countIn(grp.list, 'excused')
@@ -377,6 +405,7 @@ export function RollCallSession() {
             )
           })}
 
+          {current === EVERYONE && (
           <section className="rc-all rc-everyone">
             <h3>全員名單 · {people.length}（按狀態顏色顯示）</h3>
             {[...people]
@@ -386,6 +415,8 @@ export function RollCallSession() {
                 <Row key={e.p.id} e={e} colored />
               ))}
           </section>
+          )}
+          </div>
 
           {leftOut.length > 0 && (
             <section className="rc-all rc-left">

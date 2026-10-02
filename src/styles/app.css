@@ -4842,3 +4842,19 @@ legend {
 .vlist-item .swipe-row {
   border-top: 0;
 }
+
+/* 點名：A 車／B 車／全員名單切換 */
+.rc-panes {
+  display: flex;
+  width: 100%;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.rc-panes button {
+  flex: 1;
+  min-width: 72px;
+}
+.rc-pane {
+  touch-action: pan-y;
+  min-height: 40vh;
+}
