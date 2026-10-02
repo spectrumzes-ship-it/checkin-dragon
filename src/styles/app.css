@@ -4612,3 +4612,55 @@ legend {
   border-style: dashed;
   background: transparent;
 }
+
+/* 點名：頂部數字可按 */
+.rc-stats > button {
+  background: var(--t-bg, var(--surface));
+  color: var(--t-ink, var(--text));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.rc-stats > button.active {
+  box-shadow: 0 0 0 2px var(--mode-ink);
+}
+.rc-stats > button.tone-ok {
+  --t-bg: var(--ok-bg);
+  --t-ink: var(--ok-ink);
+}
+.rc-stats > button.tone-warn {
+  --t-bg: var(--warn-bg);
+  --t-ink: var(--warn-ink);
+}
+.rc-showall {
+  margin-left: auto;
+}
+/* 點選上車：綠色勾號彈出效果 */
+.rc-row.just {
+  animation: rc-flash 0.9s ease-out;
+}
+.rc-row.just .rc-mark {
+  animation: rc-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes rc-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes rc-flash {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok-ink) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rc-row.just,
+  .rc-row.just .rc-mark {
+    animation: none;
+  }
+}

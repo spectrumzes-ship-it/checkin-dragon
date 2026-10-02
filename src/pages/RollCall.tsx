@@ -151,6 +151,8 @@ export function RollCallSession() {
   const [confirmClose, setConfirmClose] = useState(false)
   const [confirmReopen, setConfirmReopen] = useState(false)
   const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
+  const [view, setView] = useState<'all' | RollStatus | 'pending'>('all') // 按頂部數字只看某一類
+  const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
 
   // 每人狀態：沒有紀錄（或舊資料 absent）= 待上車
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
@@ -185,8 +187,13 @@ export function RollCallSession() {
 
   // 點一下名字：未上車 → 已上車；已上車 → 待上車（點名結束後補登會記為遲到）
   const toggle = async (e: GuestEntry) => {
-    feedback('tap')
-    await setRollStatus(session.id, ev.id, e.p, statusOf(e.p.id) === 'present' ? (closed ? 'no_show' : 'pending') : 'present')
+    const toPresent = statusOf(e.p.id) !== 'present'
+    feedback(toPresent ? 'valid' : 'tap')
+    await setRollStatus(session.id, ev.id, e.p, toPresent ? 'present' : closed ? 'no_show' : 'pending')
+    if (toPresent) {
+      setFlash(e.p.id)
+      window.setTimeout(() => setFlash((f) => (f === e.p.id ? '' : f)), 900)
+    }
   }
 
   const Row = ({ e }: { e: GuestEntry }) => {
@@ -195,7 +202,7 @@ export function RollCallSession() {
     const bs = e.seats.find((s) => s.resource.type === 'bus')
     const icon = st === 'present' ? 'arrived' : st === 'on_the_way' ? 'partial' : st === 'no_show' ? 'warn' : 'not_arrived'
     return (
-      <div className={cx('rc-row', st === 'present' && 'here', st === 'no_show' && 'warn', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
+      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'no_show' && 'warn', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
         <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
           <span className="rc-mark">
             <StatusIcon kind={icon} size={36} />
@@ -247,33 +254,24 @@ export function RollCallSession() {
         }
       />
 
+      {/* 頂部數字可以按：只看該類名單；再按一次回到全部 */}
       <div className="rc-stats">
-        <div className="tone-ok">
-          <small>已上車</small>
-          <strong>
-            {here.length}
-            <span className="rc-of">/{total}</span>
-          </strong>
-        </div>
-        {closed ? (
-          <div className={noShow.length ? 'tone-bad' : 'tone-ok'}>
-            <small>未到</small>
-            <strong>{noShow.length}</strong>
-          </div>
-        ) : (
-          <div>
-            <small>待上車</small>
-            <strong>{by('pending').length}</strong>
-          </div>
-        )}
-        <div className={by('on_the_way').length ? 'tone-warn' : ''}>
-          <small>在途中</small>
-          <strong>{by('on_the_way').length}</strong>
-        </div>
-        <div>
-          <small>請假</small>
-          <strong>{excused.length}</strong>
-        </div>
+        {(
+          [
+            ['present', '已上車', here.length, 'tone-ok'] as const,
+            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, ''],
+            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
+            ['excused', '請假', excused.length, ''],
+          ] as [RollStatus | 'pending', string, number, string][]
+        ).map(([k, zh, n, tone]) => (
+          <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'all' : k)}>
+            <small>{zh}</small>
+            <strong>
+              {n}
+              {k === 'present' && <span className="rc-of">/{total}</span>}
+            </strong>
+          </button>
+        ))}
       </div>
 
       {closed && (
@@ -300,6 +298,18 @@ export function RollCallSession() {
         </div>
       )}
 
+      {view !== 'all' ? (
+        <section className="rc-all">
+          <h3>
+            {ROLL_LABEL[view]} · {by(view).length}
+            <button className="btn btn-ghost btn-sm rc-showall" onClick={() => setView('all')}>
+              顯示全部
+            </button>
+          </h3>
+          {by(view).length ? by(view).map((e) => <Row key={e.p.id} e={e} />) : <p className="muted pad center">沒有{ROLL_LABEL[view]}的人</p>}
+        </section>
+      ) : (
+        <>
       {!closed && waiting.length > 0 && waiting.length < total && (
         <section className="rc-missing rc-waiting">
           <h3>
@@ -340,6 +350,9 @@ export function RollCallSession() {
           <Row key={e.p.id} e={e} />
         ))}
       </section>
+
+        </>
+      )}
 
       {leftOut.length > 0 && (
         <section className="rc-all rc-left">

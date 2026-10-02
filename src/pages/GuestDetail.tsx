@@ -156,7 +156,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
         <Row icon={<UserRound size={18} />} zh="性別" value={p.gender === 'M' ? '男' : p.gender === 'F' ? '女' : ''} />
         <Row icon={<UserRound size={18} />} zh="年齡" value={p.age} />
         <Row icon={<UserRound size={18} />} zh="出生日期" value={p.birthDate} />
-        <Row icon={<Armchair size={18} />} zh="房間" value={entry.room ? `${entry.room.label}（${entry.room.capacity === 1 ? '單人房' : `${entry.room.capacity} 人房`}）` : ''} />
+        <Row icon={<Armchair size={18} />} zh="房間" value={entry.room ? `房號 ${entry.room.label}（${entry.room.capacity === 1 ? '單人房' : `${entry.room.capacity} 人房`}）` : ''} />
         <Row icon={<UsersRound size={18} />} zh="同行人士" value={partner ? names(partner).full : ''} />
         <Row icon={<IdCard size={18} />} zh="回鄉證號碼" value={p.permitNo} />
         <Row
