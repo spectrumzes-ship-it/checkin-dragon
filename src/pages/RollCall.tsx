@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
+import { rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Clock, Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
@@ -92,11 +93,7 @@ export default function RollCall() {
       ) : (
         <div className="session-list card">
           {sessions.map((s) => {
-            const hereIds = new Set(attendance.filter((a) => a.sessionId === s.id && a.status === 'present').map((a) => a.participantId))
-            // 中途離開的人：只有在這次點名已點到才計算，否則不用點名
-            const counted = active.filter((p) => !p.leftAt || hereIds.has(p.id))
-            const total = counted.length
-            const present = counted.filter((p) => hereIds.has(p.id)).length
+            const c = rollCounts(active, s, attendance)
             return (
               <SwipeRow
                 key={s.id}
@@ -119,11 +116,8 @@ export default function RollCall() {
                     {s.time} {s.location && `· ${s.location}`}
                   </span>
                 </span>
-                <span className={cx('session-count', present === total && 'done')}>
-                  {present} / {total} 已上車
-                  {present === total ? ' ✓' : s.closedAt ? ` · 已結束 · 未到 ${attendance.filter((a) => a.sessionId === s.id && a.status === 'no_show').length}` : ` · 待上車 ${total - present}`}
-                </span>
-                <ProgressBar value={present} max={total} tone={present === total ? 'ok' : 'mode'} />
+                <span className={cx('session-count', c.done && 'done')}>{rollSummary(c, !!s.closedAt)}</span>
+                <ProgressBar value={c.present} max={c.expected} tone={c.done ? 'ok' : 'mode'} />
               </SwipeRow>
             )
           })}
@@ -261,15 +255,12 @@ export function RollCallSession() {
 
   // 每人狀態：沒有紀錄（或舊資料 absent）= 待上車
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
-  const statusOf = (pid: string): RollStatus | 'pending' => {
-    const st = recOf.get(pid)?.status
-    return !st || st === 'absent' ? 'pending' : st
-  }
+  const statusOf = (pid: string): RollStatus | 'pending' => rollStatus(recOf.get(pid), !!session?.closedAt)
   const present = useMemo(() => new Set(recs.filter((r) => r.status === 'present').map((r) => r.participantId)), [recs])
   const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
   const people = useMemo(() => {
     // 中途離開的人不用再點名（這次點名已點到的仍然保留）
-    const active = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly && (!e.p.leftAt || present.has(e.p.id)))
+    const active = rollPeople(index, recOf)
     const inBus = bus === 'all' ? active : active.filter((e) => e.seats.some((s) => s.resource.id === bus))
     const busSeat = (e: GuestEntry) => e.seats.find((s) => s.resource.type === 'bus')
     return inBus.sort((a, b) => {
@@ -277,7 +268,7 @@ export function RollCallSession() {
         sb = busSeat(b)
       return (sa?.resource.label ?? '').localeCompare(sb?.resource.label ?? '') || Number(sa?.seatLabel || 999) - Number(sb?.seatLabel || 999)
     })
-  }, [index, bus, present])
+  }, [index, bus, recOf])
 
   if (!session || !data) return <div className="page" />
   const closed = !!session.closedAt
@@ -287,8 +278,13 @@ export function RollCallSession() {
   const waiting = [...by('on_the_way'), ...by('pending')] // 點名進行中：在途中排先
   const excused = by('excused')
   const noShow = by('no_show')
-  const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !present.has(e.p.id) && (bus === 'all' || e.seats.some((s) => s.resource.id === bus)))
-  const pendingAll = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly && !e.p.leftAt && statusOf(e.p.id) === 'pending')
+  const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !recOf.has(e.p.id) && (bus === 'all' || e.seats.some((s) => s.resource.id === bus)))
+  // 結束點名是整個點名環節（所有車）一起結束，所以確認時的數字按所有車計算，不受車號篩選影響
+  const everyone = rollPeople(index, recOf)
+  const allBy = (st: RollStatus | 'pending') => everyone.filter((e) => statusOf(e.p.id) === st)
+  const pendingAll = allBy('pending')
+  // 點名結束後「待上車」一格變成「未到」：之前選了待上車的話，自動改看未到
+  const shown = closed && view === 'pending' ? 'no_show' : !closed && view === 'no_show' ? 'pending' : view
 
   // 點一下名字：未上車 → 已上車；已上車 → 待上車（點名結束後補登會記為遲到）
   const toggle = async (e: GuestEntry) => {
@@ -372,7 +368,7 @@ export function RollCallSession() {
             ['excused', '請假', excused.length, excused.length ? 'tone-grey' : ''],
           ] as ['all' | RollStatus | 'pending', string, number, string][]
         ).map(([k, zh, n, tone]) => (
-          <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'all' : k)}>
+          <button key={k} className={cx(tone, shown === k && 'active')} aria-pressed={shown === k} onClick={() => setView(shown === k ? 'all' : k)}>
             <small>{zh}</small>
             <strong>
               {n}
@@ -405,15 +401,15 @@ export function RollCallSession() {
         </div>
       )}
 
-      {view !== 'all' ? (
+      {shown !== 'all' ? (
         <section className="rc-all">
           <h3>
-            {ROLL_LABEL[view]} · {by(view).length}
+            {ROLL_LABEL[shown]} · {by(shown).length}
             <button className="btn btn-ghost btn-sm rc-showall" onClick={() => setView('all')}>
               顯示全部
             </button>
           </h3>
-          {by(view).length ? by(view).map((e) => <Row key={e.p.id} e={e} />) : <p className="muted pad center">沒有{ROLL_LABEL[view]}的人</p>}
+          {by(shown).length ? by(shown).map((e) => <Row key={e.p.id} e={e} />) : <p className="muted pad center">沒有{ROLL_LABEL[shown]}的人</p>}
         </section>
       ) : (
         <>
@@ -531,9 +527,9 @@ export function RollCallSession() {
         title="結束點名／確認發車"
         message={
           <p>
-            已上車 {by('present').length} 人。仍「待上車」的 {pendingAll.length} 人會記為「未到」
-            {by('on_the_way').length ? `；在途中 ${by('on_the_way').length} 人維持「在途中」` : ''}
-            {excused.length ? `；請假 ${excused.length} 人不變` : ''}。之後仍可補登遲到的人，或重新開放點名。
+            {buses.length > 1 ? `這是所有 ${buses.length} 架車一起結束。` : ''}已上車 {allBy('present').length} 人。仍「待上車」的 {pendingAll.length} 人會記為「未到」
+            {allBy('on_the_way').length ? `；在途中 ${allBy('on_the_way').length} 人維持「在途中」` : ''}
+            {allBy('excused').length ? `；請假 ${allBy('excused').length} 人不變` : ''}。之後仍可補登遲到的人，或重新開放點名。
           </p>
         }
         confirmText="結束點名"
@@ -546,7 +542,7 @@ export function RollCallSession() {
           toast('已重新開放，「未到」的人改回待上車')
         }}
         title="重新開放點名"
-        message={<p>「未到」的 {noShow.length} 人會改回「待上車」，可以繼續點名。已上車、在途中、請假的紀錄不變。</p>}
+        message={<p>「未到」的 {allBy('no_show').length} 人會改回「待上車」，可以繼續點名。已上車、在途中、請假的紀錄不變。</p>}
         confirmText="重新開放"
       />
       <ConfirmSheet

@@ -7,7 +7,8 @@ import type { EventRec } from '../db/types'
 import { duplicateEvent, logicLabel, logicOf, quantityLabel, setEventStatus, verifyCheckIn, type ScanOutcome } from '../lib/actions'
 import { computeStats, useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests } from '../lib/search'
-import { formatTime, pct } from '../lib/util'
+import { cx, formatTime, pct } from '../lib/util'
+import { rollCounts, rollSummary } from '../lib/rollcall'
 import { TableIcon } from '../components/icons'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
@@ -124,7 +125,6 @@ export default function Dashboard() {
     return { total: tables.length, withArrivals }
   }, [data])
 
-  const passengerCount = data?.participants.filter((p) => p.status === 'active' && !p.giftOnly).length ?? 0
 
   if (!data) return <div className="page" />
 
@@ -222,7 +222,7 @@ export default function Dashboard() {
                 {sessions
                   .sort((a, b) => a.time.localeCompare(b.time))
                   .map((s) => {
-                    const present = attendance.filter((a) => a.sessionId === s.id && a.status === 'present').length
+                    const c = rollCounts(data?.participants ?? [], s, attendance)
                     return (
                       <Link key={s.id} to={`/e/${ev.id}/rollcall/${s.id}`} className="session-row">
                         <span className="session-name">
@@ -231,10 +231,8 @@ export default function Dashboard() {
                             {s.time} · {s.location}
                           </span>
                         </span>
-                        <span className="session-count">
-                          {present} / {passengerCount} 已上車 {present === passengerCount ? '✓' : s.closedAt ? '· 已結束' : ''}
-                        </span>
-                        <ProgressBar value={present} max={passengerCount} tone={present === passengerCount ? 'ok' : 'mode'} />
+                        <span className={cx('session-count', c.done && 'done')}>{rollSummary(c, !!s.closedAt)}</span>
+                        <ProgressBar value={c.present} max={c.expected} tone={c.done ? 'ok' : 'mode'} />
                       </Link>
                     )
                   })}

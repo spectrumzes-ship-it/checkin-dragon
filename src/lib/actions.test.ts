@@ -15,6 +15,7 @@ import {
   reopenSession,
   setRollStatus,
   verifyRollCall,
+  setLeftTrip,
   mergeCompanion,
   registerAndRedeem,
   splitCompanion,
@@ -33,6 +34,7 @@ import { buildIndex, extractFields, fuzzyMatch, nameIdConflict, nameMismatch } f
 import { ageFromBirth, uid } from './util'
 import { computeStats } from './hooks'
 import { busRows } from './busLayout'
+import { rollCounts, rollSummary } from './rollcall'
 
 const ev = (name: string): EventInput => ({
   name,
@@ -373,6 +375,31 @@ describe('點名狀態', () => {
     expect(await st(d.id)).toBe('pending')
     expect(await st(a.id)).toBe('present')
     expect((await db.sessions.get(s.id))!.closedAt).toBeUndefined()
+  })
+})
+
+describe('點名數字規則', () => {
+  it('應到不計請假；中途離開有紀錄才計；結束後沒有紀錄的人算未到；已取消或只領禮品不能點名', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    await guest(e.id, 'A', 'N1')
+    const b = await guest(e.id, 'B', 'N2')
+    const c = await guest(e.id, 'C', 'N3')
+    const d = await guest(e.id, 'D', 'N4')
+    const s = await createSession(e.id, '出發', '09:00', '', '')
+    await verifyRollCall(e.id, s.id, 'N1', 'QR')
+    await setRollStatus(s.id, e.id, b, 'excused')
+    await setLeftTrip(c, true) // 沒有紀錄的中途離開者不用點名
+    const counts = async () => rollCounts(await db.participants.toArray(), (await db.sessions.get(s.id))!, await db.attendance.toArray())
+    let k = await counts()
+    expect([k.total, k.expected, k.present, k.pending, k.excused]).toEqual([3, 2, 1, 1, 1])
+    await guest(e.id, 'E', 'N5')
+    await closeSession(s.id, e.id, [d.id])
+    await guest(e.id, 'F', 'N6') // 結束後才加入：算未到
+    k = await counts()
+    expect(k.no_show).toBe(3)
+    expect(rollSummary(k, true)).toContain('已結束')
+    await setGuestCancelled(d, true)
+    expect((await verifyRollCall(e.id, s.id, 'N4', 'QR')).result).toBe('invalid')
   })
 })
 

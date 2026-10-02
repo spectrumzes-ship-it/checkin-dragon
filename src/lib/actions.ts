@@ -662,6 +662,12 @@ export const verifyRollCall = async (eventId: string, sessionId: string, raw: st
   }
   const p = found.participant
   const seats = await seatsFor(p.id)
+  // 已取消／只領禮品的人不在點名名單內
+  if (p.status === 'cancelled' || p.giftOnly) {
+    const reason = p.status === 'cancelled' ? '此乘客已取消 Cancelled' : '只領禮品，不需點名'
+    await logScan(eventId, 'rollcall', raw, method, 'invalid', reason, p.id)
+    return { result: 'invalid', reason, participant: p, seats, time: now, rawValue: raw }
+  }
   const rec = await db.attendance.get(`${sessionId}:${p.id}`)
   if (rec?.status === 'present') {
     await logScan(eventId, 'rollcall', raw, method, 'duplicate', '', p.id)
