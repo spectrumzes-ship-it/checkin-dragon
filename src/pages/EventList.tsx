@@ -1,3 +1,4 @@
+import SwipeRow from '../components/SwipeRow'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -31,6 +32,10 @@ export default function EventList() {
   const tab = (params.get('tab') as Tab | null) ?? defaultTab
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState<EventRec | null>(null)
+  const [selecting, setSelecting] = useState(false) // 選擇刪除
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [toDelete, setToDelete] = useState<EventRec[]>([])
+  const [swiped, setSwiped] = useState('') // 向左拉開了刪除按鈕的活動
   const [confirmDelete, setConfirmDelete] = useState<EventRec | null>(null)
 
   const inTab = (e: EventRec, t: Tab) =>
@@ -70,9 +75,29 @@ export default function EventList() {
         en={pick ? 'Choose an event' : m ? m.en : 'Events'}
         back={mode ? '/' : undefined}
         actions={
-          <Link to={`/events/new${mode ? `?mode=${mode}` : ''}`} className="btn btn-primary btn-sm">
-            <Plus size={18} /> 新活動
-          </Link>
+          <>
+            {!pick &&
+              list.length > 0 &&
+              (selecting ? (
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => (setSelecting(false), setPicked(new Set()))}>
+                    取消
+                  </button>
+                  <button className="btn btn-danger-ghost btn-sm" disabled={!picked.size} onClick={() => setToDelete(list.filter((x) => picked.has(x.id)))}>
+                    <Trash2 size={16} /> 刪除（{picked.size}）
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onClick={() => (setSelecting(true), setSwiped(''))}>
+                  選擇
+                </button>
+              ))}
+            {!selecting && (
+              <Link to={`/events/new${mode ? `?mode=${mode}` : ''}`} className="btn btn-primary btn-sm">
+                <Plus size={18} /> 新活動
+              </Link>
+            )}
+          </>
         }
       />
       {m && (
@@ -122,7 +147,23 @@ export default function EventList() {
       ) : (
         <div className="list card">
           {list.map((e) => (
-            <div key={e.id} onClickCapture={pick ? (ev) => (ev.preventDefault(), open(e)) : () => setSettings({ currentEventId: e.id })}>
+            <SwipeRow
+              key={e.id}
+              open={swiped === e.id}
+              onOpen={(o) => !pick && setSwiped(o ? e.id : '')}
+              onDelete={() => setToDelete([e])}
+              selecting={selecting}
+              checked={picked.has(e.id)}
+              onToggle={() =>
+                setPicked((p) => {
+                  const n = new Set(p)
+                  if (n.has(e.id)) n.delete(e.id)
+                  else n.add(e.id)
+                  return n
+                })
+              }
+            >
+            <div onClickCapture={pick ? (ev) => (ev.preventDefault(), open(e)) : () => setSettings({ currentEventId: e.id })}>
               <EventRow
                 event={e}
                 stats={summaries[e.id]}
@@ -135,6 +176,7 @@ export default function EventList() {
                 }
               />
             </div>
+            </SwipeRow>
           ))}
         </div>
       )}
@@ -195,6 +237,26 @@ export default function EventList() {
         )}
       </Sheet>
 
+      <ConfirmSheet
+        open={toDelete.length > 0}
+        onClose={() => setToDelete([])}
+        onConfirm={async () => {
+          for (const x of toDelete) await deleteEventPermanently(x)
+          toast(`已永久刪除 ${toDelete.length} 個活動`)
+          setPicked(new Set())
+          setSelecting(false)
+          setSwiped('')
+        }}
+        title="永久刪除活動"
+        message={
+          <p>
+            {toDelete.length === 1 ? `「${toDelete[0].name}」` : `${toDelete.length} 個活動`}的所有嘉賓、簽到、點名及紀念品紀錄將會永久刪除，<strong>無法復原</strong>。不想刪除可改為「封存」。
+          </p>
+        }
+        confirmText="永久刪除"
+        danger
+        requireText={toDelete.length === 1 ? toDelete[0].name : '刪除'}
+      />
       <ConfirmSheet
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}

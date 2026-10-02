@@ -58,16 +58,23 @@ export default function Print() {
       <strong className="print-sub">{sub}</strong>
     </header>
   )
+  // 座位欄：宴會 = 席號；旅遊 = 巴士座位＋餐席＋房號；活動／禮品領取 = 有就顯示
   const seatText = (e: GuestEntry) =>
-    e.seats
-      .filter((s) => s.resource.type === 'table')
-      .map((s) => `${s.resource.purpose === '晚餐' ? '晚餐' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`)
-      .join('、') || '未安排'
+    [
+      ...e.seats.map((s) =>
+        s.resource.type === 'table'
+          ? `${s.resource.purpose === '晚餐' ? '晚餐' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
+          : `${s.resource.label} 車${s.seatLabel ? ` ${s.seatLabel} 號` : ''}`,
+      ),
+      ...(e.room ? [`房號 ${e.room.label}`] : []),
+    ].join('、') || (ev.mode === 'banquet' || ev.mode === 'bus' ? '未安排' : '')
+  const showSeat = ev.mode !== 'gift' && ev.mode !== 'event' ? true : all.some((e) => e.seats.length || e.room)
+  const checkLabel = ev.mode === 'bus' ? '報到' : '簽到'
 
   return (
     <div className="print-page">
       <div className="print-toolbar no-print">
-        <Link to={type === 'bus' ? `/e/${ev.id}/seats` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
+        <Link to={type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
           <ChevronLeft size={22} />
         </Link>
         <strong>列印預覽</strong>
@@ -138,17 +145,18 @@ export default function Print() {
           })
       ) : type === 'all' ? (
         <section className="print-sheet">
-          {head(`總名單 · ${all.length} 張邀請`)}
+          {head(`${ev.mode === 'gift' ? '領取人名單' : ev.mode === 'bus' ? '團員名單' : '總名單'} · ${all.length} ${ev.mode === 'bus' || ev.mode === 'gift' ? '人' : '張邀請'}`)}
           <table className="print-table">
             <thead>
               <tr>
                 <th>姓名</th>
                 <th>英文姓名</th>
-                <th>席號／座位</th>
+                {ev.mode === 'bus' && <th>電話</th>}
+                {showSeat && <th>{ev.mode === 'banquet' ? '席號／座位' : '座位／房號'}</th>}
                 <th>VIP</th>
-                <th>人數</th>
+                {ev.mode !== 'bus' && <th>人數</th>}
                 <th>特別需要</th>
-                <th>簽到</th>
+                {ev.mode !== 'gift' && <th>{checkLabel}</th>}
               </tr>
             </thead>
             <tbody>
@@ -156,11 +164,12 @@ export default function Print() {
                 <tr key={e.p.id}>
                   <td className="b">{names(e.p).primary}</td>
                   <td>{names(e.p).secondary}</td>
-                  <td>{seatText(e)}</td>
+                  {ev.mode === 'bus' && <td>{e.p.phone}</td>}
+                  {showSeat && <td>{seatText(e)}</td>}
                   <td>{e.p.vip ? '★' : ''}</td>
-                  <td>{e.p.guestCount > 1 ? e.p.guestCount : ''}</td>
+                  {ev.mode !== 'bus' && <td>{e.p.guestCount > 1 ? e.p.guestCount : ''}</td>}
                   <td>{extra(e)}</td>
-                  <td className="check">{e.p.attendance !== 'not_arrived' ? '✓' : '☐'}</td>
+                  {ev.mode !== 'gift' && <td className="check">{e.p.attendance !== 'not_arrived' ? '✓' : '☐'}</td>}
                 </tr>
               ))}
             </tbody>

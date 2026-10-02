@@ -4821,3 +4821,24 @@ legend {
   padding-top: 12px;
   border-top: 2px dashed var(--border);
 }
+
+/* 向左拉刪除（通用） */
+.swipe-front {
+  display: flex;
+  align-items: center;
+}
+.swipe-front.selecting {
+  padding-left: 14px;
+  gap: 10px;
+}
+.swipe-body {
+  flex: 1;
+  min-width: 0;
+}
+.swipe-body > .session-row {
+  display: grid;
+}
+.guests-list .swipe-row + .swipe-row,
+.vlist-item .swipe-row {
+  border-top: 0;
+}

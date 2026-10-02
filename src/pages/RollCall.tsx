@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import SwipeRow from '../components/SwipeRow'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
@@ -118,8 +119,8 @@ export default function RollCall() {
                   else n.add(s.id)
                   return n
                 })}
-                to={`/e/${ev.id}/rollcall/${s.id}`}
               >
+                <Link to={`/e/${ev.id}/rollcall/${s.id}`} className="session-row">
                 <span className="session-name">
                   <strong>{s.name}</strong>
                   <span className="muted">
@@ -128,6 +129,7 @@ export default function RollCall() {
                 </span>
                 <span className={cx('session-count', c.done && 'done')}>{rollSummary(c)}</span>
                 <ProgressBar value={c.present} max={c.expected} tone={c.done ? 'ok' : 'mode'} />
+                </Link>
               </SwipeRow>
             )
           })}
@@ -195,54 +197,6 @@ export default function RollCall() {
         confirmText="刪除"
         danger
       />
-    </div>
-  )
-}
-
-// 點名列表的一行：向左拉露出「刪除」；選擇模式下變成剔選框
-function SwipeRow({ to, children, open, onOpen, onDelete, selecting, checked, onToggle }: { to: string; children: ReactNode; open: boolean; onOpen: (o: boolean) => void; onDelete: () => void; selecting: boolean; checked: boolean; onToggle: () => void }) {
-  const nav = useNavigate()
-  const start = useRef<{ x: number; y: number; dx: number; moved: boolean } | null>(null)
-  const [dx, setDx] = useState(0)
-  const W = 88
-  const offset = selecting ? 0 : start.current?.moved ? dx : open ? -W : 0
-  return (
-    <div className="swipe-row">
-      <button className="swipe-del" onClick={onDelete} tabIndex={open ? 0 : -1} aria-hidden={!open}>
-        <Trash2 size={18} /> 刪除
-      </button>
-      <div
-        className={cx('session-row', 'swipe-front', selecting && 'selecting')}
-        style={{ transform: `translateX(${offset}px)`, transition: start.current?.moved ? 'none' : undefined }}
-        role="link"
-        tabIndex={0}
-        onPointerDown={(e) => {
-          if (selecting) return
-          start.current = { x: e.clientX, y: e.clientY, dx: open ? -W : 0, moved: false }
-          e.currentTarget.setPointerCapture?.(e.pointerId)
-        }}
-        onPointerMove={(e) => {
-          const s = start.current
-          if (!s) return
-          const mx = e.clientX - s.x
-          if (!s.moved && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(e.clientY - s.y)) s.moved = true
-          if (s.moved) setDx(Math.max(-W - 20, Math.min(0, s.dx + mx)))
-        }}
-        onPointerUp={() => {
-          const s = start.current
-          start.current = null
-          if (s?.moved) onOpen(dx < -W / 2)
-          else if (selecting) onToggle()
-          else if (open) onOpen(false)
-          else nav(to)
-          setDx(0)
-        }}
-        onPointerCancel={() => ((start.current = null), setDx(0))}
-        onKeyDown={(e) => e.key === 'Enter' && (selecting ? onToggle() : nav(to))}
-      >
-        {selecting && <span className={cx('swipe-check', checked && 'on')} aria-checked={checked} role="checkbox" />}
-        {children}
-      </div>
     </div>
   )
 }

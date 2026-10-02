@@ -1,8 +1,9 @@
+import SwipeRow from '../components/SwipeRow'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Ticket, Gift } from 'lucide-react'
+import { Plus, Ticket, Gift, Printer, Download } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
@@ -10,7 +11,7 @@ import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
-import { checkIn, generateTickets, undoCheckIn } from '../lib/actions'
+import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
@@ -33,6 +34,8 @@ export default function Guests() {
   const [sort, setSort] = useState<Sort>('name')
   const [q, setQ] = useState('')
   const [undoP, setUndoP] = useState<Participant | null>(null)
+  const [swiped, setSwiped] = useState('') // 向左拉開了刪除按鈕的嘉賓
+  const [delGuest, setDelGuest] = useState<Participant | null>(null)
   const anonymous = !!ev.modeConfig.anonymous
   const [gen, setGen] = useState<null | { prefix: string; start: number; count: number; guestCount: number }>(null)
   // 預設由現有最大票號的下一號開始，避免重複
@@ -155,6 +158,12 @@ export default function Guests() {
                   <Ticket size={18} /> <span className="hide-sm">產生門票</span>
                 </button>
               )}
+              <Link to={`/e/${ev.id}/print?type=all`} className="icon-btn" aria-label="列印名單" title="列印名單（可存成 PDF）">
+                <Printer size={18} />
+              </Link>
+              <button className="icon-btn" aria-label="匯出名單" title="匯出 Excel／CSV" onClick={() => toast('匯出 Excel／CSV 將在第 4 階段加入；現在可按「列印」存成 PDF')}>
+                <Download size={18} />
+              </button>
               <Link to={`/e/${ev.id}/guests/new`} className="btn btn-primary">
                 <Plus size={18} /> <span className="hide-sm">{anonymous ? '門票' : '嘉賓'}</span>
               </Link>
@@ -215,6 +224,7 @@ export default function Guests() {
                     ref={virt.measureElement}
                     style={{ transform: `translateY(${v.start - virt.options.scrollMargin}px)` }}
                   >
+                    <SwipeRow open={swiped === e.p.id} onOpen={(o) => setSwiped(o ? e.p.id : '')} onDelete={() => (setDelGuest(e.p), setSwiped(''))}>
                     <GuestRow
                       e={e}
                       selected={e.p.id === gid}
@@ -235,6 +245,7 @@ export default function Guests() {
                         toast(`✓ ${nameOf(e.p)} 已簽到`)
                       }}
                     />
+                    </SwipeRow>
                   </div>
                 )
               })}
@@ -308,6 +319,20 @@ export default function Guests() {
           </>
         )}
       </Sheet>
+      <ConfirmSheet
+        open={!!delGuest}
+        onClose={() => setDelGuest(null)}
+        onConfirm={async () => {
+          if (!delGuest) return
+          await deleteGuestPermanently(delGuest)
+          toast(`已刪除 ${nameOf(delGuest)}`)
+          if (gid === delGuest.id) nav(`/e/${ev.id}/guests`)
+        }}
+        title="刪除嘉賓"
+        message={<p>永久刪除「{delGuest && nameOf(delGuest)}」及其門票、座位、簽到及點名紀錄？<strong>無法復原</strong>。只是不來的話，可在詳情按「取消嘉賓」。</p>}
+        confirmText="刪除"
+        danger
+      />
       <ConfirmSheet
         open={!!undoP}
         onClose={() => setUndoP(null)}

@@ -75,6 +75,7 @@ function GiftSummary({ ev }: { ev: EventRec }) {
 
 export default function Dashboard() {
   const ev = useOutletContext<EventRec>()
+  const busOf = useBusOf(ev.id) // 必須放在任何提早 return 之前（React 規則）
   const nav = useNavigate()
   const { data, index } = useEventData(ev.id)
   const [q, setQ] = useState('')
@@ -129,7 +130,6 @@ export default function Dashboard() {
 
   if (!data) return <div className="page" />
 
-  const busOf = useBusOf(ev.id)
   const leftCount = data?.participants.filter((p) => p.status === 'active' && p.leftAt).length ?? 0
   const tapGuest = async (pid: string) => {
     setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', pid))
