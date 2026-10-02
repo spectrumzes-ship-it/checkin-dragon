@@ -620,7 +620,7 @@ export const setAttendance = async (sessionId: string, eventId: string, p: Parti
 // 清空點名：保留這個點名環節，只把所有人改回「未到」，方便重新點名
 export const clearSession = async (sessionId: string, eventId: string, name: string) => {
   const n = await db.attendance.where('sessionId').equals(sessionId).delete()
-  await audit(eventId, `清空點名 ${name}（${n} 筆紀錄）`, 'session', sessionId)
+  await audit(eventId, `重新點名 ${name}（清除 ${n} 筆紀錄）`, 'session', sessionId)
   return n
 }
 

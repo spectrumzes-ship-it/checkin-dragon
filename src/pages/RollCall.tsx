@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDr
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Eraser, LogOut, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { LogOut, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { clearSession, createSession, deleteSession, moveBusSeat, setAttendance, undoMoveSeat } from '../lib/actions'
@@ -208,9 +208,15 @@ export function RollCallSession() {
         en={`${session.time}${session.location ? ` · ${session.location}` : ''}`}
         back={`/e/${ev.id}/rollcall`}
         actions={
-          <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
-            <ScanLine size={18} /> 掃描
-          </Link>
+          <>
+            {/* 一鍵重點：保留這個點名，所有人改回「未到」 */}
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
+              <RotateCcw size={16} /> 重新點名
+            </button>
+            <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
+              <ScanLine size={18} /> 掃描
+            </Link>
+          </>
         }
       />
 
@@ -285,12 +291,6 @@ export function RollCallSession() {
 
       <section className="rc-manage card">
         <div>
-          <button className="btn btn-ghost" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
-            <Eraser size={18} /> 清空
-          </button>
-          <span className="muted">保留這個點名，所有人改回「未到」，重新點名</span>
-        </div>
-        <div>
           <button className="btn btn-danger-ghost" onClick={() => setConfirmDel(true)}>
             <Trash2 size={18} /> 刪除
           </button>
@@ -303,15 +303,15 @@ export function RollCallSession() {
         onClose={() => setConfirmClear(false)}
         onConfirm={async () => {
           await clearSession(session.id, ev.id, session.name)
-          toast('已清空，可以重新點名')
+          toast('已重設，可以重新點名')
         }}
-        title="清空點名"
+        title="重新點名"
         message={
           <p>
-            把「{session.name}」已點的 {present.size} 人全部改回「未到」？點名環節會保留，可以重新點名。
+            把「{session.name}」已點的 {present.size} 人全部改回「未到」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
           </p>
         }
-        confirmText="清空"
+        confirmText="重新點名"
         danger
       />
       <ConfirmSheet
