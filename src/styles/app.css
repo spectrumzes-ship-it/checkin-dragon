@@ -4741,3 +4741,33 @@ legend {
   border-color: var(--bad-ink);
   box-shadow: inset 0 0 0 3px var(--surface);
 }
+
+/* 點名顏色（用戶 2026-10-02 調整）：待上車 = 藍、在途中 = 橙、請假 = 灰 */
+.rc-row.waiting {
+  background: var(--info-bg);
+  border-color: transparent;
+}
+.rc-row.otw {
+  background: var(--warn-bg);
+  border-color: transparent;
+}
+.rc-row.excused {
+  background: color-mix(in srgb, var(--text-3) 22%, var(--surface));
+  border-color: transparent;
+  border-style: solid;
+  opacity: 1;
+}
+.rc-row.excused .rc-name strong,
+.rc-status.st-excused {
+  color: var(--text-2);
+}
+.rc-status.st-on_the_way {
+  color: var(--warn-ink);
+}
+.rc-waiting h3 {
+  color: var(--info-ink);
+}
+.rc-stats > button.tone-grey {
+  --t-bg: color-mix(in srgb, var(--text-3) 22%, var(--surface));
+  --t-ink: var(--text-2);
+}

@@ -301,13 +301,15 @@ export function RollCallSession() {
     }
   }
 
-  const Row = ({ e }: { e: GuestEntry }) => {
+  // plain：「全部乘客」名單中，未點名的人保持白底空心圓圈
+  const Row = ({ e, plain }: { e: GuestEntry; plain?: boolean }) => {
     const st = statusOf(e.p.id)
+    const quiet = plain && st === 'pending'
     const rec = recOf.get(e.p.id)
     const bs = e.seats.find((s) => s.resource.type === 'bus')
-    const icon = ICON[st]
+    const icon = quiet ? 'not_arrived' : ICON[st]
     return (
-      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'pending' && 'waiting', st === 'no_show' && 'noshow', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
+      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'pending' && !quiet && 'waiting', st === 'no_show' && 'noshow', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
         <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
           <span className="rc-mark">
             <StatusIcon kind={icon} size={36} />
@@ -364,9 +366,9 @@ export function RollCallSession() {
         {(
           [
             ['present', '已上車', here.length, 'tone-ok'] as const,
-            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, by('pending').length ? 'tone-warn' : 'tone-ok'],
-            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-info' : ''],
-            ['excused', '請假', excused.length, ''],
+            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, by('pending').length ? 'tone-info' : 'tone-ok'],
+            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
+            ['excused', '請假', excused.length, excused.length ? 'tone-grey' : ''],
           ] as [RollStatus | 'pending', string, number, string][]
         ).map(([k, zh, n, tone]) => (
           <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'all' : k)}>
@@ -453,7 +455,7 @@ export function RollCallSession() {
         <h3>全部乘客 All Passengers</h3>
         {/* 已上車的人移到最底，未處理的人留在上面 */}
         {[...people.filter((e) => statusOf(e.p.id) !== 'present'), ...here].map((e) => (
-          <Row key={e.p.id} e={e} />
+          <Row key={e.p.id} e={e} plain />
         ))}
       </section>
 

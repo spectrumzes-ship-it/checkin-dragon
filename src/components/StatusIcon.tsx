@@ -2,7 +2,7 @@ import { Circle, CircleAlert, CircleArrowRight, CircleCheck, CircleDashed, Circl
 
 // 簽到狀態圖示：一律用圓圈圖案（不用文字符號，各裝置外觀一致）
 //   已到 = 實心圓圈打勾；未到 = 空心圓圈；部分到達 = 虛線圓圈；已取消 = 圓圈打叉；重複／注意 = 圓圈感嘆號
-// 點名用：等待上車 = 時鐘；在途中 = 圓圈箭咀；請假 = 圓圈減號
+// 點名用：待上車 = 藍色時鐘；在途中 = 橙色圓圈箭咀；請假 = 灰色圓圈減號
 export type StatusKind = 'arrived' | 'partial' | 'not_arrived' | 'cancelled' | 'warn' | 'waiting' | 'otw' | 'excused'
 
 export const StatusIcon = ({ kind, size = 32 }: { kind: StatusKind; size?: number }) => {
@@ -14,9 +14,9 @@ export const StatusIcon = ({ kind, size = 32 }: { kind: StatusKind; size?: numbe
     case 'cancelled':
       return <CircleX size={size} strokeWidth={2} className="si si-bad" aria-label="已取消" />
     case 'waiting':
-      return <Clock size={size} strokeWidth={2} className="si si-warn" aria-label="待上車" />
+      return <Clock size={size} strokeWidth={2} className="si si-info" aria-label="待上車" />
     case 'otw':
-      return <CircleArrowRight size={size} strokeWidth={2} className="si si-info" aria-label="在途中" />
+      return <CircleArrowRight size={size} strokeWidth={2} className="si si-warn" aria-label="在途中" />
     case 'excused':
       return <CircleMinus size={size} strokeWidth={1.75} className="si si-plain" aria-label="請假" />
     case 'warn':
