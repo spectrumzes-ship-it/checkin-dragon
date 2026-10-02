@@ -4771,3 +4771,15 @@ legend {
   --t-bg: color-mix(in srgb, var(--text-3) 22%, var(--surface));
   --t-ink: var(--text-2);
 }
+
+/* 點名狀態分類：五格 */
+.rc-stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.rc-stats > button {
+  padding: 8px 6px;
+  min-width: 0;
+}
+.rc-stats > button strong {
+  font-size: 22px;
+}

@@ -361,21 +361,21 @@ export function RollCallSession() {
         }
       />
 
-      {/* 頂部數字可以按：只看該類名單；再按一次回到全部 */}
+      {/* 狀態分類：全部／已上車／待上車（結束後為未到）／在途中／請假；按一下只看該類 */}
       <div className="rc-stats">
         {(
           [
+            ['all', '全部', total, ''] as const,
             ['present', '已上車', here.length, 'tone-ok'] as const,
             closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, by('pending').length ? 'tone-info' : 'tone-ok'],
             ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
             ['excused', '請假', excused.length, excused.length ? 'tone-grey' : ''],
-          ] as [RollStatus | 'pending', string, number, string][]
+          ] as ['all' | RollStatus | 'pending', string, number, string][]
         ).map(([k, zh, n, tone]) => (
           <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'all' : k)}>
             <small>{zh}</small>
             <strong>
               {n}
-              {k === 'present' && <span className="rc-of">/{total}</span>}
             </strong>
           </button>
         ))}
