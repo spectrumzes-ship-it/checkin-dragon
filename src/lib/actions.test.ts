@@ -363,7 +363,7 @@ describe('點名狀態', () => {
     await setRollStatus(s.id, e.id, c, 'excused')
     const st = async (pid: string) => (await db.attendance.get(`${s.id}:${pid}`))?.status ?? 'pending'
     expect(await st(d.id)).toBe('pending') // 進行中不會有「缺席」
-    await closeSession(s.id, e.id, [d.id])
+    await closeSession(s.id, e.id, [d.id], 'none')
     expect(await st(d.id)).toBe('no_show')
     expect(await st(b.id)).toBe('on_the_way')
     expect(await st(c.id)).toBe('excused')
@@ -371,10 +371,31 @@ describe('點名狀態', () => {
     expect(late.reason).toContain('遲到')
     expect((await db.attendance.get(`${s.id}:${d.id}`))!.late).toBe(true)
     await setRollStatus(s.id, e.id, d, 'no_show')
-    await reopenSession(s.id, e.id)
+    await reopenSession(s.id, e.id, 'none', [a.id, b.id, c.id, d.id])
     expect(await st(d.id)).toBe('pending')
     expect(await st(a.id)).toBe('present')
-    expect((await db.sessions.get(s.id))!.closedAt).toBeUndefined()
+    expect((await db.sessions.get(s.id))!.closedBuses?.none).toBeUndefined()
+  })
+})
+
+describe('每架車分開確認發車', () => {
+  it('A 車發車只影響 A 車；B 車仍可點名；補登 A 車記為遲到', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }, { label: 'B', capacity: 45 }] })
+    const [busA, busB] = (await db.resources.toArray()).filter((r) => r.type === 'bus').sort((x, y) => x.sortOrder - y.sortOrder)
+    const a1 = await guest(e.id, 'A1', 'K1', { busId: busA.id, busSeat: '1' })
+    const b1 = await guest(e.id, 'B1', 'K2', { busId: busB.id, busSeat: '1' })
+    const s = await createSession(e.id, '出發', '09:00', '', '')
+    await closeSession(s.id, e.id, [a1.id], busA.id, 'A 車')
+    const st = async (pid: string) => (await db.attendance.get(`${s.id}:${pid}`))?.status ?? 'pending'
+    expect(await st(a1.id)).toBe('no_show')
+    expect(await st(b1.id)).toBe('pending')
+    await verifyRollCall(e.id, s.id, 'K2', 'QR')
+    expect((await db.attendance.get(`${s.id}:${b1.id}`))!.late).toBe(false)
+    const late = await verifyRollCall(e.id, s.id, 'K1', 'QR')
+    expect(late.reason).toContain('遲到')
+    await reopenSession(s.id, e.id, busA.id, [a1.id], 'A 車')
+    const sess = (await db.sessions.get(s.id))!
+    expect(sess.closedBuses?.[busA.id]).toBeUndefined()
   })
 })
 
@@ -393,11 +414,11 @@ describe('點名數字規則', () => {
     let k = await counts()
     expect([k.total, k.expected, k.present, k.pending, k.excused]).toEqual([3, 2, 1, 1, 1])
     await guest(e.id, 'E', 'N5')
-    await closeSession(s.id, e.id, [d.id])
+    await closeSession(s.id, e.id, [d.id], 'none')
     await guest(e.id, 'F', 'N6') // 結束後才加入：算未到
     k = await counts()
     expect(k.no_show).toBe(3)
-    expect(rollSummary(k, true)).toContain('已結束')
+    expect(rollSummary(k)).toContain('全部已發車')
     await setGuestCancelled(d, true)
     expect((await verifyRollCall(e.id, s.id, 'N4', 'QR')).result).toBe('invalid')
   })

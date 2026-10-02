@@ -9,6 +9,7 @@ import { computeStats, useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests } from '../lib/search'
 import { cx, formatTime, pct } from '../lib/util'
 import { rollCounts, rollSummary } from '../lib/rollcall'
+import { useBusOf } from './RollCall'
 import { TableIcon } from '../components/icons'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
@@ -128,6 +129,7 @@ export default function Dashboard() {
 
   if (!data) return <div className="page" />
 
+  const busOf = useBusOf(ev.id)
   const leftCount = data?.participants.filter((p) => p.status === 'active' && p.leftAt).length ?? 0
   const tapGuest = async (pid: string) => {
     setOutcome(await verifyCheckIn(ev.id, '', 'SEARCH', pid))
@@ -222,7 +224,7 @@ export default function Dashboard() {
                 {sessions
                   .sort((a, b) => a.time.localeCompare(b.time))
                   .map((s) => {
-                    const c = rollCounts(data?.participants ?? [], s, attendance)
+                    const c = rollCounts(data?.participants ?? [], s, attendance, busOf)
                     return (
                       <Link key={s.id} to={`/e/${ev.id}/rollcall/${s.id}`} className="session-row">
                         <span className="session-name">
@@ -231,7 +233,7 @@ export default function Dashboard() {
                             {s.time} · {s.location}
                           </span>
                         </span>
-                        <span className={cx('session-count', c.done && 'done')}>{rollSummary(c, !!s.closedAt)}</span>
+                        <span className={cx('session-count', c.done && 'done')}>{rollSummary(c)}</span>
                         <ProgressBar value={c.present} max={c.expected} tone={c.done ? 'ok' : 'mode'} />
                       </Link>
                     )

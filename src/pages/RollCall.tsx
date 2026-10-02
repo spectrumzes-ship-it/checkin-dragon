@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
-import { rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
+import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Clock, Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
 import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
@@ -14,7 +14,7 @@ import type { GuestEntry } from '../lib/search'
 import { cx, formatTime } from '../lib/util'
 import { StatusIcon } from '../components/StatusIcon'
 import { BusArt } from '../illustrations'
-import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
+import { ConfirmSheet, EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
 import { nameOf, names } from '../lib/names'
 
 const TEMPLATES = [
@@ -25,6 +25,15 @@ const TEMPLATES = [
   ['傍晚出發 Evening Departure', '17:30'],
   ['回酒店 Hotel Return', '20:00'],
 ]
+
+// 每人坐哪架車（點名按車分開計算）
+export const useBusOf = (eventId: string) => {
+  const map = useLiveQuery(async () => {
+    const buses = new Set((await db.resources.where('eventId').equals(eventId).toArray()).filter((r) => r.type === 'bus').map((r) => r.id))
+    return new Map((await db.seats.where('eventId').equals(eventId).toArray()).filter((x) => buses.has(x.resourceId)).map((x) => [x.participantId, x.resourceId]))
+  }, [eventId])
+  return (pid: string) => map?.get(pid) ?? NO_BUS
+}
 
 export default function RollCall() {
   const ev = useOutletContext<EventRec>()
@@ -38,6 +47,7 @@ export default function RollCall() {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [toDelete, setToDelete] = useState<AttendanceSession[]>([])
   const [swiped, setSwiped] = useState('') // 向左拉開了刪除按鈕的點名
+  const busOf = useBusOf(ev.id)
 
   const create = async () => {
     if (!f.name.trim()) return toast('請輸入點名名稱')
@@ -93,7 +103,7 @@ export default function RollCall() {
       ) : (
         <div className="session-list card">
           {sessions.map((s) => {
-            const c = rollCounts(active, s, attendance)
+            const c = rollCounts(active, s, attendance, busOf)
             return (
               <SwipeRow
                 key={s.id}
@@ -116,7 +126,7 @@ export default function RollCall() {
                     {s.time} {s.location && `· ${s.location}`}
                   </span>
                 </span>
-                <span className={cx('session-count', c.done && 'done')}>{rollSummary(c, !!s.closedAt)}</span>
+                <span className={cx('session-count', c.done && 'done')}>{rollSummary(c)}</span>
                 <ProgressBar value={c.present} max={c.expected} tone={c.done ? 'ok' : 'mode'} />
               </SwipeRow>
             )
@@ -239,73 +249,66 @@ function SwipeRow({ to, children, open, onOpen, onDelete, selecting, checked, on
 
 const ICON = { present: 'arrived', pending: 'waiting', on_the_way: 'otw', excused: 'excused', no_show: 'warn' } as const
 
+type View = 'roll' | 'present' | 'pending' | 'on_the_way' | 'excused'
+
 export function RollCallSession() {
   const ev = useOutletContext<EventRec>()
   const { sid } = useParams()
   const session = useLiveQuery(() => (sid ? db.sessions.get(sid) : undefined), [sid])
   const recs = useLiveQuery(() => (sid ? db.attendance.where('sessionId').equals(sid).toArray() : []), [sid]) ?? []
   const { data, index } = useEventData(ev.id)
-  const [bus, setBus] = useState<string>('all')
   const [confirmClear, setConfirmClear] = useState(false)
-  const [confirmClose, setConfirmClose] = useState(false)
-  const [confirmReopen, setConfirmReopen] = useState(false)
+  const [closing, setClosing] = useState<string | null>(null) // 正在確認發車的車（巴士 id 或 'none'）
+  const [reopening, setReopening] = useState<string | null>(null)
   const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
-  const [view, setView] = useState<'all' | RollStatus | 'pending'>('all') // 按頂部數字只看某一類
+  const [view, setView] = useState<View>('roll')
   const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
 
-  // 每人狀態：沒有紀錄（或舊資料 absent）= 待上車
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
-  const statusOf = (pid: string): RollStatus | 'pending' => rollStatus(recOf.get(pid), !!session?.closedAt)
-  const present = useMemo(() => new Set(recs.filter((r) => r.status === 'present').map((r) => r.participantId)), [recs])
-  const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
-  const people = useMemo(() => {
-    // 中途離開的人不用再點名（這次點名已點到的仍然保留）
-    const active = rollPeople(index, recOf)
-    const inBus = bus === 'all' ? active : active.filter((e) => e.seats.some((s) => s.resource.id === bus))
-    const busSeat = (e: GuestEntry) => e.seats.find((s) => s.resource.type === 'bus')
-    return inBus.sort((a, b) => {
-      const sa = busSeat(a),
-        sb = busSeat(b)
-      return (sa?.resource.label ?? '').localeCompare(sb?.resource.label ?? '') || Number(sa?.seatLabel || 999) - Number(sb?.seatLabel || 999)
-    })
-  }, [index, bus, recOf])
+  const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
+  const seatNo = (e: GuestEntry) => Number(e.seats.find((x) => x.resource.type === 'bus')?.seatLabel || 999)
+  const people = useMemo(() => rollPeople(index, recOf), [index, recOf])
 
   if (!session || !data) return <div className="page" />
-  const closed = !!session.closedAt
-  const by = (st: RollStatus | 'pending') => people.filter((e) => statusOf(e.p.id) === st)
-  const total = people.length
-  const here = by('present')
-  const waiting = [...by('on_the_way'), ...by('pending')] // 點名進行中：在途中排先
-  const excused = by('excused')
-  const noShow = by('no_show')
-  const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !recOf.has(e.p.id) && (bus === 'all' || e.seats.some((s) => s.resource.id === bus)))
-  // 結束點名是整個點名環節（所有車）一起結束，所以確認時的數字按所有車計算，不受車號篩選影響
-  const everyone = rollPeople(index, recOf)
-  const allBy = (st: RollStatus | 'pending') => everyone.filter((e) => statusOf(e.p.id) === st)
-  const pendingAll = allBy('pending')
-  // 點名結束後「待上車」一格變成「未到」：之前選了待上車的話，自動改看未到
-  const shown = closed && view === 'pending' ? 'no_show' : !closed && view === 'no_show' ? 'pending' : view
+  const buses = data.resources.filter((r) => r.type === 'bus').sort((a, b) => a.sortOrder - b.sortOrder)
+  const statusOf = (e: GuestEntry) => rollStatus(recOf.get(e.p.id), isBusClosed(session, busKey(e)))
+  const by = (...st: (RollStatus | 'pending')[]) => people.filter((e) => st.includes(statusOf(e)))
+  const present = by('present')
+  // 每架車一組（再加「未分車」）；組內按座位號
+  const groups = [...buses.map((b) => ({ key: b.id, label: `${b.label} 車` })), { key: NO_BUS, label: '未分車' }]
+    .map((g) => ({ ...g, list: people.filter((e) => busKey(e) === g.key).sort((a, b) => seatNo(a) - seatNo(b)) }))
+    .filter((g) => g.list.length)
+  const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !recOf.has(e.p.id))
 
-  // 點一下名字：未上車 → 已上車；已上車 → 待上車（點名結束後補登會記為遲到）
+  // 點一下名字：未上車 → 已上車；已上車 → 改回（已發車的車會變回未到）。已發車後補登記為遲到
   const toggle = async (e: GuestEntry) => {
-    const toPresent = statusOf(e.p.id) !== 'present'
+    const toPresent = statusOf(e) !== 'present'
     feedback(toPresent ? 'valid' : 'tap')
-    await setRollStatus(session.id, ev.id, e.p, toPresent ? 'present' : closed ? 'no_show' : 'pending')
+    await setRollStatus(session.id, ev.id, e.p, toPresent ? 'present' : isBusClosed(session, busKey(e)) ? 'no_show' : 'pending')
     if (toPresent) {
       setFlash(e.p.id)
       window.setTimeout(() => setFlash((f) => (f === e.p.id ? '' : f)), 900)
     }
   }
 
-  // plain：「全部乘客」名單中，未點名的人保持白底空心圓圈
-  const Row = ({ e, plain }: { e: GuestEntry; plain?: boolean }) => {
-    const st = statusOf(e.p.id)
-    const quiet = plain && st === 'pending'
+  // colored：只有「全員名單」用狀態顏色及圖案；點名時只有白底圓圈（未點）及綠色勾號（已上車）
+  const Row = ({ e, colored }: { e: GuestEntry; colored?: boolean }) => {
+    const st = statusOf(e)
     const rec = recOf.get(e.p.id)
-    const bs = e.seats.find((s) => s.resource.type === 'bus')
-    const icon = quiet ? 'not_arrived' : ICON[st]
+    const bs = e.seats.find((x) => x.resource.type === 'bus')
+    const icon = st === 'present' ? 'arrived' : colored ? ICON[st] : 'not_arrived'
     return (
-      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'pending' && !quiet && 'waiting', st === 'no_show' && 'noshow', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
+      <div
+        className={cx(
+          'rc-row',
+          flash === e.p.id && 'just',
+          st === 'present' && 'here',
+          colored && st === 'pending' && 'waiting',
+          colored && st === 'no_show' && 'noshow',
+          colored && st === 'on_the_way' && 'otw',
+          colored && st === 'excused' && 'excused',
+        )}
+      >
         <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
           <span className="rc-mark">
             <StatusIcon kind={icon} size={36} />
@@ -338,6 +341,22 @@ export function RollCallSession() {
     )
   }
 
+  // 點名時：未上車的人在前，已上車的人排在後面
+  const rollOrder = (list: GuestEntry[]) => [...list.filter((e) => statusOf(e) !== 'present'), ...list.filter((e) => statusOf(e) === 'present')]
+  const g = (key: string) => groups.find((x) => x.key === key)
+  const closingGroup = closing ? g(closing) : undefined
+  const reopenGroup = reopening ? g(reopening) : undefined
+  const countIn = (list: GuestEntry[], ...st: (RollStatus | 'pending')[]) => list.filter((e) => st.includes(statusOf(e))).length
+
+  const tabs: [View, string, number, string][] = [
+    ['roll', '點名', people.length, ''],
+    ['present', '已上車', present.length, 'tone-ok'],
+    ['pending', '待上車', by('pending', 'no_show').length, by('pending', 'no_show').length ? 'tone-info' : 'tone-ok'],
+    ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
+    ['excused', '請假', by('excused').length, by('excused').length ? 'tone-grey' : ''],
+  ]
+  const filtered = view === 'pending' ? by('pending', 'no_show') : view === 'roll' ? [] : by(view)
+
   return (
     <div className="page narrow rollcall">
       <PageHeader
@@ -347,7 +366,7 @@ export function RollCallSession() {
         actions={
           <>
             {/* 一鍵重點：保留這個點名，所有人改回「待上車」 */}
-            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0 && !session.closedAt && !Object.keys(session.closedBuses ?? {}).length}>
               <RotateCcw size={16} /> 重新點名
             </button>
             <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
@@ -357,137 +376,98 @@ export function RollCallSession() {
         }
       />
 
-      {/* 狀態分類：全部／已上車／待上車（結束後為未到）／在途中／請假；按一下只看該類 */}
+      {/* 狀態分類：點名（按車點名＋全員名單）／已上車／待上車（含已發車未到）／在途中／請假 */}
       <div className="rc-stats">
-        {(
-          [
-            ['all', '全部', total, ''] as const,
-            ['present', '已上車', here.length, 'tone-ok'] as const,
-            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, by('pending').length ? 'tone-info' : 'tone-ok'],
-            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
-            ['excused', '請假', excused.length, excused.length ? 'tone-grey' : ''],
-          ] as ['all' | RollStatus | 'pending', string, number, string][]
-        ).map(([k, zh, n, tone]) => (
-          <button key={k} className={cx(tone, shown === k && 'active')} aria-pressed={shown === k} onClick={() => setView(shown === k ? 'all' : k)}>
+        {tabs.map(([k, zh, n, tone]) => (
+          <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'roll' : k)}>
             <small>{zh}</small>
-            <strong>
-              {n}
-            </strong>
+            <strong>{n}</strong>
           </button>
         ))}
       </div>
 
-      {closed && (
-        <div className="rc-closed">
-          <span>
-            <Flag size={16} /> 已於 {formatTime(session.closedAt!)} 結束點名{session.closedBy ? `（${session.closedBy}）` : ''}。遲到的人點名字即可補登上車。
-          </span>
-          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmReopen(true)}>
-            重新開放
-          </button>
-        </div>
-      )}
+      {view === 'roll' ? (
+        <>
+          {groups.map((grp) => {
+            const closedAt = busClosedAt(session, grp.key)
+            const here = countIn(grp.list, 'present')
+            const exp = grp.list.length - countIn(grp.list, 'excused')
+            return (
+              <section key={grp.key} className="rc-bus">
+                <header className="rc-bus-head">
+                  <strong>{grp.label}</strong>
+                  <span className={cx('rc-bus-count', here === exp && 'done')}>
+                    已上車 {here} / {exp}
+                    {countIn(grp.list, 'on_the_way') ? ` · 在途中 ${countIn(grp.list, 'on_the_way')}` : ''}
+                    {countIn(grp.list, 'excused') ? ` · 請假 ${countIn(grp.list, 'excused')}` : ''}
+                  </span>
+                  {closedAt ? (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setReopening(grp.key)}>
+                      重新開放
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary btn-sm" onClick={() => setClosing(grp.key)}>
+                      <Flag size={16} /> 確認發車
+                    </button>
+                  )}
+                </header>
+                {closedAt && (
+                  <p className="rc-closed">
+                    <Flag size={14} /> 已於 {formatTime(closedAt)} 確認發車 · 未到 {countIn(grp.list, 'no_show')} 人。遲到的人點名字即可補登。
+                  </p>
+                )}
+                {rollOrder(grp.list).map((e) => (
+                  <Row key={e.p.id} e={e} />
+                ))}
+              </section>
+            )
+          })}
 
-      {buses.length > 1 && (
-        <div className="chips">
-          <FilterChip active={bus === 'all'} onClick={() => setBus('all')}>
-            全部
-          </FilterChip>
-          {buses.map((b) => (
-            <FilterChip key={b.id} active={bus === b.id} onClick={() => setBus(b.id)}>
-              {b.label} 車
-            </FilterChip>
-          ))}
-        </div>
-      )}
+          <section className="rc-all rc-everyone">
+            <h3>全員名單 · {people.length}（按狀態顏色顯示）</h3>
+            {[...people]
+              .sort((a, b) => seatNo(a) - seatNo(b))
+              .sort((a, b) => Number(statusOf(a) === 'present') - Number(statusOf(b) === 'present'))
+              .map((e) => (
+                <Row key={e.p.id} e={e} colored />
+              ))}
+          </section>
 
-      {shown !== 'all' ? (
+          {leftOut.length > 0 && (
+            <section className="rc-all rc-left">
+              <h3>
+                <LogOut size={18} /> 已中途離開（不用點名）· {leftOut.length}
+              </h3>
+              <div className="list card">
+                {leftOut.map((e) => (
+                  <Link key={e.p.id} to={`/e/${ev.id}/guests/${e.p.id}`} className="rc-left-row">
+                    <strong>{names(e.p).primary}</strong>
+                    <span className="muted">{names(e.p).secondary}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      ) : (
         <section className="rc-all">
           <h3>
-            {ROLL_LABEL[shown]} · {by(shown).length}
-            <button className="btn btn-ghost btn-sm rc-showall" onClick={() => setView('all')}>
-              顯示全部
+            {tabs.find((t) => t[0] === view)?.[1]} · {filtered.length}
+            <button className="btn btn-ghost btn-sm rc-showall" onClick={() => setView('roll')}>
+              回到點名
             </button>
           </h3>
-          {by(shown).length ? by(shown).map((e) => <Row key={e.p.id} e={e} />) : <p className="muted pad center">沒有{ROLL_LABEL[shown]}的人</p>}
-        </section>
-      ) : (
-        <>
-      {!closed && waiting.length > 0 && waiting.length < total && (
-        <section className="rc-missing rc-waiting">
-          <h3>
-            <Clock size={18} /> 待上車 · {waiting.length}
-          </h3>
-          {waiting.map((e) => (
-            <Row key={e.p.id} e={e} />
-          ))}
+          {filtered.length ? filtered.map((e) => <Row key={e.p.id} e={e} />) : <p className="muted pad center">沒有人</p>}
         </section>
       )}
-      {closed && noShow.length > 0 && (
-        <section className="rc-missing">
-          <h3>
-            <TriangleAlert size={18} /> 未到 · {noShow.length}
-          </h3>
-          {noShow.map((e) => (
-            <Row key={e.p.id} e={e} />
-          ))}
-        </section>
-      )}
-      {waiting.length === 0 && noShow.length === 0 && total > 0 && (
-        <div className="checked-box tone-ok center">
-          <StatusIcon kind="arrived" size={20} /> 全部到齊{excused.length ? `（請假 ${excused.length} 人）` : ''}
-        </div>
-      )}
-      {excused.length > 0 && (
-        <section className="rc-all">
-          <h3>請假 · {excused.length}（座位保留，可釋出）</h3>
-          {excused.map((e) => (
-            <Row key={e.p.id} e={e} />
-          ))}
-        </section>
-      )}
-
-      <section className="rc-all">
-        <h3>全部乘客 All Passengers</h3>
-        {/* 已上車的人移到最底，未處理的人留在上面 */}
-        {[...people.filter((e) => statusOf(e.p.id) !== 'present'), ...here].map((e) => (
-          <Row key={e.p.id} e={e} plain />
-        ))}
-      </section>
-
-        </>
-      )}
-
-      {leftOut.length > 0 && (
-        <section className="rc-all rc-left">
-          <h3>
-            <LogOut size={18} /> 已中途離開（不用點名）· {leftOut.length}
-          </h3>
-          <div className="list card">
-            {leftOut.map((e) => (
-              <Link key={e.p.id} to={`/e/${ev.id}/guests/${e.p.id}`} className="rc-left-row">
-                <strong>{names(e.p).primary}</strong>
-                <span className="muted">{names(e.p).secondary}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!closed && (
-        <button className="btn btn-primary btn-lg btn-block rc-close" onClick={() => setConfirmClose(true)}>
-          <Flag size={20} /> 結束點名／確認發車
-        </button>
-      )}
-
 
       <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu ? `${nameOf(menu.p)} · 點名狀態` : ''}>
         {menu && (
           <div className="rc-menu">
-            {(['present', 'on_the_way', 'excused', closed ? 'no_show' : 'pending'] as const).map((st) => (
+            {(['present', 'on_the_way', 'excused', isBusClosed(session, busKey(menu)) ? 'no_show' : 'pending'] as const).map((st) => (
               <button
                 key={st}
-                className={cx('menu-item', statusOf(menu.p.id) === st && 'active')}
+                className={cx('menu-item', statusOf(menu) === st && 'active')}
                 onClick={async () => {
                   await setRollStatus(session.id, ev.id, menu.p, st)
                   setMenu(null)
@@ -499,15 +479,15 @@ export function RollCallSession() {
                   <strong>{ROLL_LABEL[st]}</strong>
                   <small>
                     {st === 'present'
-                      ? closed
-                        ? '點名已結束，會記為遲到'
+                      ? isBusClosed(session, busKey(menu))
+                        ? '這架車已發車，會記為遲到'
                         : '已核實上車'
                       : st === 'on_the_way'
                         ? '已聯絡，正在趕來（避免重複催促）'
                         : st === 'excused'
                           ? '事前告知不來；座位保留，可釋出'
                           : st === 'no_show'
-                            ? '點名結束時仍未到'
+                            ? '發車時仍未到'
                             : '還未上車'}
                   </small>
                 </span>
@@ -518,31 +498,36 @@ export function RollCallSession() {
       </Sheet>
 
       <ConfirmSheet
-        open={confirmClose}
-        onClose={() => setConfirmClose(false)}
+        open={!!closingGroup}
+        onClose={() => setClosing(null)}
         onConfirm={async () => {
-          await closeSession(session.id, ev.id, pendingAll.map((e) => e.p.id))
-          toast(pendingAll.length ? `已結束點名，${pendingAll.length} 人記為未到` : '已結束點名，全部到齊')
+          if (!closingGroup) return
+          const pend = closingGroup.list.filter((e) => statusOf(e) === 'pending')
+          await closeSession(session.id, ev.id, pend.map((e) => e.p.id), closingGroup.key, closingGroup.label)
+          toast(pend.length ? `${closingGroup.label}已確認發車，${pend.length} 人記為未到` : `${closingGroup.label}已確認發車，全部到齊`)
         }}
-        title="結束點名／確認發車"
+        title={`確認發車 · ${closingGroup?.label ?? ''}`}
         message={
-          <p>
-            {buses.length > 1 ? `這是所有 ${buses.length} 架車一起結束。` : ''}已上車 {allBy('present').length} 人。仍「待上車」的 {pendingAll.length} 人會記為「未到」
-            {allBy('on_the_way').length ? `；在途中 ${allBy('on_the_way').length} 人維持「在途中」` : ''}
-            {allBy('excused').length ? `；請假 ${allBy('excused').length} 人不變` : ''}。之後仍可補登遲到的人，或重新開放點名。
-          </p>
+          closingGroup && (
+            <p>
+              {closingGroup.label}已上車 {countIn(closingGroup.list, 'present')} 人。仍「待上車」的 {countIn(closingGroup.list, 'pending')} 人會記為「未到」
+              {countIn(closingGroup.list, 'on_the_way') ? `；在途中 ${countIn(closingGroup.list, 'on_the_way')} 人維持「在途中」` : ''}
+              {countIn(closingGroup.list, 'excused') ? `；請假 ${countIn(closingGroup.list, 'excused')} 人不變` : ''}。其他車不受影響。之後仍可補登遲到的人，或重新開放。
+            </p>
+          )
         }
-        confirmText="結束點名"
+        confirmText="確認發車"
       />
       <ConfirmSheet
-        open={confirmReopen}
-        onClose={() => setConfirmReopen(false)}
+        open={!!reopenGroup}
+        onClose={() => setReopening(null)}
         onConfirm={async () => {
-          await reopenSession(session.id, ev.id)
-          toast('已重新開放，「未到」的人改回待上車')
+          if (!reopenGroup) return
+          await reopenSession(session.id, ev.id, reopenGroup.key, reopenGroup.list.map((e) => e.p.id), reopenGroup.label)
+          toast(`${reopenGroup.label}已重新開放，「未到」的人改回待上車`)
         }}
-        title="重新開放點名"
-        message={<p>「未到」的 {allBy('no_show').length} 人會改回「待上車」，可以繼續點名。已上車、在途中、請假的紀錄不變。</p>}
+        title={`重新開放 · ${reopenGroup?.label ?? ''}`}
+        message={reopenGroup && <p>{reopenGroup.label}「未到」的 {countIn(reopenGroup.list, 'no_show')} 人會改回「待上車」，可以繼續點名。其他車不受影響。</p>}
         confirmText="重新開放"
       />
       <ConfirmSheet
@@ -555,7 +540,7 @@ export function RollCallSession() {
         title="重新點名"
         message={
           <p>
-            把「{session.name}」所有人（已上車 {present.size} 人，以及在途中、請假、未到的標記）全部改回「待上車」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
+            把「{session.name}」所有車的所有人（已上車 {present.length} 人，以及在途中、請假、未到的標記）全部改回「待上車」，並取消所有「確認發車」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
           </p>
         }
         confirmText="重新點名"

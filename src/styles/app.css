@@ -4783,3 +4783,41 @@ legend {
 .rc-stats > button strong {
   font-size: 22px;
 }
+
+/* 點名：每架車一組 */
+.rc-bus {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.rc-bus-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+}
+.rc-bus-head strong {
+  font-size: 18px;
+}
+.rc-bus-count {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-label);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.rc-bus-count.done {
+  color: var(--ok-ink);
+  font-weight: 700;
+}
+.rc-bus-head .btn {
+  flex-shrink: 0;
+}
+.rc-bus .rc-closed {
+  margin: 0 0 4px;
+}
+.rc-everyone {
+  padding-top: 12px;
+  border-top: 2px dashed var(--border);
+}
