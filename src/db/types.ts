@@ -127,14 +127,21 @@ export interface AttendanceSession {
   location: string
   notes: string
   createdAt: number
+  closedAt?: number // 按了「結束點名／確認發車」的時間；之後仍待上車的人記為「未到」
+  closedBy?: string
 }
+
+// 點名狀態：沒有紀錄 = 待上車（點名進行中不會顯示「缺席」）
+// present 已上車、on_the_way 在途中（管理員手動）、excused 請假、no_show 未到（只在結束點名時產生）
+export type RollStatus = 'present' | 'on_the_way' | 'excused' | 'no_show'
 
 export interface AttendanceRecord {
   id: string // `${sessionId}:${participantId}`
   sessionId: string
   eventId: string
   participantId: string
-  status: 'present' | 'absent'
+  status: RollStatus | 'absent' // absent = 舊資料，視作待上車
+  late?: boolean // 結束點名後才補登上車
   checkedAt: number
   deviceId: string
   operator: string

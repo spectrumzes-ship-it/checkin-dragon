@@ -10,6 +10,11 @@ import {
   clearRooms,
   deleteRoom,
   updateRoom,
+  closeSession,
+  createSession,
+  reopenSession,
+  setRollStatus,
+  verifyRollCall,
   mergeCompanion,
   registerAndRedeem,
   splitCompanion,
@@ -340,6 +345,34 @@ describe('旅遊模式房間', () => {
     expect(await autoAssignRooms(e.id, ids)).toBe(2)
     const rooms = (await db.resources.toArray()).filter((r) => r.type === 'room').sort((x, y) => x.sortOrder - y.sortOrder)
     expect(rooms.map((r) => r.capacity)).toEqual([2, 1])
+  })
+})
+
+describe('點名狀態', () => {
+  it('進行中只有待上車；結束點名才把待上車變未到；補登記為遲到；重新開放變回待上車', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
+    const a = await guest(e.id, 'A', 'P1')
+    const b = await guest(e.id, 'B', 'P2')
+    const c = await guest(e.id, 'C', 'P3')
+    const d = await guest(e.id, 'D', 'P4')
+    const s = await createSession(e.id, '出發', '09:00', '', '')
+    await verifyRollCall(e.id, s.id, 'P1', 'QR')
+    await setRollStatus(s.id, e.id, b, 'on_the_way')
+    await setRollStatus(s.id, e.id, c, 'excused')
+    const st = async (pid: string) => (await db.attendance.get(`${s.id}:${pid}`))?.status ?? 'pending'
+    expect(await st(d.id)).toBe('pending') // 進行中不會有「缺席」
+    await closeSession(s.id, e.id, [d.id])
+    expect(await st(d.id)).toBe('no_show')
+    expect(await st(b.id)).toBe('on_the_way')
+    expect(await st(c.id)).toBe('excused')
+    const late = await verifyRollCall(e.id, s.id, 'P4', 'QR')
+    expect(late.reason).toContain('遲到')
+    expect((await db.attendance.get(`${s.id}:${d.id}`))!.late).toBe(true)
+    await setRollStatus(s.id, e.id, d, 'no_show')
+    await reopenSession(s.id, e.id)
+    expect(await st(d.id)).toBe('pending')
+    expect(await st(a.id)).toBe('present')
+    expect((await db.sessions.get(s.id))!.closedAt).toBeUndefined()
   })
 })
 

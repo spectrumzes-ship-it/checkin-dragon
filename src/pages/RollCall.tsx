@@ -3,14 +3,14 @@ import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDr
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { LogOut, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
+import { Clock, Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec } from '../db/types'
-import { clearSession, createSession, deleteSession, moveBusSeat, setAttendance, undoMoveSeat } from '../lib/actions'
+import type { EventRec, RollStatus } from '../db/types'
+import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
-import { cx, pct } from '../lib/util'
+import { cx, formatTime } from '../lib/util'
 import { StatusIcon } from '../components/StatusIcon'
 import { BusArt } from '../illustrations'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
@@ -82,7 +82,8 @@ export default function RollCall() {
                   </span>
                 </span>
                 <span className={cx('session-count', present === total && 'done')}>
-                  {present} / {total} {present === total ? '✓' : `· 缺 ${total - present}`}
+                  {present} / {total} 已上車
+                  {present === total ? ' ✓' : s.closedAt ? ` · 已結束 · 未到 ${attendance.filter((a) => a.sessionId === s.id && a.status === 'no_show').length}` : ` · 待上車 ${total - present}`}
                 </span>
                 <ProgressBar value={present} max={total} tone={present === total ? 'ok' : 'mode'} />
               </Link>
@@ -147,7 +148,16 @@ export function RollCallSession() {
   const [bus, setBus] = useState<string>('all')
   const [confirmDel, setConfirmDel] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmReopen, setConfirmReopen] = useState(false)
+  const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
 
+  // 每人狀態：沒有紀錄（或舊資料 absent）= 待上車
+  const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
+  const statusOf = (pid: string): RollStatus | 'pending' => {
+    const st = recOf.get(pid)?.status
+    return !st || st === 'absent' ? 'pending' : st
+  }
   const present = useMemo(() => new Set(recs.filter((r) => r.status === 'present').map((r) => r.participantId)), [recs])
   const buses = data?.resources.filter((r) => r.type === 'bus') ?? []
   const people = useMemo(() => {
@@ -163,25 +173,32 @@ export function RollCallSession() {
   }, [index, bus, present])
 
   if (!session || !data) return <div className="page" />
+  const closed = !!session.closedAt
+  const by = (st: RollStatus | 'pending') => people.filter((e) => statusOf(e.p.id) === st)
   const total = people.length
-  const here = people.filter((e) => present.has(e.p.id)).length
-  const missing = people.filter((e) => !present.has(e.p.id))
+  const here = by('present')
+  const waiting = [...by('on_the_way'), ...by('pending')] // 點名進行中：在途中排先
+  const excused = by('excused')
+  const noShow = by('no_show')
   const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !present.has(e.p.id) && (bus === 'all' || e.seats.some((s) => s.resource.id === bus)))
+  const pendingAll = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly && !e.p.leftAt && statusOf(e.p.id) === 'pending')
 
+  // 點一下名字：未上車 → 已上車；已上車 → 待上車（點名結束後補登會記為遲到）
   const toggle = async (e: GuestEntry) => {
-    const isHere = present.has(e.p.id)
     feedback('tap')
-    await setAttendance(session.id, ev.id, e.p, !isHere)
+    await setRollStatus(session.id, ev.id, e.p, statusOf(e.p.id) === 'present' ? (closed ? 'no_show' : 'pending') : 'present')
   }
 
-  const Row = ({ e, warn }: { e: GuestEntry; warn?: boolean }) => {
-    const isHere = present.has(e.p.id)
+  const Row = ({ e }: { e: GuestEntry }) => {
+    const st = statusOf(e.p.id)
+    const rec = recOf.get(e.p.id)
     const bs = e.seats.find((s) => s.resource.type === 'bus')
+    const icon = st === 'present' ? 'arrived' : st === 'on_the_way' ? 'partial' : st === 'no_show' ? 'warn' : 'not_arrived'
     return (
-      <div className={cx('rc-row', isHere && 'here', warn && 'warn')}>
-        <button className="rc-main" onClick={() => toggle(e)} aria-pressed={isHere}>
+      <div className={cx('rc-row', st === 'present' && 'here', st === 'no_show' && 'warn', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
+        <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
           <span className="rc-mark">
-            <StatusIcon kind={isHere ? 'arrived' : warn ? 'warn' : 'not_arrived'} size={36} />
+            <StatusIcon kind={icon} size={36} />
           </span>
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
@@ -190,13 +207,23 @@ export function RollCallSession() {
               {e.sameName && ` · 同名 #${e.p.memberId}`}
             </span>
           </span>
+          {st !== 'pending' && (
+            <span className={cx('rc-status', `st-${st}`)}>
+              {ROLL_LABEL[st]}
+              {rec?.late && '（遲到）'}
+              {st === 'present' && rec && <small>{formatTime(rec.checkedAt)}</small>}
+            </span>
+          )}
           <span className="rc-seat">{bs ? `${bs.resource.label}-${bs.seatLabel}` : ''}</span>
         </button>
-        {warn && e.p.phone && (
+        {st !== 'present' && e.p.phone && (
           <a className="icon-btn" href={`tel:${e.p.phone.replace(/\s+/g, '')}`} aria-label={`致電 ${nameOf(e.p)}`}>
             <Phone size={18} />
           </a>
         )}
+        <button className="icon-btn" aria-label={`更改 ${nameOf(e.p)} 的狀態`} onClick={() => setMenu(e)}>
+          <MoreHorizontal size={18} />
+        </button>
       </div>
     )
   }
@@ -209,7 +236,7 @@ export function RollCallSession() {
         back={`/e/${ev.id}/rollcall`}
         actions={
           <>
-            {/* 一鍵重點：保留這個點名，所有人改回「未到」 */}
+            {/* 一鍵重點：保留這個點名，所有人改回「待上車」 */}
             <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0}>
               <RotateCcw size={16} /> 重新點名
             </button>
@@ -221,23 +248,44 @@ export function RollCallSession() {
       />
 
       <div className="rc-stats">
-        <div>
-          <small>總數 TOTAL</small>
-          <strong>{total}</strong>
-        </div>
         <div className="tone-ok">
-          <small>已到 PRESENT</small>
-          <strong>{here}</strong>
+          <small>已上車</small>
+          <strong>
+            {here.length}
+            <span className="rc-of">/{total}</span>
+          </strong>
         </div>
-        <div className={missing.length ? 'tone-warn' : 'tone-ok'}>
-          <small>缺席 MISSING</small>
-          <strong>{missing.length}</strong>
+        {closed ? (
+          <div className={noShow.length ? 'tone-bad' : 'tone-ok'}>
+            <small>未到</small>
+            <strong>{noShow.length}</strong>
+          </div>
+        ) : (
+          <div>
+            <small>待上車</small>
+            <strong>{by('pending').length}</strong>
+          </div>
+        )}
+        <div className={by('on_the_way').length ? 'tone-warn' : ''}>
+          <small>在途中</small>
+          <strong>{by('on_the_way').length}</strong>
         </div>
         <div>
-          <small>出席率</small>
-          <strong>{pct(here, total)}%</strong>
+          <small>請假</small>
+          <strong>{excused.length}</strong>
         </div>
       </div>
+
+      {closed && (
+        <div className="rc-closed">
+          <span>
+            <Flag size={16} /> 已於 {formatTime(session.closedAt!)} 結束點名{session.closedBy ? `（${session.closedBy}）` : ''}。遲到的人點名字即可補登上車。
+          </span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmReopen(true)}>
+            重新開放
+          </button>
+        </div>
+      )}
 
       {buses.length > 1 && (
         <div className="chips">
@@ -252,19 +300,39 @@ export function RollCallSession() {
         </div>
       )}
 
-      {missing.length > 0 && missing.length < total && (
-        <section className="rc-missing">
+      {!closed && waiting.length > 0 && waiting.length < total && (
+        <section className="rc-missing rc-waiting">
           <h3>
-            <TriangleAlert size={18} /> 缺席 Missing · {missing.length}
+            <Clock size={18} /> 待上車 · {waiting.length}
           </h3>
-          {missing.map((e) => (
-            <Row key={e.p.id} e={e} warn />
+          {waiting.map((e) => (
+            <Row key={e.p.id} e={e} />
           ))}
         </section>
       )}
-      {missing.length === 0 && total > 0 && <div className="checked-box tone-ok center">
-          <StatusIcon kind="arrived" size={20} /> 全部到齊 All present
-        </div>}
+      {closed && noShow.length > 0 && (
+        <section className="rc-missing">
+          <h3>
+            <TriangleAlert size={18} /> 未到 · {noShow.length}
+          </h3>
+          {noShow.map((e) => (
+            <Row key={e.p.id} e={e} />
+          ))}
+        </section>
+      )}
+      {waiting.length === 0 && noShow.length === 0 && total > 0 && (
+        <div className="checked-box tone-ok center">
+          <StatusIcon kind="arrived" size={20} /> 全部到齊{excused.length ? `（請假 ${excused.length} 人）` : ''}
+        </div>
+      )}
+      {excused.length > 0 && (
+        <section className="rc-all">
+          <h3>請假 · {excused.length}（座位保留，可釋出）</h3>
+          {excused.map((e) => (
+            <Row key={e.p.id} e={e} />
+          ))}
+        </section>
+      )}
 
       <section className="rc-all">
         <h3>全部乘客 All Passengers</h3>
@@ -289,6 +357,12 @@ export function RollCallSession() {
         </section>
       )}
 
+      {!closed && (
+        <button className="btn btn-primary btn-lg btn-block rc-close" onClick={() => setConfirmClose(true)}>
+          <Flag size={20} /> 結束點名／確認發車
+        </button>
+      )}
+
       <section className="rc-manage card">
         <div>
           <button className="btn btn-danger-ghost" onClick={() => setConfirmDel(true)}>
@@ -298,6 +372,70 @@ export function RollCallSession() {
         </div>
       </section>
 
+      <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu ? `${nameOf(menu.p)} · 點名狀態` : ''}>
+        {menu && (
+          <div className="rc-menu">
+            {(['present', 'on_the_way', 'excused', closed ? 'no_show' : 'pending'] as const).map((st) => (
+              <button
+                key={st}
+                className={cx('menu-item', statusOf(menu.p.id) === st && 'active')}
+                onClick={async () => {
+                  await setRollStatus(session.id, ev.id, menu.p, st)
+                  setMenu(null)
+                  toast(`${nameOf(menu.p)}：${ROLL_LABEL[st]}`)
+                }}
+              >
+                <StatusIcon kind={st === 'present' ? 'arrived' : st === 'on_the_way' ? 'partial' : st === 'no_show' ? 'warn' : 'not_arrived'} size={22} />
+                <span>
+                  <strong>{ROLL_LABEL[st]}</strong>
+                  <small>
+                    {st === 'present'
+                      ? closed
+                        ? '點名已結束，會記為遲到'
+                        : '已核實上車'
+                      : st === 'on_the_way'
+                        ? '已聯絡，正在趕來（避免重複催促）'
+                        : st === 'excused'
+                          ? '事前告知不來；座位保留，可釋出'
+                          : st === 'no_show'
+                            ? '點名結束時仍未到'
+                            : '還未上車'}
+                  </small>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Sheet>
+
+      <ConfirmSheet
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        onConfirm={async () => {
+          await closeSession(session.id, ev.id, pendingAll.map((e) => e.p.id))
+          toast(pendingAll.length ? `已結束點名，${pendingAll.length} 人記為未到` : '已結束點名，全部到齊')
+        }}
+        title="結束點名／確認發車"
+        message={
+          <p>
+            已上車 {by('present').length} 人。仍「待上車」的 {pendingAll.length} 人會記為「未到」
+            {by('on_the_way').length ? `；在途中 ${by('on_the_way').length} 人維持「在途中」` : ''}
+            {excused.length ? `；請假 ${excused.length} 人不變` : ''}。之後仍可補登遲到的人，或重新開放點名。
+          </p>
+        }
+        confirmText="結束點名"
+      />
+      <ConfirmSheet
+        open={confirmReopen}
+        onClose={() => setConfirmReopen(false)}
+        onConfirm={async () => {
+          await reopenSession(session.id, ev.id)
+          toast('已重新開放，「未到」的人改回待上車')
+        }}
+        title="重新開放點名"
+        message={<p>「未到」的 {noShow.length} 人會改回「待上車」，可以繼續點名。已上車、在途中、請假的紀錄不變。</p>}
+        confirmText="重新開放"
+      />
       <ConfirmSheet
         open={confirmClear}
         onClose={() => setConfirmClear(false)}
@@ -308,7 +446,7 @@ export function RollCallSession() {
         title="重新點名"
         message={
           <p>
-            把「{session.name}」已點的 {present.size} 人全部改回「未到」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
+            把「{session.name}」所有人（已上車 {present.size} 人，以及在途中、請假、未到的標記）全部改回「待上車」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
           </p>
         }
         confirmText="重新點名"
@@ -341,6 +479,12 @@ export function BusSeats() {
   const lastDrag = useRef(0)
   const [dragging, setDragging] = useState<GuestEntry | null>(null)
   const [, force] = useState(0)
+  // 最近一次點名中「請假」的人：座位保留，但在座位圖上變淡並寫「請假」，方便釋出
+  const excusedIds = useLiveQuery(async () => {
+    const last = (await db.sessions.where('eventId').equals(ev.id).toArray()).sort((a, b) => b.createdAt - a.createdAt)[0]
+    if (!last) return new Set<string>()
+    return new Set((await db.attendance.where('sessionId').equals(last.id).toArray()).filter((r) => r.status === 'excused').map((r) => r.participantId))
+  }, [ev.id]) ?? new Set<string>()
   if (!data) return <div className="page" />
   const buses = data.resources.filter((r) => r.type === 'bus')
   if (!buses.length)
@@ -419,6 +563,7 @@ export function BusSeats() {
                           id={`seat|${b.id}|${n}`}
                           n={n}
                           e={bySeat.get(String(n))}
+                          excused={excusedIds.has(bySeat.get(String(n))?.p.id ?? '')}
                           onOpen={(e) => Date.now() - lastDrag.current > 400 && nav(`/e/${ev.id}/guests/${e.p.id}`)}
                         />
                       ),
@@ -435,7 +580,7 @@ export function BusSeats() {
   )
 }
 
-function BusSeat({ id, n, e, onOpen }: { id: string; n: number; e?: GuestEntry; onOpen: (e: GuestEntry) => void }) {
+function BusSeat({ id, n, e, excused, onOpen }: { id: string; n: number; e?: GuestEntry; excused?: boolean; onOpen: (e: GuestEntry) => void }) {
   const drop = useDroppable({ id })
   const drag = useDraggable({ id: `g:${e?.p.id ?? 'none-' + id}`, disabled: !e })
   return (
@@ -444,11 +589,11 @@ function BusSeat({ id, n, e, onOpen }: { id: string; n: number; e?: GuestEntry; 
         ref={drag.setNodeRef}
         {...drag.listeners}
         {...drag.attributes}
-        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived', !!e?.p.leftAt && 'left', drag.isDragging && 'ghost')}
+        className={cx('bus-seat', e && 'taken', e && e.p.attendance !== 'not_arrived' && 'arrived', !!e?.p.leftAt && 'left', excused && 'excused', drag.isDragging && 'ghost')}
         onClick={() => e && onOpen(e)}
         title={e ? `${names(e.p).full}${e.p.leftAt ? '（已中途離開）' : ''}` : `${n} 號空位`}
       >
-        <small>{n}</small>
+        <small>{n}{excused && ' · 請假'}</small>
         <span>{e ? nameOf(e.p) : ''}</span>
       </button>
     </div>

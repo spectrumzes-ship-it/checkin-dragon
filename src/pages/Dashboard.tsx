@@ -232,7 +232,7 @@ export default function Dashboard() {
                           </span>
                         </span>
                         <span className="session-count">
-                          {present} / {passengerCount} {present === passengerCount && '✓'}
+                          {present} / {passengerCount} 已上車 {present === passengerCount ? '✓' : s.closedAt ? '· 已結束' : ''}
                         </span>
                         <ProgressBar value={present} max={passengerCount} tone={present === passengerCount ? 'ok' : 'mode'} />
                       </Link>

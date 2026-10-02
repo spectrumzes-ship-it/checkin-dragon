@@ -9,6 +9,7 @@ import type {
   ScanLog,
   ScanMethod,
   ScanPurpose,
+  RollStatus,
   ScanResultType,
   SeatAssignment,
   SouvenirItem,
@@ -602,24 +603,45 @@ export const createSession = async (eventId: string, name: string, time: string,
   return s
 }
 
-export const setAttendance = async (sessionId: string, eventId: string, p: Participant, present: boolean) => {
-  const { operator, deviceId } = who()
-  await db.attendance.put({
-    id: `${sessionId}:${p.id}`,
-    sessionId,
-    eventId,
-    participantId: p.id,
-    status: present ? 'present' : 'absent',
-    checkedAt: Date.now(),
-    deviceId,
-    operator,
-  })
-  await audit(eventId, present ? '點名：已到' : '點名：取消', 'attendance', sessionId, names(p).full)
+// 點名狀態的中文（旅遊）
+export const ROLL_LABEL: Record<RollStatus | 'pending', string> = { pending: '待上車', present: '已上車', on_the_way: '在途中', excused: '請假', no_show: '未到' }
+
+// 設定某人在某次點名的狀態；pending = 改回待上車（刪除紀錄）。點名已結束後補登上車會記為「遲到」
+export const setRollStatus = async (sessionId: string, eventId: string, p: Participant, status: RollStatus | 'pending') => {
+  const id = `${sessionId}:${p.id}`
+  if (status === 'pending') await db.attendance.delete(id)
+  else {
+    const { operator, deviceId } = who()
+    const session = await db.sessions.get(sessionId)
+    await db.attendance.put({ id, sessionId, eventId, participantId: p.id, status, late: status === 'present' && !!session?.closedAt, checkedAt: Date.now(), deviceId, operator })
+  }
+  await audit(eventId, `點名：${ROLL_LABEL[status]}`, 'attendance', sessionId, names(p).full)
 }
 
-// 清空點名：保留這個點名環節，只把所有人改回「未到」，方便重新點名
+export const setAttendance = (sessionId: string, eventId: string, p: Participant, present: boolean) => setRollStatus(sessionId, eventId, p, present ? 'present' : 'pending')
+
+// 結束點名／確認發車：仍「待上車」的人批次記為「未到」（在途中、請假的人不變）
+export const closeSession = async (sessionId: string, eventId: string, pendingIds: string[]) => {
+  const { operator, deviceId } = who()
+  const now = Date.now()
+  await db.transaction('rw', [db.attendance, db.sessions, db.auditLogs], async () => {
+    await db.attendance.bulkPut(pendingIds.map((pid) => ({ id: `${sessionId}:${pid}`, sessionId, eventId, participantId: pid, status: 'no_show' as const, checkedAt: now, deviceId, operator })))
+    await db.sessions.update(sessionId, { closedAt: now, closedBy: operator })
+    await audit(eventId, `結束點名（未到 ${pendingIds.length} 人）`, 'session', sessionId)
+  })
+}
+
+// 重新開放點名：「未到」的人變回「待上車」
+export const reopenSession = async (sessionId: string, eventId: string) => {
+  const n = await db.attendance.where('sessionId').equals(sessionId).filter((r) => r.status === 'no_show').delete()
+  await db.sessions.update(sessionId, { closedAt: undefined, closedBy: undefined })
+  await audit(eventId, `重新開放點名（${n} 人改回待上車）`, 'session', sessionId)
+}
+
+// 重新點名：保留這個點名環節，所有人改回「待上車」
 export const clearSession = async (sessionId: string, eventId: string, name: string) => {
   const n = await db.attendance.where('sessionId').equals(sessionId).delete()
+  await db.sessions.update(sessionId, { closedAt: undefined, closedBy: undefined })
   await audit(eventId, `重新點名 ${name}（清除 ${n} 筆紀錄）`, 'session', sessionId)
   return n
 }
@@ -645,9 +667,10 @@ export const verifyRollCall = async (eventId: string, sessionId: string, raw: st
     await logScan(eventId, 'rollcall', raw, method, 'duplicate', '', p.id)
     return { result: 'duplicate', participant: p, seats, time: now, previousTime: rec.checkedAt, rawValue: raw }
   }
-  await setAttendance(sessionId, eventId, p, true)
-  await logScan(eventId, 'rollcall', raw, method, 'valid', '', p.id)
-  return { result: 'valid', participant: p, seats, time: now, rawValue: raw }
+  await setRollStatus(sessionId, eventId, p, 'present')
+  const late = !!(await db.sessions.get(sessionId))?.closedAt
+  await logScan(eventId, 'rollcall', raw, method, 'valid', late ? '遲到補登' : '', p.id)
+  return { result: 'valid', reason: late ? '點名已結束，已補登為「已上車（遲到）」' : undefined, participant: p, seats, time: now, rawValue: raw }
 }
 
 // ---------- 紀念品 ----------
