@@ -1,8 +1,9 @@
-import { Circle, CircleAlert, CircleCheck, CircleDashed, CircleX } from 'lucide-react'
+import { Circle, CircleAlert, CircleArrowRight, CircleCheck, CircleDashed, CircleMinus, CircleX, Clock } from 'lucide-react'
 
 // 簽到狀態圖示：一律用圓圈圖案（不用文字符號，各裝置外觀一致）
 //   已到 = 實心圓圈打勾；未到 = 空心圓圈；部分到達 = 虛線圓圈；已取消 = 圓圈打叉；重複／注意 = 圓圈感嘆號
-export type StatusKind = 'arrived' | 'partial' | 'not_arrived' | 'cancelled' | 'warn'
+// 點名用：等待上車 = 時鐘；在途中 = 圓圈箭咀；請假 = 圓圈減號
+export type StatusKind = 'arrived' | 'partial' | 'not_arrived' | 'cancelled' | 'warn' | 'waiting' | 'otw' | 'excused'
 
 export const StatusIcon = ({ kind, size = 32 }: { kind: StatusKind; size?: number }) => {
   switch (kind) {
@@ -12,6 +13,12 @@ export const StatusIcon = ({ kind, size = 32 }: { kind: StatusKind; size?: numbe
       return <CircleDashed size={size} strokeWidth={2} className="si si-warn" aria-label="部分到達" />
     case 'cancelled':
       return <CircleX size={size} strokeWidth={2} className="si si-bad" aria-label="已取消" />
+    case 'waiting':
+      return <Clock size={size} strokeWidth={2} className="si si-warn" aria-label="待上車" />
+    case 'otw':
+      return <CircleArrowRight size={size} strokeWidth={2} className="si si-info" aria-label="在途中" />
+    case 'excused':
+      return <CircleMinus size={size} strokeWidth={1.75} className="si si-plain" aria-label="請假" />
     case 'warn':
       return <CircleAlert size={size} strokeWidth={2} className="si si-warn" aria-label="注意" />
     default:

@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Clock, Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, TriangleAlert } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec, RollStatus } from '../db/types'
+import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
 import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
@@ -33,6 +33,10 @@ export default function RollCall() {
   const active = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active' && !p.giftOnly).toArray(), [ev.id]) ?? []
   const [open, setOpen] = useState(false)
   const [f, setF] = useState({ name: '', time: '', location: '', notes: '' })
+  const [selecting, setSelecting] = useState(false) // 選擇刪除
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [toDelete, setToDelete] = useState<AttendanceSession[]>([])
+  const [swiped, setSwiped] = useState('') // 向左拉開了刪除按鈕的點名
 
   const create = async () => {
     if (!f.name.trim()) return toast('請輸入點名名稱')
@@ -49,11 +53,31 @@ export default function RollCall() {
         zh="點名"
         en="Roll Call"
         actions={
-          <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>
-            <Plus size={18} /> 新點名
-          </button>
+          <>
+            {sessions.length > 0 &&
+              (selecting ? (
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => (setSelecting(false), setPicked(new Set()))}>
+                    取消
+                  </button>
+                  <button className="btn btn-danger-ghost btn-sm" disabled={!picked.size} onClick={() => setToDelete(sessions.filter((x) => picked.has(x.id)))}>
+                    <Trash2 size={16} /> 刪除（{picked.size}）
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onClick={() => (setSelecting(true), setSwiped(''))}>
+                  選擇
+                </button>
+              ))}
+            {!selecting && (
+              <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>
+                <Plus size={18} /> 新點名
+              </button>
+            )}
+          </>
         }
       />
+      {sessions.length > 0 && !selecting && <p className="hint">向左拉可刪除點名，或按「選擇」一次刪除多個。</p>}
       {sessions.length === 0 ? (
         <EmptyState
           art={<BusArt />}
@@ -74,7 +98,21 @@ export default function RollCall() {
             const total = counted.length
             const present = counted.filter((p) => hereIds.has(p.id)).length
             return (
-              <Link key={s.id} to={`/e/${ev.id}/rollcall/${s.id}`} className="session-row">
+              <SwipeRow
+                key={s.id}
+                open={swiped === s.id}
+                onOpen={(o) => setSwiped(o ? s.id : '')}
+                onDelete={() => setToDelete([s])}
+                selecting={selecting}
+                checked={picked.has(s.id)}
+                onToggle={() => setPicked((p) => {
+                  const n = new Set(p)
+                  if (n.has(s.id)) n.delete(s.id)
+                  else n.add(s.id)
+                  return n
+                })}
+                to={`/e/${ev.id}/rollcall/${s.id}`}
+              >
                 <span className="session-name">
                   <strong>{s.name}</strong>
                   <span className="muted">
@@ -86,7 +124,7 @@ export default function RollCall() {
                   {present === total ? ' ✓' : s.closedAt ? ` · 已結束 · 未到 ${attendance.filter((a) => a.sessionId === s.id && a.status === 'no_show').length}` : ` · 待上車 ${total - present}`}
                 </span>
                 <ProgressBar value={present} max={total} tone={present === total ? 'ok' : 'mode'} />
-              </Link>
+              </SwipeRow>
             )
           })}
         </div>
@@ -134,19 +172,86 @@ export default function RollCall() {
           <input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
         </label>
       </Sheet>
+      <ConfirmSheet
+        open={toDelete.length > 0}
+        onClose={() => setToDelete([])}
+        onConfirm={async () => {
+          for (const x of toDelete) await deleteSession(x.id, ev.id, x.name)
+          toast(`已刪除 ${toDelete.length} 個點名`)
+          setPicked(new Set())
+          setSelecting(false)
+          setSwiped('')
+        }}
+        title="刪除點名"
+        message={
+          <p>
+            刪除{toDelete.length === 1 ? `「${toDelete[0].name}」` : ` ${toDelete.length} 個點名`}及其所有點名紀錄？刪除後不能復原。
+          </p>
+        }
+        confirmText="刪除"
+        danger
+      />
     </div>
   )
 }
 
+// 點名列表的一行：向左拉露出「刪除」；選擇模式下變成剔選框
+function SwipeRow({ to, children, open, onOpen, onDelete, selecting, checked, onToggle }: { to: string; children: ReactNode; open: boolean; onOpen: (o: boolean) => void; onDelete: () => void; selecting: boolean; checked: boolean; onToggle: () => void }) {
+  const nav = useNavigate()
+  const start = useRef<{ x: number; y: number; dx: number; moved: boolean } | null>(null)
+  const [dx, setDx] = useState(0)
+  const W = 88
+  const offset = selecting ? 0 : start.current?.moved ? dx : open ? -W : 0
+  return (
+    <div className="swipe-row">
+      <button className="swipe-del" onClick={onDelete} tabIndex={open ? 0 : -1} aria-hidden={!open}>
+        <Trash2 size={18} /> 刪除
+      </button>
+      <div
+        className={cx('session-row', 'swipe-front', selecting && 'selecting')}
+        style={{ transform: `translateX(${offset}px)`, transition: start.current?.moved ? 'none' : undefined }}
+        role="link"
+        tabIndex={0}
+        onPointerDown={(e) => {
+          if (selecting) return
+          start.current = { x: e.clientX, y: e.clientY, dx: open ? -W : 0, moved: false }
+          e.currentTarget.setPointerCapture?.(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          const s = start.current
+          if (!s) return
+          const mx = e.clientX - s.x
+          if (!s.moved && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(e.clientY - s.y)) s.moved = true
+          if (s.moved) setDx(Math.max(-W - 20, Math.min(0, s.dx + mx)))
+        }}
+        onPointerUp={() => {
+          const s = start.current
+          start.current = null
+          if (s?.moved) onOpen(dx < -W / 2)
+          else if (selecting) onToggle()
+          else if (open) onOpen(false)
+          else nav(to)
+          setDx(0)
+        }}
+        onPointerCancel={() => ((start.current = null), setDx(0))}
+        onKeyDown={(e) => e.key === 'Enter' && (selecting ? onToggle() : nav(to))}
+      >
+        {selecting && <span className={cx('swipe-check', checked && 'on')} aria-checked={checked} role="checkbox" />}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const ICON = { present: 'arrived', pending: 'waiting', on_the_way: 'otw', excused: 'excused', no_show: 'warn' } as const
+
 export function RollCallSession() {
   const ev = useOutletContext<EventRec>()
   const { sid } = useParams()
-  const nav = useNavigate()
   const session = useLiveQuery(() => (sid ? db.sessions.get(sid) : undefined), [sid])
   const recs = useLiveQuery(() => (sid ? db.attendance.where('sessionId').equals(sid).toArray() : []), [sid]) ?? []
   const { data, index } = useEventData(ev.id)
   const [bus, setBus] = useState<string>('all')
-  const [confirmDel, setConfirmDel] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
   const [confirmReopen, setConfirmReopen] = useState(false)
@@ -200,9 +305,9 @@ export function RollCallSession() {
     const st = statusOf(e.p.id)
     const rec = recOf.get(e.p.id)
     const bs = e.seats.find((s) => s.resource.type === 'bus')
-    const icon = st === 'present' ? 'arrived' : st === 'on_the_way' ? 'partial' : st === 'no_show' ? 'warn' : 'not_arrived'
+    const icon = ICON[st]
     return (
-      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'no_show' && 'warn', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
+      <div className={cx('rc-row', flash === e.p.id && 'just', st === 'present' && 'here', st === 'pending' && 'waiting', st === 'no_show' && 'noshow', st === 'on_the_way' && 'otw', st === 'excused' && 'excused')}>
         <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
           <span className="rc-mark">
             <StatusIcon kind={icon} size={36} />
@@ -259,8 +364,8 @@ export function RollCallSession() {
         {(
           [
             ['present', '已上車', here.length, 'tone-ok'] as const,
-            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, ''],
-            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-warn' : ''],
+            closed ? ['no_show', '未到', noShow.length, noShow.length ? 'tone-bad' : 'tone-ok'] : ['pending', '待上車', by('pending').length, by('pending').length ? 'tone-warn' : 'tone-ok'],
+            ['on_the_way', '在途中', by('on_the_way').length, by('on_the_way').length ? 'tone-info' : ''],
             ['excused', '請假', excused.length, ''],
           ] as [RollStatus | 'pending', string, number, string][]
         ).map(([k, zh, n, tone]) => (
@@ -346,7 +451,8 @@ export function RollCallSession() {
 
       <section className="rc-all">
         <h3>全部乘客 All Passengers</h3>
-        {people.map((e) => (
+        {/* 已上車的人移到最底，未處理的人留在上面 */}
+        {[...people.filter((e) => statusOf(e.p.id) !== 'present'), ...here].map((e) => (
           <Row key={e.p.id} e={e} />
         ))}
       </section>
@@ -376,14 +482,6 @@ export function RollCallSession() {
         </button>
       )}
 
-      <section className="rc-manage card">
-        <div>
-          <button className="btn btn-danger-ghost" onClick={() => setConfirmDel(true)}>
-            <Trash2 size={18} /> 刪除
-          </button>
-          <span className="muted">整個點名環節連同紀錄一併刪除</span>
-        </div>
-      </section>
 
       <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu ? `${nameOf(menu.p)} · 點名狀態` : ''}>
         {menu && (
@@ -398,7 +496,7 @@ export function RollCallSession() {
                   toast(`${nameOf(menu.p)}：${ROLL_LABEL[st]}`)
                 }}
               >
-                <StatusIcon kind={st === 'present' ? 'arrived' : st === 'on_the_way' ? 'partial' : st === 'no_show' ? 'warn' : 'not_arrived'} size={22} />
+                <StatusIcon kind={ICON[st]} size={22} />
                 <span>
                   <strong>{ROLL_LABEL[st]}</strong>
                   <small>
@@ -463,19 +561,6 @@ export function RollCallSession() {
           </p>
         }
         confirmText="重新點名"
-        danger
-      />
-      <ConfirmSheet
-        open={confirmDel}
-        onClose={() => setConfirmDel(false)}
-        onConfirm={async () => {
-          await deleteSession(session.id, ev.id, session.name)
-          toast('已刪除點名')
-          nav(`/e/${ev.id}/rollcall`)
-        }}
-        title="刪除點名"
-        message={<p>刪除「{session.name}」這個點名環節及其所有點名紀錄？刪除後不能復原。</p>}
-        confirmText="刪除"
         danger
       />
     </div>

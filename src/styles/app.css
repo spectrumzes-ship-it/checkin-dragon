@@ -4664,3 +4664,80 @@ legend {
     animation: none;
   }
 }
+
+/* 點名：待上車（橙色＋時鐘）、在途中（藍色）、未到（紅色） */
+.si-info {
+  color: var(--info-ink);
+}
+.rc-row.waiting {
+  background: var(--warn-bg);
+  border-color: transparent;
+}
+.rc-row.otw {
+  background: var(--info-bg);
+  border-color: transparent;
+}
+.rc-row.noshow {
+  background: var(--bad-bg);
+  border-color: transparent;
+}
+.rc-status.st-on_the_way {
+  color: var(--info-ink);
+}
+.rc-stats > button.tone-info {
+  --t-bg: var(--info-bg);
+  --t-ink: var(--info-ink);
+}
+/* 點名列表：向左拉刪除、選擇刪除 */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+}
+.swipe-row + .swipe-row {
+  border-top: 1px solid var(--border-soft);
+}
+.swipe-row .session-row + .session-row {
+  border-top: 0;
+}
+.swipe-del {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 88px;
+  border: 0;
+  background: var(--bad-ink);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.swipe-front {
+  position: relative;
+  background: var(--surface);
+  transition: transform 0.2s ease;
+  touch-action: pan-y;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.swipe-front.selecting {
+  grid-template-columns: auto 1fr auto;
+}
+.swipe-front.selecting .progress {
+  grid-column: 2 / span 2;
+}
+.swipe-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+.swipe-check.on {
+  background: var(--bad-ink);
+  border-color: var(--bad-ink);
+  box-shadow: inset 0 0 0 3px var(--surface);
+}
