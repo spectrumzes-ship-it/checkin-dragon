@@ -2,10 +2,12 @@ import { useMemo, useRef, useState } from 'react'
 import SwipeRow from '../components/SwipeRow'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
+import { setSettings, useSettings } from '../lib/settings'
+import { useMediaQuery } from '../lib/hooks'
 import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2 } from 'lucide-react'
+import { Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, CircleCheck } from 'lucide-react'
 import { db } from '../db/db'
 import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
 import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
@@ -220,6 +222,10 @@ export function RollCallSession() {
   const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
   const [pane, setPane] = useState('') // 點名頁顯示哪一組：巴士 id／'none'／'everyone'（全員名單）
   const swipe = useRef<{ x: number; y: number } | null>(null)
+  // 平板／電腦（闊 768 以上）預設用座位表點名；手機預設用名單；手動選擇後記住在這部裝置
+  const wide = useMediaQuery('(min-width: 768px)')
+  const rollView = useSettings().rollView
+  const seatMode = rollView === 'seats' || (rollView === 'auto' && wide)
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -398,9 +404,67 @@ export function RollCallSession() {
                     <Flag size={14} /> 已於 {formatTime(closedAt)} 確認發車 · 未到 {countIn(grp.list, 'no_show')} 人。遲到的人點名字即可補登。
                   </p>
                 )}
-                {rollOrder(grp.list).map((e) => (
-                  <Row key={e.p.id} e={e} />
-                ))}
+                {grp.key !== NO_BUS && (
+                  <div className="seg rc-viewmode" role="radiogroup" aria-label="點名方式">
+                    <button role="radio" aria-checked={!seatMode} className={!seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'list' })}>
+                      <List size={16} /> 名單
+                    </button>
+                    <button role="radio" aria-checked={seatMode} className={seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'seats' })}>
+                      <Armchair size={16} /> 座位表
+                    </button>
+                  </div>
+                )}
+                {seatMode && grp.key !== NO_BUS ? (
+                  (() => {
+                    const bus = buses.find((b) => b.id === grp.key)!
+                    const layout = ev.modeConfig.buses?.find((x) => x.label === bus.label)?.layout ?? defaultLayout(bus.capacity)
+                    const bySeat = new Map(grp.list.map((e) => [String(seatNo(e)), e]))
+                    const rows = busRows(Math.max(bus.capacity, ...grp.list.map(seatNo).filter((n) => n < 999)), layout)
+                    const noSeat = grp.list.filter((e) => seatNo(e) === 999 || seatNo(e) > rows.flat().filter(Boolean).length)
+                    return (
+                      <>
+                        <p className="hint">點座位即上車／取消；在途中、請假等其他狀態請用「名單」的「⋯」。</p>
+                        <div className="rc-seatmap" style={{ maxWidth: (rows[0]?.length ?? 5) * 120 }}>
+                          <div className="bus-front">車頭 Front</div>
+                          {rows.map((row, r) => (
+                            <div key={r} className="bus-row" style={{ gridTemplateColumns: row.map((n) => (n === null ? '14px' : 'minmax(0, 1fr)')).join(' ') }}>
+                              {row.map((n, k) => {
+                                if (n === null || n === 0) return <span key={k} />
+                                const e = bySeat.get(String(n))
+                                if (!e) return (
+                                  <span key={k} className="rc-seat-cell empty">
+                                    <small>{n}</small>
+                                  </span>
+                                )
+                                const st = statusOf(e)
+                                return (
+                                  <button key={k} className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just')} onClick={() => toggle(e)} aria-pressed={st === 'present'}>
+                                    <small>
+                                      {n}
+                                      {st === 'present' && <CircleCheck size={12} />}
+                                    </small>
+                                    <strong>{names(e.p).primary}</strong>
+                                    {st !== 'pending' && st !== 'present' && <em>{ROLL_LABEL[st]}</em>}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                        {noSeat.length > 0 && (
+                          <>
+                            <h3 className="rc-noseat">未有座位號 · {noSeat.length}</h3>
+                            {rollOrder(noSeat).map((e) => (
+                              <Row key={e.p.id} e={e} />
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )
+                  })()
+                ) : (
+                  rollOrder(grp.list).map((e) => <Row key={e.p.id} e={e} />)
+                )}
               </section>
             )
           })}

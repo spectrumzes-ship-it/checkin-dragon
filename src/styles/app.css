@@ -4858,3 +4858,88 @@ legend {
   touch-action: pan-y;
   min-height: 40vh;
 }
+
+/* 巴士點名：座位表模式 */
+.rc-viewmode {
+  align-self: flex-start;
+  margin-bottom: 4px;
+}
+.rc-viewmode button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rc-seatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.rc-seat-cell {
+  min-height: 64px;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 2px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.rc-seat-cell small {
+  font-size: 11px;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.rc-seat-cell strong {
+  font-size: 14px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rc-seat-cell em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.rc-seat-cell.here {
+  background: var(--ok-bg);
+  border-color: var(--ok-ink);
+  color: var(--ok-ink);
+}
+.rc-seat-cell.here small {
+  color: var(--ok-ink);
+}
+.rc-seat-cell.empty {
+  border-style: dashed;
+  background: transparent;
+  cursor: default;
+}
+.rc-seat-cell.just {
+  animation: rc-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.rc-noseat {
+  font-size: var(--fs-label);
+  color: var(--text-2);
+  margin: 12px 0 4px;
+}
+@media (min-width: 768px) {
+  .rc-seat-cell {
+    min-height: 76px;
+  }
+  .rc-seat-cell strong {
+    font-size: 16px;
+  }
+}

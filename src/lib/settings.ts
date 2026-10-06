@@ -15,6 +15,7 @@ export interface Settings {
   deviceName: string
   deviceId: string
   currentEventId: string | null
+  rollView: 'auto' | 'list' | 'seats' // 巴士點名：名單或座位表；auto = 平板／電腦用座位表，手機用名單
   specialNotes: string[] // 「特別需要」的選項（可自訂）
   giftGroups: string[] // 禮物領取組別（可自訂；紀念品可設定只限某組別領取）
 }
@@ -34,6 +35,7 @@ const defaults = (): Settings => ({
   deviceName: '我的裝置',
   deviceId: uid(),
   currentEventId: null,
+  rollView: 'auto',
   specialNotes: ['輪椅', '素食', '需協助', '傳譯'],
   giftGroups: [],
 })
