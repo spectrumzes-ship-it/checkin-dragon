@@ -61,7 +61,7 @@ export default function Scan() {
   const [params, setParams] = useSearchParams()
   const ev = useEvent(id)
   const settings = useSettings()
-  const { index } = useEventData(id)
+  const { data: evData, index } = useEventData(id)
   const sessions = useLiveQuery(() => (id ? db.sessions.where('eventId').equals(id).sortBy('time') : []), [id]) ?? []
   // 可切換的活動：今日活動排前，之後是即將舉行，再之後是過去的（已封存的不列出）
   const allEvents = useLiveQuery(() => db.events.toArray(), []) ?? []
@@ -114,7 +114,21 @@ export default function Scan() {
 
   // 掃描目的：簽到／點名／紀念品
   // 禮品領取模式沒有簽到：預設掃描目的為第一款禮品
-  const purposeKey = params.get('p') ?? (ev?.mode === 'gift' && souvenirs[0] ? `s:${souvenirs[0].id}` : 'checkin')
+  // 旅遊：預設為時間最接近現在、仍未結束的點名（例如「酒店出發」）
+  const nearSession = useMemo(() => {
+    if (ev?.mode !== 'bus') return null
+    const now = new Date()
+    const mins = now.getHours() * 60 + now.getMinutes()
+    // 已結束：整個點名已結束，或每架車都已「確認出發」
+    const buses = (evData?.resources ?? []).filter((r) => r.type === 'bus')
+    const done = (x: (typeof sessions)[number]) => !!x.closedAt || (buses.length > 0 && buses.every((b) => x.closedBuses?.[b.id]))
+    const open = sessions.filter((x) => !done(x) && x.time)
+    const dist = (t: string) => Math.abs(Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) - mins)
+    return open.sort((a, b) => dist(a.time) - dist(b.time))[0] ?? null
+  }, [ev?.mode, sessions, evData])
+  const purposeKey =
+    params.get('p') ??
+    (ev?.mode === 'gift' && souvenirs[0] ? `s:${souvenirs[0].id}` : nearSession ? `r:${nearSession.id}` : 'checkin')
   const purpose: 'checkin' | 'rollcall' | 'souvenir' = purposeKey.startsWith('s:') ? 'souvenir' : purposeKey.startsWith('r:') ? 'rollcall' : 'checkin'
   const targetId = purposeKey.slice(2)
 

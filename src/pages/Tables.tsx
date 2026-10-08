@@ -183,7 +183,7 @@ function TablesList() {
         <section key={t.id} className="table-list-card">
           <Link to={`/e/${ev.id}/tables/${t.id}`} className="table-list-head">
             <strong>
-              {t.purpose === '晚餐' ? '晚餐 ' : ''}第 {t.label} 席
+              {t.purpose === '晚餐' ? '餐席 ' : ''}第 {t.label} 席
             </strong>
             <span className={arrived >= t.capacity ? 'full' : ''}>
               {dinner ? `${seated} / ${t.capacity} 已安排` : `${arrived} / ${t.capacity} 已到`} ›
@@ -242,11 +242,11 @@ function TablesOverview() {
       <div className="page">
         <EmptyState
           art={<TableArt />}
-          zh={dinner ? '這個行程未設定聚餐餐席。' : '還沒有設定圍席座位。'}
+          zh={dinner ? '這個行程未設定餐席。' : '還沒有設定圍席座位。'}
           en={dinner ? 'No dinner tables yet.' : 'No tables yet.'}
           action={
             <Link to={`/e/${ev.id}/edit`} className="btn btn-primary">
-              {dinner ? '設定聚餐席數' : '設定席數'}
+              {dinner ? '設定餐席數目' : '設定席數'}
             </Link>
           }
         />
@@ -261,7 +261,7 @@ function TablesOverview() {
       </div>
       {dinner && (
         <p className="hint">
-          聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
+          餐席安排 · 每張卡顯示已安排人數／每席人數。用餐前集合可在「點名」建立一次點名。
         </p>
       )}
       {/* 摘要（和色預覽）：已入席人數、滿座席數 */}
@@ -297,7 +297,7 @@ function TablesOverview() {
           <Link key={t.id} to={`/e/${ev.id}/tables/${t.id}`} className={`table-card ${arrived >= t.capacity ? 'full' : ''}`}>
             <RoundTable capacity={t.capacity} arrived={arrived} seated={seated} />
             <div className="table-card-label">
-              <small>{t.purpose === '晚餐' ? 'DINNER' : 'TABLE'}</small>
+              <small>{t.purpose === '晚餐' ? 'MEAL' : 'TABLE'}</small>
               <strong>{t.label}</strong>
             </div>
             <div className="table-card-count">
@@ -339,7 +339,7 @@ export function TableDetail() {
   return (
     <div className="page narrow">
       <PageHeader
-        zh={`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 席`}
+        zh={`${t.purpose === '晚餐' ? '餐席 ' : ''}第 ${t.label} 席`}
         en={`Table ${t.label}`}
         back={`/e/${ev.id}/tables`}
         actions={

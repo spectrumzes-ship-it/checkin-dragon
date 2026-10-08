@@ -135,7 +135,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
               <Row
                 key={i}
                 icon={<TableIcon size={18} />}
-                zh={s.resource.purpose === '晚餐' ? '晚餐席號' : '席號'}
+                zh={s.resource.purpose === '晚餐' ? '餐席' : '席號'}
                 value={
                   <Link to={`/e/${ev.id}/tables/${s.resource.id}`}>
                     第 {s.resource.label} 席{s.seatLabel && ` · ${s.seatLabel} 號座位`}
@@ -280,10 +280,10 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
             className="btn btn-ghost"
             onClick={async () => {
               await moveSeat(ev.id, p.id, '晚餐', null)
-              toast('已騰空聚餐座位')
+              toast('已騰空餐席座位')
             }}
           >
-            騰空聚餐座位
+            騰空餐席座位
           </button>
         )}
         {ev.mode === 'bus' && p.status === 'active' && p.leftAt && entry.room && (
@@ -303,7 +303,7 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
             <span className="hint left-hint">
               {entry.room || entry.seats.some((x) => x.resource.purpose === '晚餐')
                 ? '已中途離開：座位及房間保留，如需要可按上面按鈕騰空'
-                : '已中途離開：聚餐座位及房間已騰空'}
+                : '已中途離開：餐席座位及房間已騰空'}
             </span>
           ) : (
             <button className="btn btn-ghost" onClick={() => setConfirm('leave')}>

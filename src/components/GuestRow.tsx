@@ -10,7 +10,7 @@ export const seatText = (e: GuestEntry) =>
   e.seats
     .map((s) =>
       s.resource.type === 'table'
-        ? `${s.resource.purpose === '晚餐' ? '晚餐 ' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
+        ? `${s.resource.purpose === '晚餐' ? '餐席 ' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
         : `${s.resource.label} 車${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`,
     )
     .join('　')

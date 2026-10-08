@@ -54,9 +54,9 @@ export const ScanResult = ({
     feedback(r === 'valid' ? 'valid' : r === 'manual' ? 'manual' : r === 'duplicate' || r === 'out_of_stock' ? 'duplicate' : 'invalid')
   }, [outcome])
 
-  // 重複、無效時多留 1 秒；有席位／車位（宴會、巴士）時多留 2 秒，讓工作人員看清楚席號及座號
+  // 重複、無效時多留 1 秒；有席位／車位（宴會、巴士）時多留 3 秒（照顧年長工作人員），讓工作人員看清楚席號及座號
   const hasSeat = purpose !== 'souvenir' && !!outcome.seats?.length
-  const delay = autoReturn ? autoReturn + (look.tone === 'warn' || look.tone === 'bad' ? 1000 : 0) + (hasSeat ? 2000 : 0) : 0
+  const delay = autoReturn ? autoReturn + (look.tone === 'warn' || look.tone === 'bad' ? 1000 : 0) + (hasSeat ? 3000 : 0) : 0
   useEffect(() => {
     if (!delay || paused) return
     const t = setTimeout(() => done.current(), delay)
@@ -97,10 +97,10 @@ export const ScanResult = ({
                     {/* 中文介面：第 7 席 · 座位 10；英文介面：Table 7 · Seat 10 */}
                     {lang === 'en'
                       ? s.resource.type === 'table'
-                        ? `${s.resource.purpose === '晚餐' ? 'Dinner ' : ''}Table ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
+                        ? `${s.resource.purpose === '晚餐' ? 'Meal ' : ''}Table ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
                         : `Bus ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
                       : s.resource.type === 'table'
-                        ? `${s.resource.purpose === '晚餐' ? '晚餐 ' : ''}第 ${s.resource.label.replace(/^0+(?=\d)/, '')} 席${s.seatLabel ? ` · 座位 ${s.seatLabel}` : ''}`
+                        ? `${s.resource.purpose === '晚餐' ? '餐席 ' : ''}第 ${s.resource.label.replace(/^0+(?=\d)/, '')} 席${s.seatLabel ? ` · 座位 ${s.seatLabel}` : ''}`
                         : `${s.resource.label} 車${s.seatLabel ? ` · 座位 ${s.seatLabel}` : ''}`}
                   </span>
                 ))}

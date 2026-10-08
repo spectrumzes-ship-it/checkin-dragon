@@ -156,7 +156,7 @@ export default function GuestForm() {
           {dinner.length > 0 && (
             <div className="field-row">
               <label className="field">
-                <span>聚餐席號 Dinner Table</span>
+                <span>餐席 Meal Table</span>
                 <select value={g.dinnerTableId} onChange={(e) => up('dinnerTableId', e.target.value)}>
                   <option value="">未安排</option>
                   {dinner.map((t) => (

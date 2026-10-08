@@ -156,7 +156,7 @@ export default function TableSeatList({
             over={Number(s.seat) > table.capacity}
             onOpen={(e) => guard(() => onOpen(e))()}
             onToggle={allowCheckIn ? (e) => guard(() => toggle(e))() : undefined}
-            seatLine={(n) => `${table.purpose === '晚餐' ? '晚餐 ' : ''}第 ${table.label} 席 · ${n} 號`}
+            seatLine={(n) => `${table.purpose === '晚餐' ? '餐席 ' : ''}第 ${table.label} 席 · ${n} 號`}
           />
         ))}
       </div>

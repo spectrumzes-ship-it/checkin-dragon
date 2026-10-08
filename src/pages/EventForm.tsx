@@ -238,7 +238,7 @@ export default function EventForm() {
             </button>
             <div className="field-row">
               <label className="field">
-                <span>聚餐席數（0 = 沒有）</span>
+                <span>餐席數目（0 = 沒有）</span>
                 <input type="number" min={0} value={f.dinnerTables} onChange={(e) => up('dinnerTables', Number(e.target.value))} />
               </label>
               <label className="field">

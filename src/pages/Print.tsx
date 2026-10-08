@@ -63,7 +63,7 @@ export default function Print() {
     [
       ...e.seats.map((s) =>
         s.resource.type === 'table'
-          ? `${s.resource.purpose === '晚餐' ? '晚餐' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
+          ? `${s.resource.purpose === '晚餐' ? '餐席 ' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
           : `${s.resource.label} 車${s.seatLabel ? ` ${s.seatLabel} 號` : ''}`,
       ),
       ...(e.room ? [`房號 ${e.room.label}`] : []),
@@ -186,7 +186,7 @@ export default function Print() {
       ) : (
         tables.map(({ t, slots, count }) => (
           <section key={t.id} className={`print-sheet ${cont ? 'cont' : 'page'}`}>
-            {head(`${t.purpose === '晚餐' ? '晚餐 ' : ''}第 ${t.label} 席 · ${count} / ${t.capacity} 位`)}
+            {head(`${t.purpose === '晚餐' ? '餐席 ' : ''}第 ${t.label} 席 · ${count} / ${t.capacity} 位`)}
             <table className="print-table">
               <thead>
                 <tr>

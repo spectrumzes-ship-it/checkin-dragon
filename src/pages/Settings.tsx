@@ -133,7 +133,7 @@ export default function Settings() {
 
       <SectionTitle zh="掃描" en="Scan" />
       <div className="card set-group">
-        <Item zh="掃描結果顯示時間" en="Result Display Time" hint="之後自動返回相機；有席位或車位（宴會、巴士）會多顯示 2 秒，「重複」「無效」多 1 秒；點一下畫面可提早返回">
+        <Item zh="掃描結果顯示時間" en="Result Display Time" hint="之後自動返回相機；有席位或車位（宴會、巴士）會多顯示 3 秒，「重複」「無效」多 1 秒；點一下畫面可提早返回">
           <select className="set-input set-select" value={s.autoReturn} onChange={(e) => set({ autoReturn: Number(e.target.value) })}>
             {[
               [1000, '1 秒'],
