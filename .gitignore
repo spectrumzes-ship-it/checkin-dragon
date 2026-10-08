@@ -21,3 +21,6 @@ private-data/
 
 # 由 scripts/copy-vendor.mjs 產生
 public/vendor/
+
+# macOS 資料夾圖示檔
+Icon?
