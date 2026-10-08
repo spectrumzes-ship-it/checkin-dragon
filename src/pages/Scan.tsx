@@ -289,14 +289,11 @@ export default function Scan() {
         <button className="scan-icon" aria-label="關閉掃描" onClick={() => nav(`/e/${ev.id}`)}>
           <X size={24} />
         </button>
-        {/* 左：活動；右：掃描目的（按整個方塊即彈出選單） */}
+        {/* 左：活動；右：掃描目的（有多於一個時才顯示；按整個方塊即彈出選單） */}
         <div className="scan-title">
           <label className="scan-pick">
             <ModeIcon mode={ev.mode} size={18} />
-            <span className="scan-pick-text">
-              <small>活動</small>
-              <b>{ev.name}</b>
-            </span>
+            <span className="scan-pick-text">{ev.name}</span>
             <ChevronDown size={16} />
             <select value={ev.id} onChange={(e) => nav(`/e/${e.target.value}/scan`, { replace: true })} aria-label="切換活動">
               {eventChoices.map((x) => (
@@ -306,20 +303,20 @@ export default function Scan() {
               ))}
             </select>
           </label>
-          <label className="scan-pick purpose">
-            <span className="scan-pick-text">
-              <small>掃描目的</small>
-              <b>{purposeLabel}</b>
-            </span>
-            <ChevronDown size={16} />
-            <select value={purposeKey} onChange={(e) => setParams({ p: e.target.value }, { replace: true })} aria-label="掃描目的">
-              {purposeOptions.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* 只有一個掃描目的（例如只有簽到）就不顯示右邊方塊 */}
+          {purposeOptions.length > 1 && (
+            <label className="scan-pick purpose">
+              <span className="scan-pick-text">{purposeLabel}</span>
+              <ChevronDown size={16} />
+              <select value={purposeKey} onChange={(e) => setParams({ p: e.target.value }, { replace: true })} aria-label="掃描目的">
+                {purposeOptions.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         {cam.torchSupported ? (
           <button className={cx('scan-icon', cam.torch && 'on')} aria-label={cam.torch ? '關閉手電筒' : '開啟手電筒'} aria-pressed={cam.torch} onClick={() => cam.setTorch(!cam.torch)}>
