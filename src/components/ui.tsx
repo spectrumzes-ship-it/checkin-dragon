@@ -332,7 +332,7 @@ export const SearchBar = ({
 )
 
 export const EmptyState = ({ art, zh, en, action }: { art: ReactNode; zh: string; en: string; action?: ReactNode }) => (
-  <div className="empty">
+  <div className="empty-state">
     <div className="empty-art">{art}</div>
     <p className="empty-zh">{zh}</p>
     <p className="empty-en">{en}</p>
