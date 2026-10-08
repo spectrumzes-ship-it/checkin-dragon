@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { BedDouble, BedSingle, Plus, Trash2, UserPlus, Wand2, X } from 'lucide-react'
+import { BedDouble, BedSingle, Plus, Printer, Trash2, UserPlus, Wand2, X } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
 import { addRoom, assignRoom, autoAssignRooms, clearRooms, deleteRoom, updateRoom } from '../lib/actions'
 import { useDebounced, useEventData } from '../lib/hooks'
@@ -78,6 +78,9 @@ export default function Rooms() {
             <>
               {rooms.length > 0 && (
                 <>
+                  <button className="icon-btn" aria-label="列印房間名單" title="列印房間名單（可存成 PDF）" onClick={() => nav(`/e/${ev.id}/print?type=rooms`)}>
+                    <Printer size={20} />
+                  </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setManage('clear')} disabled={housed === 0}>
                     清空
                   </button>
@@ -99,7 +102,7 @@ export default function Rooms() {
           }
         />
         <p className="hint">
-          共 {rooms.length} 間房 · 已安排 {housed} 人 · 未安排 {unassigned.length} 人。把名字拖到房間（手機：按住約半秒），房間人數會跟隨入住人數自動變成單人房、雙人房…；新房間預設為雙人房。
+          共 {rooms.length} 間房 · 已安排 {housed} 人 · 未安排 {unassigned.length} 人。把名字拖到房間（手機：按住約半秒），房間人數會跟隨入住人數自動變成單人房、雙人房…；新房間預設為雙人房。酒店房號通常到埗才知道：先用 #1、#2 分房，到酒店後在每間房的「填房號」填上即可。
         </p>
 
         <Pool entries={unassigned} active={!!dragging} onOpen={open} onAuto={() => setAuto(true)} />
@@ -234,12 +237,22 @@ const Person = ({ e, onOpen, onRemove }: { e: GuestEntry; onOpen: (e: GuestEntry
 const RoomCard = ({ room, who, onOpen, onAdd, onDelete, onRemove }: { room: Resource; who: GuestEntry[]; onOpen: (e: GuestEntry) => void; onAdd: () => void; onDelete: () => void; onRemove: (e: GuestEntry) => void }) => {
   const drop = useDroppable({ id: `room:${room.id}` })
   const n = who.length || 2
+  const custom = room.purpose === 'custom' // 已填酒店房號
   return (
     <section ref={drop.setNodeRef} className={cx('card room-card', drop.isOver && 'drop')}>
       <header>
         {n === 1 ? <BedSingle size={20} /> : <BedDouble size={20} />}
-        <input className="room-label" defaultValue={room.label} aria-label="房號" key={room.label}
-          onBlur={(e) => e.target.value.trim() !== room.label && updateRoom(room, { label: e.target.value })} />
+        {/* #編號固定；酒店房號到埗後才填（未填時留空） */}
+        <span className="room-no">#{room.sortOrder}</span>
+        <input
+          className="room-label"
+          defaultValue={custom ? room.label : ''}
+          placeholder="填房號"
+          aria-label="酒店房號"
+          inputMode="numeric"
+          key={room.label + room.purpose}
+          onBlur={(e) => e.target.value.trim() !== (custom ? room.label : '') && updateRoom(room, { label: e.target.value })}
+        />
         <SoftTag tone={who.length ? 'mode' : undefined}>
           {roomType(n)}
           {who.length === 0 && ' · 空房'}

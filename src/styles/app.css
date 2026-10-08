@@ -6606,3 +6606,66 @@ body:has(.rc-dock) .toast {
   font-size: 16px;
   cursor: pointer;
 }
+
+/* 房間卡：#編號＋酒店房號（到埗後填） */
+.room-no {
+  flex-shrink: 0;
+  font-family: 'Barlow Condensed', var(--font);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--mode-ink);
+}
+.room-label::placeholder {
+  color: var(--text-3);
+  font-weight: 600;
+  font-size: 15px;
+}
+.room-label:placeholder-shown {
+  border: 1px dashed var(--border);
+}
+/* 列印選項：揀選第幾席 */
+.print-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.print-pick-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.print-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+.print-pick-grid button {
+  min-height: 40px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.print-pick-grid button.on {
+  background: var(--mode-solid);
+  border-color: var(--mode-solid);
+  color: #fff;
+}
+/* 列印：房間名單 */
+.print-table.rooms tr.room-first td {
+  border-top: 1.5px solid #2c2b29;
+}
+.print-table .write-in {
+  display: inline-block;
+  width: 22mm;
+  border-bottom: 1px solid #2c2b29;
+  height: 1.2em;
+}
+.print-note {
+  margin-top: 10px;
+  font-size: 13px;
+}

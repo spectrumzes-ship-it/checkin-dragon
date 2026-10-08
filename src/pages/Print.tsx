@@ -1,15 +1,15 @@
 import { busRows, defaultLayout } from '../lib/busLayout'
-import { useMemo, Fragment } from 'react'
+import { useMemo, Fragment, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
 import { names, nameOf } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
+import type { Resource } from '../db/types'
 import { formatDateTime, formatDateRange } from '../lib/util'
 import { typeLabel } from '../components/icons'
 import { buildSlots } from '../components/TableSeatList'
 
-const logo = `${import.meta.env.BASE_URL}icons/logo-256.png`
 const extra = (e: GuestEntry) => [...e.p.tags, e.p.dietary].filter(Boolean).join('、')
 
 // 列印：每席名單（每席一頁或連續）、單一席、總名單。可在列印視窗選「儲存為 PDF」
@@ -19,6 +19,8 @@ export default function Print() {
   const type = params.get('type') ?? 'tables'
   const cont = params.get('cont') === '1'
   const tid = params.get('tid')
+  // 揀選的席（逗號分隔）；沒有就列印全部
+  const tids = params.get('tids')?.split(',').filter(Boolean) ?? null
   const ev = useEvent(id)
   const { data, index } = useEventData(id)
 
@@ -26,7 +28,7 @@ export default function Print() {
     if (!data) return []
     const byId = new Map(index.map((e) => [e.p.id, e]))
     return data.resources
-      .filter((r) => r.type === 'table' && (type !== 'table' || r.id === tid))
+      .filter((r) => r.type === 'table' && (type !== 'table' || r.id === tid) && (!tids || tids.includes(r.id)))
       .map((t) => {
         const guests = data.seats
           .filter((s) => s.resourceId === t.id)
@@ -34,7 +36,7 @@ export default function Print() {
           .filter((x) => x.e && x.e.p.status === 'active')
         return { t, slots: buildSlots(t.capacity, guests), count: guests.reduce((a, g) => a + g.e.p.guestCount, 0) }
       })
-  }, [data, index, type, tid])
+  }, [data, index, type, tid, params])
 
   const all = useMemo(
     () =>
@@ -48,7 +50,6 @@ export default function Print() {
   const now = formatDateTime(Date.now())
   const head = (sub: string) => (
     <header className="print-head">
-      <img src={logo} alt="" width={40} height={40} />
       <div>
         <h1>{ev.name}</h1>
         <p>
@@ -74,7 +75,7 @@ export default function Print() {
   return (
     <div className="print-page">
       <div className="print-toolbar no-print">
-        <Link to={type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
+        <Link to={type === 'rooms' ? `/e/${ev.id}/rooms` : type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
           <ChevronLeft size={22} />
         </Link>
         <strong>列印預覽</strong>
@@ -83,7 +84,9 @@ export default function Print() {
         </button>
       </div>
 
-      {type === 'bus' ? (
+      {type === 'rooms' ? (
+        <RoomsPrint data={data} index={index} head={head} now={now} />
+      ) : type === 'bus' ? (
         data.resources
           .filter((r) => r.type === 'bus')
           .map((b) => {
@@ -222,5 +225,65 @@ export default function Print() {
         ))
       )}
     </div>
+  )
+}
+
+// 房間名單：每間房一行；未填酒店房號的留空格，到酒店後可手寫
+function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] }; index: GuestEntry[]; head: (sub: string) => ReactNode; now: string }) {
+  const rooms = data.resources.filter((r) => r.type === 'room').sort((a, b) => a.sortOrder - b.sortOrder)
+  const people = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly)
+  const byRoom = new Map<string, GuestEntry[]>()
+  for (const e of people) if (e.room) byRoom.set(e.room.id, [...(byRoom.get(e.room.id) ?? []), e])
+  const unassigned = people.filter((e) => !e.room && !e.p.leftAt)
+  const housed = people.filter((e) => e.room).length
+  const kind = (n: number) => (n <= 1 ? '單人房' : n === 2 ? '雙人房' : `${n} 人房`)
+  return (
+    <section className="print-sheet">
+      {head(`房間名單 · ${rooms.length} 間 · ${housed} 人`)}
+      <table className="print-table rooms">
+        <thead>
+          <tr>
+            <th className="no">#</th>
+            <th>房號</th>
+            <th>房型</th>
+            <th>住客</th>
+            <th>英文姓名</th>
+            <th>性別</th>
+            <th>電話</th>
+            <th>備註</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rooms.map((r) => {
+            const who = byRoom.get(r.id) ?? []
+            const rows = who.length ? who : [null]
+            return rows.map((e, i) => (
+              <tr key={`${r.id}-${i}`} className={i === 0 ? 'room-first' : ''}>
+                {i === 0 && (
+                  <>
+                    <td className="no" rowSpan={rows.length}>
+                      {r.sortOrder}
+                    </td>
+                    <td className="b room-no" rowSpan={rows.length}>
+                      {r.purpose === 'custom' ? r.label : <span className="write-in" />}
+                    </td>
+                    <td rowSpan={rows.length}>{kind(who.length || 2)}</td>
+                  </>
+                )}
+                <td className="b">{e ? names(e.p).primary : '（空房）'}</td>
+                <td>{e ? names(e.p).secondary : ''}</td>
+                <td>{e?.p.gender === 'M' ? '男' : e?.p.gender === 'F' ? '女' : ''}</td>
+                <td>{e?.p.phone ?? ''}</td>
+                <td>{e ? [extra(e), e.p.leftAt ? '中途離開' : ''].filter(Boolean).join('、') : ''}</td>
+              </tr>
+            ))
+          })}
+        </tbody>
+      </table>
+      {unassigned.length > 0 && (
+        <p className="print-note">未安排房間（{unassigned.length} 人）：{unassigned.map((e) => nameOf(e.p)).join('、')}</p>
+      )}
+      <footer className="print-foot">列印時間 {now}</footer>
+    </section>
   )
 }

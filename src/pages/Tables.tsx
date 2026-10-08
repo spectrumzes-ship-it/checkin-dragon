@@ -199,13 +199,17 @@ function TablesList() {
   )
 }
 
-// 列印選項
+// 列印選項：可揀選要列印哪幾席
 export const PrintSheet = ({ open, onClose, eventId, tableId }: { open: boolean; onClose: () => void; eventId: string; tableId?: string }) => {
   const nav = useNavigate()
+  const { data } = useEventData(open ? eventId : undefined)
+  const tables = (data?.resources ?? []).filter((r) => r.type === 'table')
+  const [picked, setPicked] = useState<string[]>([])
   const go = (q: string) => {
     onClose()
     nav(`/e/${eventId}/print?${q}`)
   }
+  const toggle = (id: string) => setPicked((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))
   return (
     <Sheet open={open} onClose={onClose} title="列印 Print">
       <div className="menu-list">
@@ -214,11 +218,31 @@ export const PrintSheet = ({ open, onClose, eventId, tableId }: { open: boolean;
             <Printer size={20} /> 只列印此席 <small>This table</small>
           </button>
         )}
+        {!tableId && tables.length > 1 && (
+          <div className="print-pick">
+            <div className="print-pick-head">
+              <strong>揀選列印</strong>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPicked(picked.length === tables.length ? [] : tables.map((t) => t.id))}>
+                {picked.length === tables.length ? '取消全選' : '全選'}
+              </button>
+            </div>
+            <div className="print-pick-grid">
+              {tables.map((t) => (
+                <button key={t.id} className={picked.includes(t.id) ? 'on' : ''} aria-pressed={picked.includes(t.id)} onClick={() => toggle(t.id)}>
+                  第 {t.label.replace(/^0+(?=\d)/, '')} 席
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-mode btn-block" disabled={!picked.length} onClick={() => go(`type=tables&tids=${picked.join(',')}`)}>
+              <Printer size={18} /> 列印已揀的 {picked.length} 席
+            </button>
+          </div>
+        )}
         <button className="menu-item" onClick={() => go('type=tables')}>
-          <Printer size={20} /> 每席名單（每席一頁） <small>放在檯上或交給帶位同事</small>
+          <Printer size={20} /> 全部席（每席一頁） <small>放在檯上或交給帶位同事</small>
         </button>
         <button className="menu-item" onClick={() => go('type=tables&cont=1')}>
-          <Printer size={20} /> 每席名單（連續列印） <small>較省紙</small>
+          <Printer size={20} /> 全部席（連續列印） <small>較省紙</small>
         </button>
         <button className="menu-item" onClick={() => go('type=all')}>
           <Printer size={20} /> 總名單（按姓名排列） <small>入口查閱用</small>
