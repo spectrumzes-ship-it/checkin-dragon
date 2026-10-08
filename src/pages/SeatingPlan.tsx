@@ -16,9 +16,9 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Hand, Undo2, Users } from 'lucide-react'
+import { Hand, Scissors, Undo2, Users } from 'lucide-react'
 import type { EventRec, Resource } from '../db/types'
-import { moveSeat, undoMoveSeat } from '../lib/actions'
+import { moveSeat, splitCompanion, undoMoveSeat } from '../lib/actions'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { cx } from '../lib/util'
@@ -210,6 +210,7 @@ const Chip = ({ e, selected, children }: { e: GuestEntry; selected: boolean; chi
       {e.sameName && <span className="guest-chip-plus">#{e.p.memberId || e.tickets[0]?.invitationId}</span>}
       {e.p.guestCount > 1 && <span className="guest-chip-plus">+{e.p.guestCount - 1}</span>}
       {e.p.companionOf && <em className="chip-companion">同行</em>}
+      {e.p.leftAt && <em className="chip-left">中途離開</em>}
       {children}
     </span>
   )
@@ -223,8 +224,21 @@ const SeatSlot = ({ id, slot, over, selected, onTap }: { id: string; slot: Slot;
       {slot.owner ? (
         <Chip e={slot.owner} selected={selected === slot.owner.p.id} />
       ) : slot.companionOf ? (
-        <span className="companion">
-          {shortName(slot.companionOf)} <em>同行</em>
+        <span className="companion" title="同行者">
+          <Users size={12} />
+          <span className="companion-name">{shortName(slot.companionOf)}</span>
+          <button
+            className="split-mini"
+            aria-label="分拆同行者"
+            title="分拆同行者"
+            onClick={async (ev) => {
+              ev.stopPropagation()
+              const c = await splitCompanion(slot.companionOf!.p)
+              if (c) toast(`已分拆「${nameOf(c)}」，可獨立安排座位`)
+            }}
+          >
+            <Scissors size={13} />
+          </button>
         </span>
       ) : (
         <span className="muted">空位</span>

@@ -25,7 +25,7 @@ const KEY = 'ckd-settings'
 
 const defaults = (): Settings => ({
   theme: 'light',
-  autoReturn: 1500,
+  autoReturn: 2000,
   nameOrder: 'auto',
   sound: true,
   vibration: true,
@@ -45,7 +45,18 @@ const defaults = (): Settings => ({
 const load = (): Settings => {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { ...defaults(), ...JSON.parse(raw) }
+    if (raw) {
+      const s = { ...defaults(), ...JSON.parse(raw) }
+      // 2026-10-08：預設顯示時間由 1.5 秒改為 2 秒；仍是舊預設的裝置一併更新（只做一次）
+      if (!localStorage.getItem('ckd-ar2')) {
+        if (s.autoReturn === 1500) {
+          s.autoReturn = 2000
+          localStorage.setItem(KEY, JSON.stringify(s))
+        }
+        localStorage.setItem('ckd-ar2', '1')
+      }
+      return s
+    }
   } catch {
     /* 私密瀏覽等情況：使用預設值 */
   }

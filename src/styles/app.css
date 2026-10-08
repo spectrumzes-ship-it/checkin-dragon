@@ -6116,3 +6116,265 @@ body:has(.rc-dock) .toast {
 .print-bus-map.big .seat {
   min-height: var(--seat-h, 16mm);
 }
+
+/* ===== 測試工具包：門票及標籤、證件測試卡、測試清單 ===== */
+.kit-labels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.kit-label {
+  background: #fff;
+  color: #23262b;
+  border: 1px solid #cfccc3;
+  border-radius: 14px;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.kit-label-band {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--mode-solid);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.kit-label-band span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+.kit-label-gift .kit-label-band {
+  background: #f8b500;
+  color: #23262b;
+}
+.kit-label-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.kit-label-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kit-label-text b {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.kit-label-text span {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #6b717b;
+}
+.kit-label-text em {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--mode-ink);
+}
+.kit-label-text code {
+  font-family: 'Barlow Condensed', 'Arial Narrow', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.kit-label .kit-qr {
+  width: 112px;
+  height: 112px;
+  flex-shrink: 0;
+}
+.kit-ids {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.kit-id {
+  position: relative;
+  aspect-ratio: 1.586;
+  max-width: 100%;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #1a1a1a;
+  overflow: hidden;
+  break-inside: avoid;
+  border: 1px solid #b9b5ab;
+}
+.kit-id.hkid {
+  background: linear-gradient(135deg, #e7f1e9, #f4e6ec 60%, #e5edf6);
+}
+.kit-id.hrp {
+  background: linear-gradient(135deg, #eef3fb, #f8f5ea);
+}
+.kit-id-specimen {
+  position: absolute;
+  right: -30px;
+  top: 40%;
+  transform: rotate(-24deg);
+  font-size: 30px;
+  font-weight: 900;
+  color: rgba(200, 68, 47, 0.28);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+.kit-id-head {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.kit-id-head small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+.kit-id-zh {
+  font-size: 24px;
+  font-family: 'Kaiti TC', 'BiauKai', 'STKaiti', serif;
+}
+.hrp .kit-id-zh {
+  font-family: 'Songti SC', 'STSong', serif;
+}
+.kit-id-en {
+  font-size: 16px;
+  font-weight: 600;
+}
+.kit-id-code,
+.kit-id-lbl {
+  font-size: 11px;
+}
+.kit-id-val {
+  font-size: 15px;
+  font-weight: 600;
+}
+.kit-id-no {
+  margin-top: auto;
+  align-self: flex-end;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.kit-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.kit-group {
+  padding: 12px 14px;
+  break-inside: avoid;
+}
+.kit-group h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.kit-group h3 small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.kit-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+.kit-item input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+}
+.kit-item span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.kit-item b {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.kit-item small {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.kit-item.on b {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+@media print {
+  .kit-break {
+    break-before: page;
+  }
+  .kit-labels {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kit-ids {
+    grid-template-columns: repeat(2, 85.6mm);
+  }
+  .kit-id {
+    width: 85.6mm;
+    height: 54mm;
+    aspect-ratio: auto;
+  }
+}
+
+/* 座位分配：同行者「分拆」小按鈕；中途離開標記 */
+.companion-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.companion em {
+  flex-shrink: 0;
+}
+.companion:has(.split-mini) {
+  gap: 3px;
+  padding-right: 3px;
+}
+.companion:has(.split-mini) em {
+  padding: 1px 4px;
+}
+.split-mini {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--mode-ink);
+  cursor: pointer;
+}
+.chip-left {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  margin-left: 4px;
+}
+.left-hint {
+  margin: 0;
+  align-self: center;
+}

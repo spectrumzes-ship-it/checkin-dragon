@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Star, Bus, Clock, Gift, IdCard, Minus, Pencil, Phone, Plus, Building2, Ticket, UndoDot, UserRound, Armchair, NotebookPen, X, UsersRound, UserPlus, Merge, LogIn, LogOut } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant } from '../db/types'
-import { setGiftOnly, setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
+import { assignRoom, moveSeat, setGiftOnly, setLeftTrip, mergeCompanion, splitCompanion, setRemarks, setVip, checkIn, deleteGuestPermanently, eligibilityLabel, eligible, entitlement, setGuestCancelled, undoCheckIn, undoRedemption, updateArrivedCount } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { GuestEntry } from '../lib/search'
 import { formatDateTime, formatTime, endDateOf } from '../lib/util'
@@ -274,6 +274,37 @@ export default function GuestDetail({ ev, gid, entry, onClose }: { ev: EventRec;
             >
               <LogIn size={18} /> 恢復行程
             </button>
+          ) : null)}
+        {ev.mode === 'bus' && p.status === 'active' && p.leftAt && entry.seats.some((x) => x.resource.purpose === '晚餐') && (
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              await moveSeat(ev.id, p.id, '晚餐', null)
+              toast('已騰空聚餐座位')
+            }}
+          >
+            騰空聚餐座位
+          </button>
+        )}
+        {ev.mode === 'bus' && p.status === 'active' && p.leftAt && entry.room && (
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              await assignRoom(ev.id, p.id, null)
+              toast('已移出房間')
+            }}
+          >
+            移出房間
+          </button>
+        )}
+        {ev.mode === 'bus' &&
+          p.status === 'active' &&
+          (p.leftAt ? (
+            <span className="hint left-hint">
+              {entry.room || entry.seats.some((x) => x.resource.purpose === '晚餐')
+                ? '已中途離開：座位及房間保留，如需要可按上面按鈕騰空'
+                : '已中途離開：聚餐座位及房間已騰空'}
+            </span>
           ) : (
             <button className="btn btn-ghost" onClick={() => setConfirm('leave')}>
               <LogOut size={18} /> 中途離開

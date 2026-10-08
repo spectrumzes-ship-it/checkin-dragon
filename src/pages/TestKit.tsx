@@ -7,7 +7,10 @@ import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { names } from '../lib/names'
 import { useSettings } from '../lib/settings'
-import { formatDate } from '../lib/util'
+import { formatDate, formatDateRange } from '../lib/util'
+import { useEventData } from '../lib/hooks'
+import { TEST_GROUPS } from '../lib/testChecklist'
+import { MODE_META } from '../components/icons'
 
 interface Card {
   title: string
@@ -52,7 +55,30 @@ export default function TestKit() {
     }
   }, [ev?.id])
 
+  const { index } = useEventData(ev?.id)
+  const [done, setDone] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ckd-testlist') || '{}')
+    } catch {
+      return {}
+    }
+  })
+  const tick = (id: string) =>
+    setDone((d) => {
+      const n = { ...d, [id]: !d[id] }
+      try {
+        localStorage.setItem('ckd-testlist', JSON.stringify(n))
+      } catch {
+        /* 私密瀏覽：不保存 */
+      }
+      return n
+    })
+
   if (!ev || !data) return <div className="page" />
+  // 門票及標籤：取頭 8 位有姓名、未取消的人
+  const labelPeople = index.filter((e) => e.p.status === 'active' && (e.p.name || e.p.englishName) && e.tickets[0]).slice(0, 8)
+  const allItems = TEST_GROUPS.flatMap((g) => g.items)
+  const doneCount = allItems.filter((i) => done[i.id]).length
 
   const cards: Card[] = [
     ...data.valid.map(({ p, t }) => ({ title: '有效票', tone: 'ok' as const, code: t.qrCode, label: names(p).full, sub: '應顯示：綠色 有效' })),
@@ -142,6 +168,107 @@ export default function TestKit() {
           </div>
         </>
       )}
+
+      <h2 className="kit-h kit-break">
+        三、門票及標籤 <small>{MODE_META[ev.mode].zh} · {ev.name}</small>
+      </h2>
+      <div className="kit-labels" data-mode={ev.mode}>
+        {labelPeople.map((e) => {
+          const t = e.tickets[0]
+          const table = e.seats.find((x) => x.resource.type === 'table' && !x.resource.purpose)
+          const bus = e.seats.find((x) => x.resource.type === 'bus')
+          return (
+            <div key={e.p.id} className={`kit-label kit-label-${ev.mode}`}>
+              <div className="kit-label-band">
+                <span>{ev.mode === 'event' ? '入場券 TICKET' : ev.mode === 'banquet' ? '座位卡 SEAT' : ev.mode === 'bus' ? '團員名牌 TOUR' : '會員卡 MEMBER'}</span>
+                <span>{ev.name}</span>
+              </div>
+              <div className="kit-label-body">
+                <div className="kit-label-text">
+                  <b>{names(e.p).primary}</b>
+                  <span>{names(e.p).secondary}</span>
+                  {ev.mode === 'banquet' && table && (
+                    <em>
+                      第 {table.resource.label} 席 · {table.seatLabel} 號
+                    </em>
+                  )}
+                  {ev.mode === 'bus' && (
+                    <em>
+                      {bus ? `${bus.resource.label} 車 ${bus.seatLabel} 號` : ''}
+                      {e.room ? ` · 房號 ${e.room.label}` : ''}
+                    </em>
+                  )}
+                  {ev.mode === 'event' && <em>{formatDateRange(ev)} · {ev.startTime}</em>}
+                  {ev.mode === 'gift' && <em>會員編號 {e.p.memberId}</em>}
+                  <code>{ev.mode === 'gift' ? e.p.memberId : t.ticketNumber || t.invitationId || t.qrCode}</code>
+                </div>
+                <QR value={t.qrCode} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <h2 className="kit-h kit-break">
+        四、證件辨識測試卡 <small>新增嘉賓 →「文字辨識 · 自動填寫」，把卡放滿框內</small>
+      </h2>
+      <div className="kit-ids">
+        <div className="kit-id hkid">
+          <span className="kit-id-specimen">樣本 SPECIMEN</span>
+          <div className="kit-id-head">
+            測試用身份證樣式（非真實證件）
+            <small>IDENTITY CARD TEST SAMPLE</small>
+          </div>
+          <b className="kit-id-zh">李 智 能</b>
+          <span className="kit-id-en">LEE, Chi Nan</span>
+          <span className="kit-id-code">2621 2535 5174</span>
+          <span className="kit-id-lbl">出生日期 Date of Birth</span>
+          <span className="kit-id-val">01-01-1985 &nbsp; 男 M</span>
+          <span className="kit-id-lbl">簽發日期 Date of Issue</span>
+          <span className="kit-id-val">(01-79) 26-11-18</span>
+          <span className="kit-id-no">Z683365(5)</span>
+        </div>
+        <div className="kit-id hrp">
+          <span className="kit-id-specimen">樣本 SPECIMEN</span>
+          <div className="kit-id-head">
+            港澳居民来往内地通行证（测试样式）
+            <small>MAINLAND TRAVEL PERMIT TEST SAMPLE</small>
+          </div>
+          <span className="kit-id-lbl">姓名</span>
+          <b className="kit-id-zh">陈丽华</b>
+          <span className="kit-id-en">CHAN, LAI WA</span>
+          <span className="kit-id-val">出生日期 1980.01.01 &nbsp; 性别 女</span>
+          <span className="kit-id-val">有效期限 2024.05.06-2034.05.05</span>
+          <span className="kit-id-no">证件号码 H08765432 01</span>
+        </div>
+      </div>
+      <p className="hint">應讀到：身份證卡 → 李智能、LEE CHI NAN、1985-01-01、男、Z683；回鄉證卡 → 陈丽华、CHAN LAI WA、1980-01-01、女、H08765432、2034-05-05。</p>
+
+      <h2 className="kit-h kit-break">
+        五、真機測試清單{' '}
+        <small>
+          已完成 {doneCount} / {allItems.length}（剔選會記住在這部裝置）
+        </small>
+      </h2>
+      <div className="kit-checklist">
+        {TEST_GROUPS.map((g) => (
+          <section key={g.title} className="card kit-group">
+            <h3>
+              {g.title}
+              {g.note && <small>{g.note}</small>}
+            </h3>
+            {g.items.map((it) => (
+              <label key={it.id} className={done[it.id] ? 'kit-item on' : 'kit-item'}>
+                <input type="checkbox" checked={!!done[it.id]} onChange={() => tick(it.id)} />
+                <span>
+                  <b>{it.do}</b>
+                  <small>應該：{it.expect}</small>
+                </span>
+              </label>
+            ))}
+          </section>
+        ))}
+      </div>
     </div>
   )
 }

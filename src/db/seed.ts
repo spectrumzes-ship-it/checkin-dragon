@@ -52,6 +52,8 @@ const GIVEN: [string, string][] = [
 ]
 const COMPANIES = ['ABC Holdings', '明日科技', 'Sunrise Trading', '海港物流', 'Kowloon Bank', '青山設計', 'Pacific Media', '']
 const TAGS = ['輪椅', '素食', '需協助', '傳譯']
+// 示範用：按名字推斷性別（只用於測試自動分房）
+const FEMALE = new Set(['美玲', '嘉欣', '詠詩', '凱欣', '佩珊', '淑芬', '婉婷', '芷晴', '小芳', '美娟', '思韻', '欣婷', '佩儀', '慧玲', '敏儀', '麗娟', '曉彤', '玉玲', '靜儀', '敏'])
 
 // 同一個活動內不重複姓名（示範資料用；真實名單可以有同名，App 會以編號分辨）
 const usedNames = new Set<string>()
@@ -213,6 +215,15 @@ export const seedDemo = async () => {
       tour.seats.push({ id: uid(), eventId: tour.event.id, participantId: p.id, resourceId: tour.resources[2 + (i % 8)].id, seatLabel: String(Math.floor(i / 8) + 1) })
     })
     tour.checkins.forEach((c) => (c.count = 1))
+    // 旅遊測試資料：性別、同行人士（每 10 人有一對）、回鄉證（其中一張已過期）
+    tour.people.forEach((p, i) => {
+      p.gender = FEMALE.has(p.name.slice(1)) ? 'F' : 'M'
+      if (i % 10 === 1) p.partnerId = tour.people[i - 1].id
+      if (i % 4 === 0) {
+        p.permitNo = `H${String(10000000 + i * 7919).slice(-8)}`
+        p.permitExpiry = i === 8 ? addDays(today, -20) : addDays(today, 365 * 3 + i)
+      }
+    })
     await save(tour)
     const active = tour.people.filter((p) => p.status === 'active')
     const sessions: [string, string, string, number][] = [
@@ -261,11 +272,38 @@ export const seedDemo = async () => {
       40, 0.85, 60,
     )
     await save(old)
+
+    // 🎫 今日活動（記名，用作活動模式測試）
+    const talk = buildEvent(
+      { name: '會員講座 2026', mode: 'event', type: 'Company Event', date: today, startTime: '14:00', endTime: '17:00',
+        venue: 'Conference Hall', notes: '示範資料', status: 'active', code: 'TALK', modeConfig: {} },
+      60, 0.4, 90,
+    )
+    await save(talk)
+
+    // 🎁 禮品領取（連續 3 天；會員卡上的 QR = 會員編號）
+    const gift = buildEvent(
+      { name: '會員禮品派發日', mode: 'gift', type: 'Gift Counter', date: today, endDate: addDays(today, 2), startTime: '10:00', endTime: '18:00',
+        venue: '會所大堂', notes: '示範資料', status: 'active', code: 'GIFT', modeConfig: {} },
+      40, 0, 0,
+    )
+    gift.people.forEach((p, i) => {
+      p.memberId = `M${String(i + 1).padStart(4, '0')}`
+      p.guestCount = 1
+      Object.assign(gift.tickets[i], { qrCode: p.memberId, invitationId: '', ticketNumber: '' })
+    })
+    await save(gift)
+    const totes: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '環保袋', stock: 100, perGuest: 0, logic: 'fcfs', perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    const memberGift: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '會員紀念品', stock: 60, perGuest: 0, logic: 'person', perClaim: 1, eligibility: 'all', sortOrder: 2 }
+    await db.souvenirs.bulkAdd([totes, memberGift])
+    await db.redemptions.bulkAdd(
+      gift.people.slice(0, 8).map((p, i) => ({ id: uid(), eventId: gift.event.id, itemId: memberGift.id, participantId: p.id, quantity: 1, method: 'QR' as const, time: now - (i + 1) * 420000, deviceId, operator: 'Amy', kind: 'redeem' as const, voided: false })),
+    )
   })
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 7
+export const DEMO_VERSION = 8
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {
