@@ -5155,3 +5155,108 @@ legend {
   background: transparent;
   border: 1.5px solid rgba(255, 255, 255, 0.5);
 }
+
+/* 確認出發倒數 */
+.rc-count-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(20, 22, 26, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+@media (min-width: 768px) {
+  .rc-count-bg {
+    align-items: center;
+  }
+}
+.rc-count {
+  width: 100%;
+  max-width: 440px;
+  background: var(--board, #1b1e23);
+  color: #fff;
+  border-radius: 22px 22px 0 0;
+  padding: 18px 18px calc(18px + var(--safe-b, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .rc-count {
+    border-radius: 22px;
+  }
+}
+.rc-count-head {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.rc-count-ring {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+}
+.rc-count-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.rc-count-ring circle {
+  fill: none;
+  stroke-width: 9;
+}
+.rc-count-ring .track {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+.rc-count-ring .arc {
+  stroke: #ffb43a;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.rc-count-ring b {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffb43a;
+  margin-top: -10px;
+}
+.rc-count-ring small {
+  position: absolute;
+  bottom: 30px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.rc-count p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+.rc-count-btns {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.rc-count-btns .btn {
+  min-height: 50px;
+  font-weight: 800;
+}
+.rc-count-btns .btn-ghost {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+}
+.rc-count-btns .btn-primary {
+  background: #1f4fa3;
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rc-count-ring .arc {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import SwipeRow from '../components/SwipeRow'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
@@ -198,6 +198,52 @@ export default function RollCall() {
         confirmText="刪除"
         danger
       />
+    </div>
+  )
+}
+
+// 確認出發的倒數（像日本月台：發車鐘聲響起後倒數，時間到自動出發；可隨時「再等一下」或「立即出發」）
+const COUNTDOWN = 10
+function DepartCountdown({ label, summary, onCancel, onDepart }: { label: string; summary: ReactNode; onCancel: () => void; onDepart: () => void }) {
+  const [left, setLeft] = useState(COUNTDOWN)
+  const done = useRef(false)
+  const go = useRef(onDepart)
+  go.current = onDepart
+  useEffect(() => {
+    feedback('depart')
+    const t = window.setInterval(() => setLeft((n) => n - 1), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+  useEffect(() => {
+    if (left <= 0 && !done.current) {
+      done.current = true
+      go.current()
+    } else if (left > 0 && left <= 3) feedback('tap')
+  }, [left])
+  const r = 52
+  const c = 2 * Math.PI * r
+  return (
+    <div className="rc-count-bg" role="dialog" aria-modal="true" aria-label={`${label}確認出發倒數`}>
+      <div className="rc-count">
+        <div className="rc-count-head">{label} · 確認出發</div>
+        <div className="rc-count-ring" aria-live="polite">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r={r} className="track" />
+            <circle cx="60" cy="60" r={r} className="arc" style={{ strokeDasharray: c, strokeDashoffset: c * (1 - Math.max(0, left) / COUNTDOWN) }} />
+          </svg>
+          <b>{Math.max(0, left)}</b>
+          <small>秒後自動出發</small>
+        </div>
+        <p>{summary}</p>
+        <div className="rc-count-btns">
+          <button className="btn btn-ghost" onClick={() => ((done.current = true), onCancel())}>
+            再等一下
+          </button>
+          <button className="btn btn-primary" onClick={() => !done.current && ((done.current = true), onDepart())}>
+            立即出發
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -615,28 +661,27 @@ export function RollCallSession() {
         )}
       </Sheet>
 
-      <ConfirmSheet
-        open={!!closingGroup}
-        onClose={() => setClosing(null)}
-        onConfirm={async () => {
-          if (!closingGroup) return
-          const pend = closingGroup.list.filter((e) => statusOf(e) === 'pending')
-          await closeSession(session.id, ev.id, pend.map((e) => e.p.id), closingGroup.key, closingGroup.label)
-          feedback('depart')
-          toast(pend.length ? `${closingGroup.label}已確認出發，${pend.length} 人記為未到` : `${closingGroup.label}已確認出發，全部到齊`)
-        }}
-        title={`確認出發 · ${closingGroup?.label ?? ''}`}
-        message={
-          closingGroup && (
-            <p>
+      {closingGroup && (
+        <DepartCountdown
+          key={closingGroup.key}
+          label={closingGroup.label}
+          onCancel={() => setClosing(null)}
+          onDepart={async () => {
+            const pend = closingGroup.list.filter((e) => statusOf(e) === 'pending')
+            setClosing(null)
+            await closeSession(session.id, ev.id, pend.map((e) => e.p.id), closingGroup.key, closingGroup.label)
+            feedback('valid')
+            toast(pend.length ? `${closingGroup.label}已確認出發，${pend.length} 人記為未到` : `${closingGroup.label}已確認出發，全部到齊`)
+          }}
+          summary={
+            <>
               {closingGroup.label}已上車 {countIn(closingGroup.list, 'present')} 人。仍「待上車」的 {countIn(closingGroup.list, 'pending')} 人會記為「未到」
               {countIn(closingGroup.list, 'on_the_way') ? `；在途中 ${countIn(closingGroup.list, 'on_the_way')} 人維持「在途中」` : ''}
-              {countIn(closingGroup.list, 'excused') ? `；請假 ${countIn(closingGroup.list, 'excused')} 人不變` : ''}。其他車不受影響。之後仍可補登遲到的人，或重新開放。
-            </p>
-          )
-        }
-        confirmText="確認出發"
-      />
+              {countIn(closingGroup.list, 'excused') ? `；請假 ${countIn(closingGroup.list, 'excused')} 人不變` : ''}。其他車不受影響。
+            </>
+          }
+        />
+      )}
       <ConfirmSheet
         open={!!reopenGroup}
         onClose={() => setReopening(null)}
