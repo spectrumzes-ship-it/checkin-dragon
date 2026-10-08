@@ -210,7 +210,7 @@ export const DonutChart = ({ value, max, size = 148, label }: { value: number; m
           cy="50"
           r={r}
           fill="none"
-          stroke="var(--ok-ink)"
+          stroke="var(--mode-solid)"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={`${c * frac} ${c}`}

@@ -5590,3 +5590,63 @@ body:has(.rc-dock) .toast {
   border-color: #c8442f;
   color: #c8442f;
 }
+
+/* 統計頁：代表色大數字＋十格進度；數字用窄身字體 */
+.dash-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border-left: 6px solid var(--mode-ink);
+  flex-wrap: wrap;
+}
+.dash-hero-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dash-hero-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+}
+.dash-hero-num b {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mode-ink);
+  font-variant-numeric: tabular-nums;
+}
+.dash-hero-num span {
+  margin-left: 6px;
+  color: var(--text-2);
+  font-size: 15px;
+}
+.dash-hero-meter {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-hero-meter .rc-cars-row i {
+  height: 14px;
+}
+.dash-hero-meter .rc-cars-row i.on {
+  background: var(--mode-solid);
+}
+.dash-hero-meter .rc-cars-row i.half {
+  background: linear-gradient(90deg, var(--mode-solid) 50%, var(--border) 50%);
+}
+.dash-hero-meter b {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 26px;
+  font-weight: 700;
+}
+.metric-value {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 34px;
+}

@@ -157,6 +157,32 @@ export default function Dashboard() {
         <GiftSummary ev={ev} />
       ) : (
         <>
+      {/* 頂部大數字：代表色＋十格進度（車廂式） */}
+      {(() => {
+        const pct = stats.total ? Math.round((stats.arrived / stats.total) * 100) : 0
+        return (
+          <section className="dash-hero card">
+            <div className="dash-hero-main">
+              <span className="dash-hero-label">{ev.mode === 'banquet' ? '已入席' : ev.mode === 'bus' ? '已報到' : '已入場'}</span>
+              <span className="dash-hero-num">
+                <b>{stats.arrived}</b>
+                <span>
+                  / {stats.total} {ev.mode === 'bus' ? '人' : '位'}
+                </span>
+              </span>
+            </div>
+            <div className="dash-hero-meter" aria-label={`出席率 ${pct}%`}>
+              <div className="rc-cars-row">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
+                ))}
+              </div>
+              <b>{pct}%</b>
+            </div>
+          </section>
+        )
+      })()}
+
       <div className="metrics">
         <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} ${ev.modeConfig.anonymous ? '張門票' : '張邀請'}`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
         <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} to={`/e/${ev.id}/guests?filter=arrived`} />
