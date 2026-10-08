@@ -54,8 +54,9 @@ export const ScanResult = ({
     feedback(r === 'valid' ? 'valid' : r === 'manual' ? 'manual' : r === 'duplicate' || r === 'out_of_stock' ? 'duplicate' : 'invalid')
   }, [outcome])
 
-  // 重複時留多一點時間讓工作人員看清楚
-  const delay = autoReturn ? autoReturn + (look.tone === 'warn' || look.tone === 'bad' ? 1000 : 0) : 0
+  // 重複、無效時多留 1 秒；有席位／車位（宴會、巴士）時多留 2 秒，讓工作人員看清楚席號及座號
+  const hasSeat = purpose !== 'souvenir' && !!outcome.seats?.length
+  const delay = autoReturn ? autoReturn + (look.tone === 'warn' || look.tone === 'bad' ? 1000 : 0) + (hasSeat ? 2000 : 0) : 0
   useEffect(() => {
     if (!delay || paused) return
     const t = setTimeout(() => done.current(), delay)
