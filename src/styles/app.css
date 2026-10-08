@@ -3628,9 +3628,9 @@ legend {
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
-  background: var(--ok-bg);
-  color: var(--ok-ink);
-  border: 1.5px solid var(--ok-ink);
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+  border: 1.5px solid var(--mode-solid);
   font-size: var(--fs-label);
   font-weight: 700;
 }
@@ -6377,4 +6377,107 @@ body:has(.rc-dock) .toast {
 .left-hint {
   margin: 0;
   align-self: center;
+}
+
+/* ===== 文字模式：按「拍照辨識」（和色設計） ===== */
+.ocr-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ocr-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ocr-steps b {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--mode-solid);
+  color: #fff;
+  font-family: 'Barlow Condensed', var(--font);
+  font-size: 16px;
+}
+.ocr-shoot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  border-radius: 16px;
+  background: var(--mode-solid);
+  color: #fff;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+.ocr-shoot:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.ocr-shoot:disabled {
+  opacity: 0.6;
+}
+.text-frame {
+  margin-bottom: 24px;
+}
+.text-frame i {
+  border-color: var(--mode-solid);
+}
+/* 拍下的畫面定格顯示；辨識中有一條掃描線上下移動 */
+.text-snap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  animation: snap-flash 260ms ease-out;
+}
+.text-snap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.text-snap.reading img {
+  filter: brightness(0.8);
+}
+.text-scanline {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 10%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--mode-solid);
+  box-shadow: 0 0 12px 2px var(--mode-solid);
+  animation: scanline 1.4s ease-in-out infinite alternate;
+}
+.scan-hint.reading {
+  z-index: 2;
+}
+@keyframes scanline {
+  to {
+    top: 88%;
+  }
+}
+@keyframes snap-flash {
+  from {
+    filter: brightness(2.2);
+  }
 }

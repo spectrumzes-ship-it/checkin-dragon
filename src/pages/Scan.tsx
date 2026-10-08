@@ -6,11 +6,11 @@ import { db } from '../db/db'
 import type { Participant, ScanMethod } from '../db/types'
 import { checkIn, undoCheckIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
-import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, similarity, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
+import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
-import { cx, normalize } from '../lib/util'
+import { cx } from '../lib/util'
 import { nameOf } from '../lib/names'
-import { getQrDetector, grabFrame, grabFromFrame, grabView, mainTextCluster, recognizeText, smoothBox, videoToView, type TextBox, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
+import { getQrDetector, grabFrame, grabFromFrame, grabView, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
 import { ModeIcon } from '../components/icons'
@@ -168,46 +168,17 @@ export default function Scan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning, purposeKey])
 
-  // ---- 文字辨識：讀取畫面中央一大片範圍的文字，再近似搜尋嘉賓 ----
+  // ---- 文字辨識：按「立即識別」才拍下畫面、讀取文字，再近似搜尋嘉賓（不再自動連續辨識） ----
   const ocrRunning = useRef(false)
-  // 剛處理過（或被工作人員否決）的嘉賓，名牌仍在鏡頭前時不會再自動彈出
-  const lastOcrPid = useRef<{ pid: string; text: string; misses: number }>({ pid: '', text: '', misses: 0 })
-  const [liveText, setLiveText] = useState('')
-  const [sameCard, setSameCard] = useState(false) // 已處理的名牌仍在鏡頭前
-  // 貼合文字的框：記錄文字在相機影像上的位置；畫面大小改變（例如結果面板展開）時即時重新換算，框一直貼住文字
-  const [textBox, setTextBoxRaw] = useState<TextBox | null>(null)
-  const boxMiss = useRef(0)
-  // 更新文字框：平穩移動；短暫讀不到（連續少於 3 次）保留原位，避免閃爍
-  const updateTextBox = (next: TextBox | null) => {
-    if (next) {
-      boxMiss.current = 0
-      setTextBoxRaw((prev) => smoothBox(prev, next))
-    } else if (++boxMiss.current >= 3) setTextBoxRaw(null)
-  }
-  const setTextBoxes = (_: []) => {
-    boxMiss.current = 0
-    setTextBoxRaw(null)
-  }
-  const [, setViewTick] = useState(0)
+  const [snap, setSnap] = useState<string | null>(null) // 拍下的畫面（辨識時及看結果時定格顯示）
   useEffect(() => {
-    if (mode !== 'text') setTextBoxes([])
+    if (mode !== 'text') setSnap(null)
   }, [mode])
+  // 換活動或掃描目的：清走上一次的辨識結果
   useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
-    const ro = new ResizeObserver(() => setViewTick((n) => n + 1))
-    ro.observe(v)
-    return () => ro.disconnect()
-  })
-  const outer =
-    videoRef.current && textBox
-      ? (() => {
-          const pad = 12
-          const a = videoToView(videoRef.current!, textBox.x0, textBox.y0)
-          const z = videoToView(videoRef.current!, textBox.x1, textBox.y1)
-          return { left: a.x - pad, top: a.y - pad, width: z.x - a.x + pad * 2, height: z.y - a.y + pad * 2 }
-        })()
-      : null
+    setOcr(null)
+    setSnap(null)
+  }, [id, purposeKey])
 
   const readText = async () => {
     const v = videoRef.current
@@ -215,19 +186,12 @@ export default function Scan() {
     ocrRunning.current = true
     try {
       canvasRef.current ??= document.createElement('canvas')
-      // 讀取整個看得見的畫面，找出文字位置（不再限制於固定框）
+      // 讀取整個看得見的畫面
       const view = grabView(v, canvasRef.current, 1280)
       if (!view) return null
+      setSnap(canvasRef.current.toDataURL('image/jpeg', 0.75))
       // 原圖及黑白整理版都試，取最吻合的一個（對着螢幕、反光時較有用）
       const reads = await recognizeText(view.ctx)
-      // 把文字位置換算到畫面上，畫出貼合文字的框
-      const shown = reads.find((r) => r.boxes.length) ?? reads[0]
-      const cluster = mainTextCluster(shown?.boxes ?? [])
-      if (cluster) {
-        const a = view.toVideo(cluster.x0, cluster.y0)
-        const z = view.toVideo(cluster.x1, cluster.y1)
-        updateTextBox({ x0: a.x, y0: a.y, x1: z.x, y1: z.y })
-      } else updateTextBox(null)
       let best = { text: reads[0]?.text ?? '', confidence: reads[0]?.confidence ?? 0, matches: [] as FuzzyMatch[] }
       for (const r of reads) {
         // 整段文字一次比對：同時考慮姓名及編號，可判斷兩者是否屬於同一人
@@ -241,12 +205,20 @@ export default function Scan() {
     }
   }
 
-  // 手動「立即辨識」：不論結果都顯示
+  // 「立即識別」：拍下畫面 → 辨識文字 → 與名單比對
+  const autoRedeem = purpose === 'souvenir' && ev?.mode === 'gift'
   const doOcr = async () => {
     setOcrBusy(true)
     try {
       const r = await readText()
-      if (r) setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches })
+      if (!r) return
+      const top = r.matches[0]
+      if (autoRedeem && top && top.score >= 0.95 && r.matches.filter((m) => m.score >= 0.95).length === 1 && !nameIdConflict(r.matches) && !nameMismatch(r.matches, r.text)) {
+        // 禮品領取：完全吻合唯一一位會員 → 直接登記領取，不用再點選
+        await run(r.text, 'OCR', top.entry.p.id)
+        return
+      }
+      setOcr({ text: r.text || '（未能辨識文字）', matches: r.matches })
     } catch {
       setOcr({ text: '（文字辨識未能載入，請連接網絡後再試）', matches: [] })
     } finally {
@@ -254,66 +226,16 @@ export default function Scan() {
     }
   }
 
-  // 自動辨識：文字模式下持續讀取，找到相符嘉賓（吻合度 80% 以上）即列出讓工作人員確認
-  const autoRedeem = purpose === 'souvenir' && ev?.mode === 'gift'
-  const autoOcr = mode === 'text' && cam.status === 'ready' && !outcome && !ocr
-  useEffect(() => {
-    if (!autoOcr) return
-    let stop = false
-    let timer = 0
-    const loop = async () => {
-      if (stop) return
-      try {
-        const r = await readText()
-        if (r && !stop) {
-          setLiveText(r.confidence >= 65 ? r.text : '') // 亂碼（信心度低）不顯示
-          const top = r.matches[0]
-          const last = lastOcrPid.current
-          if (top && top.score >= 0.8) {
-            // 同一位嘉賓而且文字大致相同 = 同一張名牌仍在鏡頭前：不再彈出
-            const same = top.entry.p.id === last.pid && similarity(normalize(r.text), last.text) >= 0.8
-            setSameCard(same)
-            if (same) last.misses = 0
-            else if (autoRedeem && top.score >= 0.95 && r.matches.filter((m) => m.score >= 0.95).length === 1 && !nameIdConflict(r.matches) && !nameMismatch(r.matches, r.text)) {
-              // 禮品領取：完全吻合唯一一位會員 → 自動登記領取，不用再點選
-              lastOcrPid.current = { pid: top.entry.p.id, text: normalize(r.text), misses: 0 }
-              setTextBoxes([])
-              run(r.text, 'OCR', top.entry.p.id)
-              return
-            } else {
-              lastOcrPid.current = { pid: '', text: '', misses: 0 }
-              setTextBoxes([])
-              setOcr({ text: r.text, matches: r.matches })
-              return
-            }
-          } else {
-            setSameCard(false)
-            if (last.pid && ++last.misses >= 3) last.pid = '' // 名牌已拿開
-          }
-        }
-      } catch {
-        /* 辨識資料未載入等：稍後再試 */
-      }
-      if (!stop) timer = window.setTimeout(loop, 350)
-    }
-    timer = window.setTimeout(loop, 300)
-    return () => {
-      stop = true
-      clearTimeout(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOcr, index])
-
   const run = async (raw: string, method: ScanMethod, pid?: string) => {
     if (!id || busy.current) return
     busy.current = true
-    setTextBoxes([]) // 清走畫面上的文字框痕跡
     try {
       let out: ScanOutcome
       if (purpose === 'souvenir') out = await verifySouvenir(id, targetId, raw, method, pid)
       else if (purpose === 'rollcall') out = await verifyRollCall(id, targetId, raw, method, pid)
       else out = await verifyCheckIn(id, raw, method, pid)
       setOcr(null)
+      setSnap(null)
       setOutcome(out)
     } finally {
       busy.current = false
@@ -324,12 +246,9 @@ export default function Scan() {
   const registerFromOcr = (fields: CardFields) =>
     nav(`/e/${id}/souvenirs/records?item=${targetId}&tab=pending`, { state: { reg: fields, method: 'OCR' } })
 
-  // 清除：拿走辨識結果及文字框，立即重新開始自動辨識（同一張名牌亦會重新辨識）
+  // 重新拍照：拿走辨識結果及定格畫面
   const clearOcr = () => {
-    lastOcrPid.current = { pid: '', text: '', misses: 0 }
-    setSameCard(false)
-    setLiveText('')
-    setTextBoxes([])
+    setSnap(null)
     setOcr(null)
   }
 
@@ -429,26 +348,26 @@ export default function Scan() {
             <i />
           </div>
         )}
-        {mode === 'text' && cam.status === 'ready' && !ocr && !outcome && (
-          <div className="text-overlay" aria-hidden>
-            {outer ? (
-              <>
-                <div className="text-outer" style={outer}>
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </div>
-              </>
-            ) : (
-              <div className="text-guide" />
-            )}
-          </div>
+        {mode === 'text' && cam.status === 'ready' && !outcome && (
+          snap ? (
+            <div className={cx('text-snap', ocrBusy && 'reading')}>
+              <img src={snap} alt="拍下的畫面" />
+              {ocrBusy && <i className="text-scanline" />}
+            </div>
+          ) : (
+            <div className="scan-frame wide text-frame" aria-hidden>
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+          )
         )}
         {mode === 'qr' && cam.status === 'ready' && (
           <p className="scan-hint">{noCodeHint ? '掃不到？可改用「文字」或「手動」' : '將 QR Code 放入框內'}</p>
         )}
-        {mode === 'text' && cam.status === 'ready' && !outer && !ocr && <p className="scan-hint">對準名牌或門票，會自動找出文字</p>}
+        {mode === 'text' && cam.status === 'ready' && !snap && <p className="scan-hint">把名牌或門票放入框內</p>}
+        {mode === 'text' && ocrBusy && <p className="scan-hint reading">辨識中…</p>}
       </div>
 
       <div className="scan-panel">
@@ -489,29 +408,30 @@ export default function Scan() {
           <div className="demo">
             {!ocr ? (
               <>
-                <div className="ocr-live">
-                  <Loader2 size={18} className="spin" />
-                  <span>
-                    {ocrState.state === 'loading'
-                      ? `正在載入文字辨識 ${Math.round(ocrState.progress * 100)}%…`
+                <ol className="ocr-steps">
+                  <li>
+                    <b>1</b>對準名牌或門票
+                  </li>
+                  <li>
+                    <b>2</b>按「立即識別」
+                  </li>
+                </ol>
+                <button className="ocr-shoot" onClick={doOcr} disabled={ocrBusy || cam.status !== 'ready'}>
+                  {ocrBusy ? <Loader2 size={22} className="spin" /> : <Camera size={22} />}
+                  {ocrBusy
+                    ? '辨識中…'
+                    : ocrState.state === 'loading'
+                      ? `載入文字辨識 ${Math.round(ocrState.progress * 100)}%`
                       : cam.status !== 'ready'
                         ? '等待相機…'
-                        : sameCard
-                          ? '已處理這張名牌，請換下一張'
-                          : liveText
-                          ? <>看到「<b>{liveText.slice(0, 30)}</b>」，未找到相符嘉賓{purpose === 'souvenir' && '；按「立即辨識」可新增領取人'}</>
-                          : '自動辨識中 · 把名牌或門票放在框內'}
-                  </span>
-                </div>
-                <button className="btn btn-ghost btn-block" onClick={doOcr} disabled={ocrBusy || cam.status !== 'ready'}>
-                  <ScanText size={18} /> {ocrBusy ? '辨識中…' : '立即辨識'}
+                        : '立即識別'}
                 </button>
                 <p className="hint center">印刷的姓名、會員編號、邀請編號最準確；手寫字未能辨識</p>
               </>
             ) : ocr.matches.length === 0 ? (
               <div className="ocr-none">
                 <OcrEdit value={ocr.text} onChange={editOcr} onClear={clearOcr} />
-                <p className="ocr-none-title">找不到相符嘉賓 No matching guest found</p>
+                <p className="ocr-none-title">找不到相符{purpose === 'souvenir' ? '領取人' : '嘉賓'}，是否新增？</p>
                 <p className="hint">可在上面直接修改辨識到的文字，名單會即時更新。</p>
                 <p className="hint">
                   目前活動：{ev.name} · 共 {index.length} 位嘉賓。如嘉賓屬於另一個活動，請按左上角 × 返回後切換活動。
@@ -519,9 +439,9 @@ export default function Scan() {
                 {purpose === 'souvenir' ? (
                   <NewRecipient text={ocr.text} onGo={registerFromOcr} />
                 ) : (
-                  <div className="demo-btns">
-                    <button onClick={() => nav(`/e/${ev.id}/guests/new`)}>新增嘉賓</button>
-                  </div>
+                  <button className="ocr-shoot" onClick={() => nav(`/e/${ev.id}/guests/new`)}>
+                    新增嘉賓
+                  </button>
                 )}
               </div>
             ) : (
@@ -531,10 +451,7 @@ export default function Scan() {
                 // 有完全吻合（姓名或編號）就只列出完全吻合的人；否則才列出後備（同姓差一字、只有姓氏等）
                 const exact = ocr.matches.filter((m) => m.score >= 0.95)
                 const list = (exact.length ? exact : ocr.matches).slice(0, 5)
-                const pick = (m: FuzzyMatch) => {
-                  lastOcrPid.current = { pid: m.entry.p.id, text: normalize(ocr.text), misses: 0 }
-                  run(ocr.text, 'OCR', m.entry.p.id)
-                }
+                const pick = (m: FuzzyMatch) => run(ocr.text, 'OCR', m.entry.p.id)
                 const row = (m: FuzzyMatch) => (
                   <GuestRow
                     key={m.entry.p.id}
@@ -609,7 +526,7 @@ export default function Scan() {
               ['manual', Keyboard, '手動 Manual'],
             ] as const
           ).map(([m, Icon, label]) => (
-            <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? 'active' : ''} onClick={() => (setMode(m), setOcr(null))}>
+            <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? 'active' : ''} onClick={() => (setMode(m), setOcr(null), setSnap(null))}>
               <Icon size={22} />
               <span>{label}</span>
             </button>
@@ -684,7 +601,7 @@ function OcrEdit({ value, onChange, onClear }: { value: string; onChange: (v: st
       <span className="ocr-edit-head">
         辨識到的文字 · 可修改
         <button type="button" className="ocr-clear" onClick={(e) => (e.preventDefault(), onClear())}>
-          <X size={14} /> 清除
+          <Camera size={14} /> 重拍
         </button>
       </span>
       <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
