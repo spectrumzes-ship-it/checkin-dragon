@@ -15,6 +15,7 @@ export interface Settings {
   deviceName: string
   deviceId: string
   currentEventId: string | null
+  language: 'zh-Hant' | 'zh-Hans' | 'en' // 介面語言（第 5 階段加入切換）；英文版的「已到」用綠色勾號，不用「到」印章
   rollView: 'auto' | 'list' | 'seats' // 巴士點名：座位表（預設，auto 亦等於座位表）或名單
   specialNotes: string[] // 「特別需要」的選項（可自訂）
   giftGroups: string[] // 禮物領取組別（可自訂；紀念品可設定只限某組別領取）
@@ -35,6 +36,7 @@ const defaults = (): Settings => ({
   deviceName: '我的裝置',
   deviceId: uid(),
   currentEventId: null,
+  language: 'zh-Hant',
   rollView: 'auto',
   specialNotes: ['輪椅', '素食', '需協助', '傳譯'],
   giftGroups: [],

@@ -93,7 +93,20 @@ export const EventCard = ({ event, stats }: { event: EventRec; stats?: Stats }) 
       </p>
       {stats && (
         <>
-          {event.mode !== 'gift' ? <ProgressBar value={stats.arrived} max={stats.total} /> : stats.stock ? <ProgressBar value={stats.given ?? 0} max={stats.stock} /> : null}
+          {/* 十格進度（和色預覽） */}
+          {(() => {
+            const v = event.mode === 'gift' ? stats.given ?? 0 : stats.arrived
+            const max = event.mode === 'gift' ? stats.stock ?? 0 : stats.total
+            if (!max) return null
+            const pct = Math.round((v / max) * 100)
+            return (
+              <div className="ev-cars" aria-label={`${pct}%`}>
+                {Array.from({ length: 10 }, (_, i) => (
+                  <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
+                ))}
+              </div>
+            )
+          })()}
           <div className="event-card-foot">
             {event.mode === 'gift' ? (
               stats.stock ? (

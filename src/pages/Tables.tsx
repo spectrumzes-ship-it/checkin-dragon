@@ -264,6 +264,21 @@ function TablesOverview() {
           聚餐餐席安排 · 每張卡顯示已安排人數／每席人數。晚餐集合點名可在「點名」建立一次「晚餐」點名。
         </p>
       )}
+      {/* 摘要（和色預覽）：已入席人數、滿座席數 */}
+      <div className="card tbl-summary">
+        <div>
+          <span className="dash-hero-label">{dinner ? '已安排' : '已入席'}</span>
+          <span className="tbl-sum-num">
+            <b>{tables.reduce((a, x) => a + count(x), 0)}</b> / {tables.reduce((a, x) => a + x.t.capacity, 0)} 位
+          </span>
+        </div>
+        <div className="tbl-sum-right">
+          <span className="dash-hero-label">滿座</span>
+          <span className="tbl-sum-num">
+            <b>{tables.filter((x) => count(x) >= x.t.capacity).length}</b> / {tables.length} 席
+          </span>
+        </div>
+      </div>
       <div className="chips">
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} count={tables.length}>
           全部
@@ -294,6 +309,11 @@ function TablesOverview() {
           </Link>
           )
         })}
+      </div>
+      <div className="card tbl-legend">
+        <span><i className="lg-on" />已到</span>
+        <span><i className="lg-set" />已安排未到</span>
+        <span><i className="lg-empty" />空位</span>
       </div>
       <Unassigned ev={ev} entries={unassigned} />
     </div>

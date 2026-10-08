@@ -8,8 +8,10 @@ import { duplicateEvent, logicLabel, logicOf, quantityLabel, setEventStatus, ver
 import { computeStats, useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests } from '../lib/search'
 import { cx, formatTime, pct } from '../lib/util'
+import { names } from '../lib/names'
 import { rollCounts, rollSummary } from '../lib/rollcall'
 import { useBusOf } from './RollCall'
+import Seal from '../components/Seal'
 import { TableIcon } from '../components/icons'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
@@ -88,6 +90,7 @@ export default function Dashboard() {
   const sessions = useLiveQuery(() => db.sessions.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
   const attendance = useLiveQuery(() => db.attendance.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
   const souvenirs = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
+  const dupes = useLiveQuery(() => db.scanLogs.where('eventId').equals(ev.id).filter((l) => l.result === 'duplicate' && l.purpose === 'checkin').count(), [ev.id]) ?? 0
   const redemptions = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
 
   const stats = useMemo(() => computeStats(data?.participants ?? []), [data])
@@ -157,38 +160,66 @@ export default function Dashboard() {
         <GiftSummary ev={ev} />
       ) : (
         <>
-      {/* 頂部大數字：代表色＋十格進度（車廂式） */}
+      {/* 頂部大數字卡（和色預覽）：已入場／已入席／已報到＋十格進度＋三格摘要 */}
       {(() => {
         const pct = stats.total ? Math.round((stats.arrived / stats.total) * 100) : 0
+        const word = ev.mode === 'banquet' ? ['已入席', 'SEATED', '位'] : ev.mode === 'bus' ? ['已報到', 'CHECKED IN', '人'] : ['已入場', 'ADMITTED', ev.modeConfig.anonymous ? '張門票' : '位']
         return (
           <section className="dash-hero card">
-            <div className="dash-hero-main">
-              <span className="dash-hero-label">{ev.mode === 'banquet' ? '已入席' : ev.mode === 'bus' ? '已報到' : '已入場'}</span>
-              <span className="dash-hero-num">
+            <div className="dash-hero-top">
+              <span className="dash-hero-label">
+                {word[0]} {word[1]}
+              </span>
+              <Link to={`/e/${ev.id}/guests?filter=arrived`} className="dash-hero-num">
                 <b>{stats.arrived}</b>
                 <span>
-                  / {stats.total} {ev.mode === 'bus' ? '人' : '位'}
+                  / {stats.total} {word[2]}
                 </span>
-              </span>
-            </div>
-            <div className="dash-hero-meter" aria-label={`出席率 ${pct}%`}>
-              <div className="rc-cars-row">
-                {Array.from({ length: 10 }, (_, i) => (
-                  <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
-                ))}
+              </Link>
+              <div className="dash-hero-meter" aria-label={`出席率 ${pct}%`}>
+                <div className="rc-cars-row">
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
+                  ))}
+                </div>
+                <b>{pct}%</b>
               </div>
-              <b>{pct}%</b>
+            </div>
+            <div className="dash-split">
+              <Link to={`/e/${ev.id}/guests?filter=vip`}>
+                <small>VIP</small>
+                <b>
+                  {stats.vipArrived}/{stats.vipTotal}
+                </b>
+              </Link>
+              <Link to={`/e/${ev.id}/guests?filter=not_arrived`}>
+                <small>未到</small>
+                <b>{stats.notArrived}</b>
+              </Link>
+              {ev.mode === 'banquet' ? (
+                <Link to={`/e/${ev.id}/tables`}>
+                  <small>有人入席</small>
+                  <b>
+                    {tableStats.withArrivals}/{tableStats.total}
+                    <em> 席</em>
+                  </b>
+                </Link>
+              ) : (
+                <Link to={`/e/${ev.id}/logs`}>
+                  <small>重複</small>
+                  <b className={dupes ? 'warn' : ''}>{dupes}</b>
+                </Link>
+              )}
             </div>
           </section>
         )
       })()}
 
+      <Link to={`/e/${ev.id}/scan`} className="dash-scan">
+        <ScanLine size={22} /> {ev.mode === 'banquet' ? '掃描簽到' : ev.mode === 'bus' ? '掃描報到' : '掃描門票'}
+      </Link>
+
       <div className="metrics">
-        <MetricCard zh={ev.mode === 'bus' ? '乘客' : '總人數'} en="Total" value={stats.total} sub={`${stats.invitations} ${ev.modeConfig.anonymous ? '張門票' : '張邀請'}`} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
-        <MetricCard zh="已到" en="Arrived" value={stats.arrived} tone="ok" icon={<CheckCircle2 size={18} />} to={`/e/${ev.id}/guests?filter=arrived`} />
-        <MetricCard zh="未到" en="Not Arrived" value={stats.notArrived} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=not_arrived`} />
-        <MetricCard zh="出席率" en="Attendance" value={`${stats.rate}%`} tone="mode" sub={<ProgressBar value={stats.arrived} max={stats.total} />} />
-        <MetricCard zh="VIP" en="VIP" value={`${stats.vipArrived} / ${stats.vipTotal}`} icon={<Star size={18} />} to={`/e/${ev.id}/guests?filter=vip`} />
         {leftCount > 0 && <MetricCard zh="中途離開" en="Left Early" value={leftCount} icon={<UserX size={18} />} to={`/e/${ev.id}/guests?filter=left`} />}
         {ev.mode === 'banquet' && (
           <MetricCard zh="總席數" en="Tables" value={tableStats.total} sub={`${tableStats.withArrivals} 席已有人到`} icon={<TableIcon size={18} />} to={`/e/${ev.id}/tables`} />
@@ -298,11 +329,19 @@ export default function Dashboard() {
         </section>
 
         <section className="card">
-          <SectionTitle zh="最近簽到" en="Recent Check-ins" />
+          <SectionTitle zh={ev.mode === 'banquet' ? '最近入席' : ev.mode === 'bus' ? '最近報到' : '最近入場'} en="Recent" />
           {recent.length ? (
             <div className="list">
               {recent.map((e) => (
-                <GuestRow key={e.p.id} e={e} onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}`)} />
+                <Link key={e.p.id} to={`/e/${ev.id}/guests/${e.p.id}`} className="stamp-row">
+                  <Seal className="stamp-seal" />
+                  <span className="stamp-name">
+                    <b>{names(e.p).primary}</b>
+                    <small>{[names(e.p).secondary, e.tickets[0]?.ticketNumber || e.tickets[0]?.invitationId || e.p.memberId].filter(Boolean).join(' · ')}</small>
+                  </span>
+                  {e.p.vip && <span className="stamp-vip">VIP</span>}
+                  <span className="stamp-time">{e.p.checkedInAt ? formatTime(e.p.checkedInAt) : ''}</span>
+                </Link>
               ))}
             </div>
           ) : (

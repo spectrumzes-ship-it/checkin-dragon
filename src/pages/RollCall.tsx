@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import SwipeRow from '../components/SwipeRow'
+import Seal from '../components/Seal'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { setSettings, useSettings } from '../lib/settings'
@@ -275,6 +276,7 @@ export function RollCallSession() {
   const swipe = useRef<{ x: number; y: number } | null>(null)
   // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
   const seatMode = useSettings().rollView !== 'list'
+  const english = useSettings().language === 'en'
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -354,9 +356,7 @@ export function RollCallSession() {
             <span className={cx('rc-status', `st-${st}`)}>{st === 'present' ? '遲到' : ROLL_LABEL[st]}</span>
           )}
           {!selecting && (
-            <span className="rc-seal" aria-hidden="true">
-              到
-            </span>
+            <Seal className="rc-seal" />
           )}
         </button>
         {!selecting && st !== 'present' && e.p.phone && (
@@ -538,7 +538,7 @@ export function RollCallSession() {
                                 )
                                 const st = statusOf(e)
                                 return (
-                                  <button key={k} className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just')} onClick={() => toggle(e)} aria-pressed={st === 'present'}>
+                                  <button key={k} className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just', english && 'seal-en')} onClick={() => toggle(e)} aria-pressed={st === 'present'}>
                                     <small>{n}</small>
                                     <strong>{names(e.p).primary}</strong>
                                     {st !== 'pending' && st !== 'present' && <em>{ROLL_LABEL[st]}</em>}
