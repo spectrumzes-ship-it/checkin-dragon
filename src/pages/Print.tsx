@@ -1,5 +1,5 @@
 import { busRows, defaultLayout } from '../lib/busLayout'
-import { useMemo } from 'react'
+import { useMemo, Fragment } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
@@ -92,13 +92,15 @@ export default function Print() {
             const layout = ev.modeConfig.buses?.find((x) => x.label === b.label)?.layout ?? defaultLayout(b.capacity)
             const rows = busRows(b.capacity, layout)
             return (
-              <section key={b.id} className="print-sheet page">
-                {head(`${b.label} 車 · ${bySeat.size} / ${b.capacity} 位`)}
-                <div className="print-bus">
-                  <div className="print-bus-map">
-                    <div className="print-bus-front">車頭</div>
+              <Fragment key={b.id}>
+                {/* 第一頁：大座位圖（司機、領隊貼在車頭用） */}
+                <section className="print-sheet page">
+                  {head(`${b.label} 車 · 座位圖 · ${bySeat.size} / ${b.capacity} 位`)}
+                  {/* 座位格高度按排數計算，大車（13 排）也能放進一頁 A4 */}
+                  <div className="print-bus-map big" style={{ ['--seat-h' as string]: `${Math.min(18, Math.floor(225 / rows.length) - 2)}mm` }}>
+                    <div className="print-bus-front">車頭 FRONT</div>
                     {rows.map((row, r) => (
-                      <div key={r} className="print-bus-row" style={{ gridTemplateColumns: row.map((n) => (n === null ? '10px' : 'minmax(0, 1fr)')).join(' ') }}>
+                      <div key={r} className="print-bus-row" style={{ gridTemplateColumns: row.map((n) => (n === null ? '14px' : 'minmax(0, 1fr)')).join(' ') }}>
                         {row.map((n, k) =>
                           n ? (
                             <span key={k} className={bySeat.get(String(n)) ? 'seat taken' : 'seat'}>
@@ -112,6 +114,11 @@ export default function Print() {
                       </div>
                     ))}
                   </div>
+                  <footer className="print-foot">列印時間 {now}</footer>
+                </section>
+                {/* 第二頁：乘客名單（點名用） */}
+                <section className="print-sheet page">
+                  {head(`${b.label} 車 · 乘客名單 · ${bySeat.size} 人`)}
                   <table className="print-table">
                     <thead>
                       <tr>
@@ -138,9 +145,9 @@ export default function Print() {
                         ))}
                     </tbody>
                   </table>
-                </div>
-                <footer className="print-foot">列印時間 {now}</footer>
-              </section>
+                  <footer className="print-foot">列印時間 {now}</footer>
+                </section>
+              </Fragment>
             )
           })
       ) : type === 'all' ? (

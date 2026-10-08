@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Archive, CheckCircle2, Copy, Gift, ListChecks, Pencil, Plus, ScanLine, Search, Star, UserX, Users } from 'lucide-react'
+import { Archive, CheckCircle2, Copy, Gift, ListChecks, Pencil, Plus, ScanLine, Search, Star, UserX } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { duplicateEvent, logicLabel, logicOf, quantityLabel, setEventStatus, verifyCheckIn, type ScanOutcome } from '../lib/actions'
@@ -15,7 +15,7 @@ import Seal from '../components/Seal'
 import { TableIcon } from '../components/icons'
 import { GuestRow } from '../components/GuestRow'
 import { ScanResult } from '../components/ScanResult'
-import { ConfirmSheet, DonutChart, MetricCard, MiniBarChart, ProgressBar, SearchBar, SectionTitle, Sheet, toast } from '../components/ui'
+import { ConfirmSheet, DonutChart, MetricCard, MiniBarChart, ProgressBar, SearchBar, SectionTitle, Sheet, toast, CarsBar } from '../components/ui'
 
 // 禮品領取模式的「完成活動」摘要：派發數字
 function GiftNumbers({ ev }: { ev: EventRec }) {
@@ -33,15 +33,70 @@ function GiftNumbers({ ev }: { ev: EventRec }) {
 function GiftSummary({ ev }: { ev: EventRec }) {
   const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
+  const people = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
   const qty = reds.reduce((a, r) => a + r.quantity, 0)
+  const stock = items.length && items.every((i) => i.stock !== null) ? items.reduce((a, i) => a + (i.stock ?? 0), 0) : null
+  const byId = new Map(people.map((p) => [p.id, p]))
+  const itemName = new Map(items.map((i) => [i.id, i.name]))
+  const recent = [...reds].sort((a, b) => b.time - a.time).slice(0, 6)
   return (
     <>
-      <div className="metrics">
-        <MetricCard zh="禮品款式" en="Gifts" value={items.length} icon={<Gift size={18} />} to={`/e/${ev.id}/souvenirs`} />
-        <MetricCard zh="已派發" en="Given" value={qty} tone="ok" sub="份" icon={<CheckCircle2 size={18} />} />
-        <MetricCard zh="領取次數" en="Claims" value={reds.length} icon={<ListChecks size={18} />} />
-        <MetricCard zh="已登記領取人" en="Recipients" value={new Set(reds.map((r) => r.participantId).filter(Boolean)).size} icon={<Users size={18} />} to={`/e/${ev.id}/guests`} />
-      </div>
+      {/* 和色統一設計：大數字卡＋十格進度＋三格摘要 */}
+      <section className="dash-hero card">
+        <div className="dash-hero-top">
+          <span className="dash-hero-label">已派發 GIVEN</span>
+          <span className="dash-hero-num">
+            <b>{qty}</b>
+            <span>{stock !== null ? `/ ${stock} 份` : '份（不限數量）'}</span>
+          </span>
+          {stock !== null && (
+            <div className="dash-hero-meter">
+              <CarsBar value={qty} max={stock} />
+            </div>
+          )}
+        </div>
+        <div className="dash-split">
+          <Link to={`/e/${ev.id}/souvenirs`}>
+            <small>禮品款式</small>
+            <b>{items.length}</b>
+          </Link>
+          <Link to={`/e/${ev.id}/souvenirs/records`}>
+            <small>領取次數</small>
+            <b>{reds.length}</b>
+          </Link>
+          <Link to={`/e/${ev.id}/guests`}>
+            <small>已登記領取人</small>
+            <b>{new Set(reds.map((r) => r.participantId).filter(Boolean)).size}</b>
+          </Link>
+        </div>
+      </section>
+
+      <Link to={`/e/${ev.id}/scan`} className="dash-scan">
+        <ScanLine size={22} /> 掃描派發
+      </Link>
+
+      {recent.length > 0 && (
+        <section className="card" style={{ marginBottom: 16 }}>
+          <SectionTitle zh="最近領取" en="Recent" />
+          <div className="list">
+            {recent.map((r) => {
+              const p = byId.get(r.participantId)
+              return (
+                <Link key={r.id} to={p ? `/e/${ev.id}/guests/${p.id}` : `/e/${ev.id}/souvenirs/records?item=${r.itemId}`} className="stamp-row">
+                  <Seal className="stamp-seal" text="領" />
+                  <span className="stamp-name">
+                    <b>{p ? names(p).primary : '未登記領取人'}</b>
+                    <small>
+                      {itemName.get(r.itemId)} ×{r.quantity}
+                    </small>
+                  </span>
+                  <span className="stamp-time">{formatTime(r.time)}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
       <section className="card">
         <SectionTitle zh="禮品" en="Gifts" />
         {items.length ? (

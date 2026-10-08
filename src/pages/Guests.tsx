@@ -1,16 +1,17 @@
 import SwipeRow from '../components/SwipeRow'
+import Seal from '../components/Seal'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Ticket, Gift, Printer, Download } from 'lucide-react'
+import { Plus, Ticket, Printer, Download } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
-import { ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
+import { CarsBar, ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
 import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
@@ -150,6 +151,21 @@ export default function Guests() {
     <div className={`page guests-page ${gid ? 'has-detail' : ''}`}>
       {showList && (
         <div className="guests-list">
+          {/* 代表色摘要：已到（禮品領取模式為已領取）＋十格進度 */}
+          {(() => {
+            const active = index.filter((e) => e.p.status === 'active' && !e.p.giftOnly)
+            const done = gift ? index.filter((e) => e.p.status === 'active' && collected.has(e.p.id)).length : active.filter((e) => e.p.attendance !== 'not_arrived').length
+            const total = gift ? index.filter((e) => e.p.status === 'active').length : active.length
+            return (
+              <div className="guests-hero card">
+                <span className="dash-hero-label">{gift ? '已領取' : ev.mode === 'bus' ? '已報到' : ev.mode === 'banquet' ? '已入席' : '已入場'}</span>
+                <span className="guests-hero-num">
+                  <b>{done}</b> / {total} {anonymous ? '張' : '人'}
+                </span>
+                <CarsBar value={done} max={total} />
+              </div>
+            )
+          })()}
           <div className="toolbar sticky-toolbar">
             <div className="toolbar-row">
               <SearchBar value={q} onChange={setQ} placeholder="搜尋姓名／編號／電話／公司／座位" autoFocus={focus} />
@@ -232,9 +248,7 @@ export default function Guests() {
                       seating={hasSeating}
                       mark={
                         gift ? (
-                          <span className={collected.has(e.p.id) ? 'gift-mark done' : 'gift-mark'} aria-label={collected.has(e.p.id) ? '已領取' : '未領取'}>
-                            <Gift size={18} />
-                          </span>
+                          collected.has(e.p.id) ? <Seal className="gift-seal" text="領" /> : <span className="gift-seal empty" aria-label="未領取" />
                         ) : undefined
                       }
                       onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}${params.size ? `?${params}` : ''}`)}

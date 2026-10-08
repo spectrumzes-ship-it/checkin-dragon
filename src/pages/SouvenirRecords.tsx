@@ -3,6 +3,7 @@ import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Gift, ScanText, UserPlus } from 'lucide-react'
 import CardScanner from '../components/CardScanner'
+import Seal from '../components/Seal'
 import { db } from '../db/db'
 import type { EventRec, ScanMethod } from '../db/types'
 import {
@@ -183,6 +184,7 @@ export default function SouvenirRecords() {
                 const e = index.find((x) => x.p.id === r.participantId)
                 return (
                   <button key={r.id} className="fcfs-row" onClick={() => setUndo({ rid: r.id, name: e ? nameOf(e.p) : '未登記領取人' })}>
+                    <Seal className="gift-seal" text="領" />
                     <span>
                       <strong>{e ? nameOf(e.p) : '未登記'}</strong>
                       <span className="muted">
@@ -224,11 +226,7 @@ export default function SouvenirRecords() {
                   <GuestRow
                     key={e.p.id}
                     e={e}
-                    mark={
-                      <span className="gift-mark done" aria-label="已領取">
-                        <Gift size={18} />
-                      </span>
-                    }
+                    mark={<Seal className="gift-seal" text="領" />}
                     onClick={() => setUndo({ pid: e.p.id, name: nameOf(e.p) })}
                     trailing={
                       <span className="record-meta">
@@ -247,7 +245,7 @@ export default function SouvenirRecords() {
           ) : pending.length ? (
             <div className="list card">
               {pending.map((e) => (
-                <GuestRow key={e.p.id} e={e} mark={<span className="gift-mark" aria-label="未領取" />} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
+                <GuestRow key={e.p.id} e={e} mark={<span className="gift-seal empty" aria-label="未領取" />} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
               ))}
             </div>
           ) : (

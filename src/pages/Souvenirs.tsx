@@ -8,7 +8,7 @@ import { eligibilityLabel, logicLabel, logicOf, perClaimOf, quantityLabel, saveS
 import { uid } from '../lib/util'
 import { useSettings } from '../lib/settings'
 import { GiftArt } from '../illustrations'
-import { EmptyState, PageHeader, ProgressBar, Sheet, toast } from '../components/ui'
+import { EmptyState, PageHeader, CarsBar, Sheet, toast } from '../components/ui'
 
 
 const LOGICS: [SouvenirLogic, string, string][] = [
@@ -78,7 +78,7 @@ export default function Souvenirs() {
                   {qty}
                   <small>{it.stock !== null ? ` / ${it.stock} 已派` : ' 已派'}</small>
                 </p>
-                {it.stock !== null && <ProgressBar value={qty} max={it.stock} tone={low ? 'warn' : 'mode'} />}
+                {it.stock !== null && <CarsBar value={qty} max={it.stock} tone={low ? 'warn' : undefined} />}
                 <p className={low ? 'warn-text' : 'muted'}>
                   {people} 位嘉賓已領{left !== null && ` · 剩 ${left}`}
                   {low && ' · 庫存不足'}

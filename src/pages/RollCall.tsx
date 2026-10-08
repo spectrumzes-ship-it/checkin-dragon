@@ -524,7 +524,7 @@ export function RollCallSession() {
                     return (
                       <>
                         <p className="hint">點座位即上車／取消；在途中、請假等其他狀態請用「名單」的「⋯」。</p>
-                        <div className="rc-seatmap" style={{ maxWidth: (rows[0]?.length ?? 5) * 120 }}>
+                        <div className="rc-seatmap">
                           <div className="bus-front">車頭 Front</div>
                           {rows.map((row, r) => (
                             <div key={r} className="bus-row" style={{ gridTemplateColumns: row.map((n) => (n === null ? '14px' : 'minmax(0, 1fr)')).join(' ') }}>
@@ -838,7 +838,6 @@ export function BusSeats() {
           index.forEach((e) => e.seats.forEach((s) => s.resource.id === b.id && e.p.status === 'active' && bySeat.set(s.seatLabel, e)))
           const layout = ev.modeConfig.buses?.find((x) => x.label === b.label)?.layout ?? defaultLayout(b.capacity)
           const rows = busRows(b.capacity, layout)
-          const cols = rows[0]?.length ?? 5
           return (
             <section key={b.id} className="card bus-block">
               <h2 className="bus-title">
@@ -847,7 +846,7 @@ export function BusSeats() {
                   Bus {b.label} · {bySeat.size} / {b.capacity} · {layout.replace('+', '＋')} 排列
                 </small>
               </h2>
-              <div className="bus-grid" style={{ maxWidth: cols * 100 }}>
+              <div className="bus-grid">
                 <div className="bus-front">車頭 Front</div>
                 {rows.map((row, r) => (
                   <div className="bus-row" key={r} style={{ gridTemplateColumns: row.map((n) => (n === null ? '18px' : 'minmax(0, 1fr)')).join(' ') }}>

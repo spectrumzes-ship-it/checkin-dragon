@@ -479,3 +479,18 @@ export const ToastHost = () => {
     </div>
   ) : null
 }
+
+// 十格「車廂式」進度（和色方案共用）；tone=warn 表示不足（例如庫存快用完）
+export const CarsBar = ({ value, max, tone, showPct = true }: { value: number; max: number; tone?: 'warn'; showPct?: boolean }) => {
+  const pct = max ? Math.round((value / max) * 100) : 0
+  return (
+    <div className={cx('cars-bar', tone === 'warn' && 'warn')} aria-label={`${pct}%`}>
+      <div className="rc-cars-row">
+        {Array.from({ length: 10 }, (_, i) => (
+          <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
+        ))}
+      </div>
+      {showPct && <b>{pct}%</b>}
+    </div>
+  )
+}

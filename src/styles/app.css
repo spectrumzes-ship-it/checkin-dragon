@@ -5924,3 +5924,195 @@ body:has(.rc-dock) .toast {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* ===== 和色：嘉賓名單、紀念品、禮品領取 ===== */
+/* 十格進度（共用） */
+.cars-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.cars-bar .rc-cars-row i.on {
+  background: var(--mode-solid);
+}
+.cars-bar .rc-cars-row i.half {
+  background: linear-gradient(90deg, var(--mode-solid) 50%, var(--border) 50%);
+}
+.cars-bar.warn .rc-cars-row i.on {
+  background: #c8442f;
+}
+.cars-bar.warn .rc-cars-row i.half {
+  background: linear-gradient(90deg, #c8442f 50%, var(--border) 50%);
+}
+.cars-bar b {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 篩選標籤、分頁：選中用代表色 */
+[data-mode] .chip.active {
+  background: var(--mode-solid);
+  border-color: var(--mode-solid);
+  color: #fff;
+}
+[data-mode] .tabs button.active {
+  color: var(--mode-ink);
+  border-color: var(--mode-ink);
+  border-bottom-width: 3px;
+}
+/* 嘉賓名單頂部摘要 */
+.guests-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-left: 6px solid var(--mode-ink);
+  flex-wrap: wrap;
+}
+.guests-hero-num {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.guests-hero-num b {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--mode-ink);
+}
+.guests-hero .cars-bar {
+  min-width: 160px;
+}
+/* 紀念品卡：左邊代表色色條、圖示方塊淺色、大數字窄身字體 */
+.souvenir-card {
+  border-left: 6px solid var(--mode-ink);
+}
+.souvenir-icon {
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+}
+.big-num {
+  font-family: 'Barlow Condensed', 'Arial Narrow', var(--font);
+  font-size: 44px;
+  color: var(--mode-ink);
+}
+.big-num small {
+  font-family: var(--font);
+}
+/* 「領」印章（紀念品已領取） */
+.gift-seal {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2.5px solid #c8442f;
+  color: #c8442f;
+  background: rgba(255, 255, 255, 0.7);
+  font-weight: 900;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transform: rotate(-12deg);
+  flex-shrink: 0;
+}
+.gift-seal.empty {
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  transform: none;
+}
+.gift-seal.seal-en {
+  transform: none;
+  border-color: var(--ok-ink);
+  background: var(--ok-ink);
+  color: #fff;
+}
+.fcfs-row {
+  justify-content: flex-start;
+}
+.fcfs-row > span:not(.gift-seal) {
+  flex: 1;
+}
+/* 禮品領取模式：代表色山吹，主要按鈕用深山吹色（白字對比足夠），色條用亮山吹 */
+[data-mode='gift'] .guests-hero,
+[data-mode='gift'] .souvenir-card {
+  border-left-color: #f8b500;
+}
+/* 嘉賓名單工具列：搜尋框可縮小，列印／匯出／新增按鈕不會被擠出畫面 */
+.toolbar-row .search {
+  flex: 1;
+  min-width: 0;
+}
+.toolbar-row > .icon-btn,
+.toolbar-row > .btn {
+  flex-shrink: 0;
+}
+
+/* ===== 旅遊座位：平板及電腦用較大的座位格，填滿可用闊度；兩架車在闊螢幕並排 ===== */
+.bus-grid,
+.rc-seatmap {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+@media (min-width: 768px) {
+  .bus-seat {
+    min-height: 72px;
+    font-size: 15px;
+  }
+  .bus-seat small {
+    font-size: 12px;
+  }
+  .bus-row {
+    gap: 8px;
+  }
+  .bus-grid {
+    gap: 8px;
+  }
+  .rc-seat-cell {
+    min-height: 80px;
+  }
+  .rc-seat-cell strong {
+    font-size: 16px;
+  }
+}
+@media (min-width: 1280px) {
+  .page:has(> .bus-block + .bus-block) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .page:has(> .bus-block + .bus-block) > .seatlist-head {
+    grid-column: 1 / -1;
+  }
+}
+/* 列印：座位圖獨立一頁、填滿 A4 闊度；乘客名單另一頁 */
+.print-bus-map.big {
+  gap: 6px;
+  max-width: 180mm;
+  margin: 8mm auto 0;
+}
+.print-bus-map.big .print-bus-front {
+  font-size: 12px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+.print-bus-map.big .print-bus-row {
+  gap: 6px;
+}
+.print-bus-map.big .seat {
+  min-height: 16mm;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.print-bus-map.big .seat small {
+  font-size: 10px;
+}
+.print-bus-map.big .seat.taken {
+  border-color: #333;
+}
+.print-bus-map.big .seat {
+  min-height: var(--seat-h, 16mm);
+}
