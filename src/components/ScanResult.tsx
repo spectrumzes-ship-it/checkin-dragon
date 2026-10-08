@@ -32,7 +32,7 @@ export const ScanResult = ({
   onReentry?: () => void
   onDetails?: () => void
 }) => {
-  const { autoReturn } = useSettings()
+  const { autoReturn, language: lang } = useSettings()
   const [paused, setPaused] = useState(false)
   const done = useRef(onDone)
   done.current = onDone
@@ -93,9 +93,14 @@ export const ScanResult = ({
               <div className="result-seats">
                 {outcome.seats.map((s, i) => (
                   <span key={i}>
-                    {s.resource.type === 'table'
-                      ? `${s.resource.purpose === '晚餐' ? '晚餐 ' : ''}Table ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
-                      : `Bus ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`}
+                    {/* 中文介面：第 7 席 · 座位 10；英文介面：Table 7 · Seat 10 */}
+                    {lang === 'en'
+                      ? s.resource.type === 'table'
+                        ? `${s.resource.purpose === '晚餐' ? 'Dinner ' : ''}Table ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
+                        : `Bus ${s.resource.label}${s.seatLabel ? ` · Seat ${s.seatLabel}` : ''}`
+                      : s.resource.type === 'table'
+                        ? `${s.resource.purpose === '晚餐' ? '晚餐 ' : ''}第 ${s.resource.label.replace(/^0+(?=\d)/, '')} 席${s.seatLabel ? ` · 座位 ${s.seatLabel}` : ''}`
+                        : `${s.resource.label} 車${s.seatLabel ? ` · 座位 ${s.seatLabel}` : ''}`}
                   </span>
                 ))}
               </div>
