@@ -3,7 +3,6 @@ import SwipeRow from '../components/SwipeRow'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { busRows, defaultLayout } from '../lib/busLayout'
 import { setSettings, useSettings } from '../lib/settings'
-import { useMediaQuery } from '../lib/hooks'
 import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -222,10 +221,8 @@ export function RollCallSession() {
   const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
   const [pane, setPane] = useState('') // 點名頁顯示哪一組：巴士 id／'none'／'everyone'（全員名單）
   const swipe = useRef<{ x: number; y: number } | null>(null)
-  // 平板／電腦（闊 768 以上）預設用座位表點名；手機預設用名單；手動選擇後記住在這部裝置
-  const wide = useMediaQuery('(min-width: 768px)')
-  const rollView = useSettings().rollView
-  const seatMode = rollView === 'seats' || (rollView === 'auto' && wide)
+  // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
+  const seatMode = useSettings().rollView !== 'list'
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -406,11 +403,11 @@ export function RollCallSession() {
                 )}
                 {grp.key !== NO_BUS && (
                   <div className="seg rc-viewmode" role="radiogroup" aria-label="點名方式">
-                    <button role="radio" aria-checked={!seatMode} className={!seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'list' })}>
-                      <List size={16} /> 名單
-                    </button>
                     <button role="radio" aria-checked={seatMode} className={seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'seats' })}>
                       <Armchair size={16} /> 座位表
+                    </button>
+                    <button role="radio" aria-checked={!seatMode} className={!seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'list' })}>
+                      <List size={16} /> 名單
                     </button>
                   </div>
                 )}
