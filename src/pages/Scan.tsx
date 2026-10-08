@@ -131,6 +131,13 @@ export default function Scan() {
     if (ev === null) setSettings({ currentEventId: null })
   }, [id, ev])
 
+  const purposeOptions: [string, string][] = [
+    ...(ev?.mode !== 'gift' ? [['checkin', '簽到'] as [string, string]] : []),
+    ...sessions.map((x): [string, string] => [`r:${x.id}`, `點名：${x.name}`]),
+    ...souvenirs.map((x): [string, string] => [`s:${x.id}`, `${ev?.mode === 'gift' ? '禮品' : '紀念品'}：${x.name}`]),
+  ]
+  // 方塊內只顯示簡短名稱（「禮品：」「紀念品：」等前綴已由「掃描目的」說明）
+  const purposeLabel = (purposeOptions.find(([v]) => v === purposeKey)?.[1] ?? '簽到').replace(/^(禮品|紀念品)：/, '')
   const addTo = purpose === 'souvenir' ? `/e/${id}/souvenirs/records?item=${targetId}&tab=pending&reg=1` : `/e/${id}/guests/new`
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
 
@@ -282,10 +289,15 @@ export default function Scan() {
         <button className="scan-icon" aria-label="關閉掃描" onClick={() => nav(`/e/${ev.id}`)}>
           <X size={24} />
         </button>
+        {/* 左：活動；右：掃描目的（按整個方塊即彈出選單） */}
         <div className="scan-title">
-          <label className="scan-event">
-            <ModeIcon mode={ev.mode} size={16} />
-            <span className="scan-event-name">{ev.name}</span>
+          <label className="scan-pick">
+            <ModeIcon mode={ev.mode} size={18} />
+            <span className="scan-pick-text">
+              <small>活動</small>
+              <b>{ev.name}</b>
+            </span>
+            <ChevronDown size={16} />
             <select value={ev.id} onChange={(e) => nav(`/e/${e.target.value}/scan`, { replace: true })} aria-label="切換活動">
               {eventChoices.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -293,34 +305,27 @@ export default function Scan() {
                 </option>
               ))}
             </select>
-            <ChevronDown size={16} />
           </label>
-          <select
-            className="scan-purpose"
-            value={purposeKey}
-            onChange={(e) => setParams({ p: e.target.value }, { replace: true })}
-            aria-label="掃描目的"
-          >
-            {ev.mode !== 'gift' && <option value="checkin">簽到 Check-In</option>}
-            {sessions.map((s) => (
-              <option key={s.id} value={`r:${s.id}`}>
-                點名：{s.name}
-              </option>
-            ))}
-            {souvenirs.map((s) => (
-              <option key={s.id} value={`s:${s.id}`}>
-                {ev.mode === 'gift' ? '禮品' : '紀念品'}：{s.name}
-              </option>
-            ))}
-          </select>
+          <label className="scan-pick purpose">
+            <span className="scan-pick-text">
+              <small>掃描目的</small>
+              <b>{purposeLabel}</b>
+            </span>
+            <ChevronDown size={16} />
+            <select value={purposeKey} onChange={(e) => setParams({ p: e.target.value }, { replace: true })} aria-label="掃描目的">
+              {purposeOptions.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {cam.torchSupported ? (
           <button className={cx('scan-icon', cam.torch && 'on')} aria-label={cam.torch ? '關閉手電筒' : '開啟手電筒'} aria-pressed={cam.torch} onClick={() => cam.setTorch(!cam.torch)}>
             {cam.torch ? <Flashlight size={22} /> : <FlashlightOff size={22} />}
           </button>
-        ) : (
-          <span className="scan-icon ghost" />
-        )}
+        ) : null}
       </header>
 
       <div className={cx('scan-view', mode === 'manual' && 'compact')}>
