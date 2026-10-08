@@ -1,6 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
+// 點名頁的數字（看板、進度、出發時間）用窄身字體，較易一眼看清
+import '@fontsource/barlow-condensed/600.css'
+import '@fontsource/barlow-condensed/700.css'
 import './styles/tokens.css'
 import './styles/app.css'
 import App from './App'

@@ -6,7 +6,7 @@ import { setSettings, useSettings } from '../lib/settings'
 import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Flag, LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, CircleCheck } from 'lucide-react'
+import { LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, CircleCheck, ChevronLeft } from 'lucide-react'
 import { db } from '../db/db'
 import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
 import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
@@ -204,6 +204,10 @@ export default function RollCall() {
 
 const ICON = { present: 'arrived', pending: 'waiting', on_the_way: 'otw', excused: 'excused', no_show: 'warn' } as const
 
+// 路線色：每架車一個顏色（像日本鐵路的路線標記），按車的次序分配
+const LINE_COLORS = ['#1f4fa3', '#3d7a3a', '#8a4fa8', '#b5701b', '#1b7f8c', '#a8324a']
+const lineColor = (i: number) => LINE_COLORS[i % LINE_COLORS.length]
+
 type View = 'roll' | 'present' | 'pending' | 'on_the_way' | 'excused'
 const EVERYONE = 'everyone'
 
@@ -239,6 +243,17 @@ export function RollCallSession() {
     .map((g) => ({ ...g, list: people.filter((e) => busKey(e) === g.key).sort((a, b) => seatNo(a) - seatNo(b)) }))
     .filter((g) => g.list.length)
   const leftOut = index.filter((e) => e.p.status === 'active' && e.p.leftAt && !recOf.has(e.p.id))
+  // 路線色標記：車 = 該車顏色及車號；未分車 = 灰色；全員 = 深色「全」
+  const LineMark = ({ k }: { k: string }) => {
+    const i = buses.findIndex((b) => b.id === k)
+    const text = k === EVERYONE ? '全' : i >= 0 ? buses[i].label.slice(0, 2) : '–'
+    const bg = k === EVERYONE ? 'var(--text)' : i >= 0 ? lineColor(i) : 'var(--text-3)'
+    return (
+      <span className="rc-mark-line" style={{ background: bg }} aria-hidden="true">
+        {text}
+      </span>
+    )
+  }
   const panes = [...groups.map((x) => ({ key: x.key, label: x.label })), { key: EVERYONE, label: '全員名單' }]
   const current = panes.some((p) => p.key === pane) ? pane : panes[0].key
 
@@ -321,22 +336,31 @@ export function RollCallSession() {
 
   return (
     <div className="page narrow rollcall">
-      <PageHeader
-        zh={session.name.split(' ')[0]}
-        en={`${session.time}${session.location ? ` · ${session.location}` : ''}`}
-        back={`/e/${ev.id}/rollcall`}
-        actions={
-          <>
-            {/* 一鍵重點：保留這個點名，所有人改回「待上車」 */}
-            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0 && !session.closedAt && !Object.keys(session.closedBuses ?? {}).length}>
-              <RotateCcw size={16} /> 重新點名
-            </button>
-            <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
-              <ScanLine size={18} /> 掃描
-            </Link>
-          </>
-        }
-      />
+      {/* 站名牌式標題：活動名（小）、點名名稱（大）、英文名／地點／時間，下面是各車的路線色帶 */}
+      <header className="rc-sign">
+        <div className="rc-sign-top">
+          <Link to={`/e/${ev.id}/rollcall`} className="icon-btn" aria-label="返回點名列表">
+            <ChevronLeft size={22} />
+          </Link>
+          <span className="rc-sign-crumb">{ev.name}</span>
+          {/* 一鍵重點：保留這個點名，所有人改回「待上車」 */}
+          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0 && !session.closedAt && !Object.keys(session.closedBuses ?? {}).length}>
+            <RotateCcw size={16} /> 重新點名
+          </button>
+          <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
+            <ScanLine size={18} /> 掃描
+          </Link>
+        </div>
+        <div className="rc-station">
+          <h1>{session.name.split(' ')[0]}</h1>
+          <div className="rc-roman">{[session.name.split(' ').slice(1).join(' '), session.location, session.time].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div className="rc-stripe" aria-hidden="true">
+          {(buses.length ? buses : [null]).map((b, i) => (
+            <i key={b?.id ?? i} style={{ background: b ? lineColor(i) : 'var(--text)' }} />
+          ))}
+        </div>
+      </header>
 
       {/* 狀態分類：點名（按車點名＋全員名單）／已上車／待上車（含已出發未到）／在途中／請假 */}
       <div className="rc-stats">
@@ -347,13 +371,32 @@ export function RollCallSession() {
           </button>
         ))}
       </div>
+      {/* 車廂式進度：十格 = 0–100%（應到 = 全部 − 請假） */}
+      {(() => {
+        const exp = people.length - by('excused').length
+        const pct = exp ? Math.round((present.length / exp) * 100) : 0
+        return (
+          <div className="rc-cars" aria-label={`上車進度 ${pct}%`}>
+            <div className="rc-cars-row">
+              {Array.from({ length: 10 }, (_, i) => (
+                <i key={i} className={pct >= (i + 1) * 10 ? 'on' : pct > i * 10 + 4 ? 'half' : ''} />
+              ))}
+            </div>
+            <b>{pct}%</b>
+            <small>
+              {present.length} / {exp} 人
+            </small>
+          </div>
+        )
+      })()}
 
       {view === 'roll' ? (
         <>
           {/* A 車／B 車／全員名單：按上面切換，或在名單上左右掃動 */}
-          <div className="seg rc-panes" role="tablist">
+          <div className="rc-panes" role="tablist">
             {panes.map((p) => (
-              <button key={p.key} role="tab" aria-selected={current === p.key} className={current === p.key ? 'active' : ''} onClick={() => setPane(p.key)}>
+              <button key={p.key} role="tab" aria-selected={current === p.key} className={cx('rc-line', current === p.key && 'active')} onClick={() => setPane(p.key)}>
+                <LineMark k={p.key} />
                 {p.label}
               </button>
             ))}
@@ -374,33 +417,19 @@ export function RollCallSession() {
             }}
           >
           {groups.filter((x) => x.key === current).map((grp) => {
-            const closedAt = busClosedAt(session, grp.key)
             const here = countIn(grp.list, 'present')
             const exp = grp.list.length - countIn(grp.list, 'excused')
             return (
               <section key={grp.key} className="rc-bus">
                 <header className="rc-bus-head">
+                  <LineMark k={grp.key} />
                   <strong>{grp.label}</strong>
                   <span className={cx('rc-bus-count', here === exp && 'done')}>
                     已上車 {here} / {exp}
                     {countIn(grp.list, 'on_the_way') ? ` · 在途中 ${countIn(grp.list, 'on_the_way')}` : ''}
                     {countIn(grp.list, 'excused') ? ` · 請假 ${countIn(grp.list, 'excused')}` : ''}
                   </span>
-                  {closedAt ? (
-                    <button className="btn btn-ghost btn-sm" onClick={() => setReopening(grp.key)}>
-                      重新開放
-                    </button>
-                  ) : (
-                    <button className="btn btn-primary btn-sm" onClick={() => setClosing(grp.key)}>
-                      <Flag size={16} /> 確認出發
-                    </button>
-                  )}
                 </header>
-                {closedAt && (
-                  <p className="rc-closed">
-                    <Flag size={14} /> 已於 {formatTime(closedAt)} 確認出發 · 未到 {countIn(grp.list, 'no_show')} 人。遲到的人點名字即可補登。
-                  </p>
-                )}
                 {grp.key !== NO_BUS && (
                   <div className="seg rc-viewmode" role="radiogroup" aria-label="點名方式">
                     <button role="radio" aria-checked={seatMode} className={seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'seats' })}>
@@ -478,6 +507,49 @@ export function RollCallSession() {
           </section>
           )}
           </div>
+
+          {/* 發車表式「確認出發」：固定在畫面底部，按目前顯示的車 */}
+          {current !== EVERYONE && g(current) && (() => {
+            const grp = g(current)!
+            const closedAt = busClosedAt(session, grp.key)
+            const left = countIn(grp.list, 'pending', 'on_the_way')
+            return (
+              <div className="rc-dock">
+                <div className="rc-depart">
+                  <div className="rc-depart-info">
+                    <div className="rc-led">
+                      {closedAt ? formatTime(closedAt) : session.time || '--:--'}
+                      <span>
+                        {grp.label} {closedAt ? '已出發' : '出發'}
+                      </span>
+                    </div>
+                    <small>
+                      {closedAt ? (
+                        <>
+                          未到 <em>{countIn(grp.list, 'no_show')} 人</em> · 遲到的人點名字即可補登
+                        </>
+                      ) : left ? (
+                        <>
+                          還有 <em>{left} 人</em> 未上車
+                        </>
+                      ) : (
+                        '全部到齊'
+                      )}
+                    </small>
+                  </div>
+                  {closedAt ? (
+                    <button className="rc-go sec" onClick={() => setReopening(grp.key)}>
+                      重新開放
+                    </button>
+                  ) : (
+                    <button className="rc-go" onClick={() => setClosing(grp.key)}>
+                      確認出發
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {leftOut.length > 0 && (
             <section className="rc-all rc-left">
