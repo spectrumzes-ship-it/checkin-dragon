@@ -378,8 +378,8 @@ describe('點名狀態', () => {
   })
 })
 
-describe('每架車分開確認發車', () => {
-  it('A 車發車只影響 A 車；B 車仍可點名；補登 A 車記為遲到', async () => {
+describe('每架車分開確認出發', () => {
+  it('A 車出發只影響 A 車；B 車仍可點名；補登 A 車記為遲到', async () => {
     const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }, { label: 'B', capacity: 45 }] })
     const [busA, busB] = (await db.resources.toArray()).filter((r) => r.type === 'bus').sort((x, y) => x.sortOrder - y.sortOrder)
     const a1 = await guest(e.id, 'A1', 'K1', { busId: busA.id, busSeat: '1' })
@@ -418,7 +418,7 @@ describe('點名數字規則', () => {
     await guest(e.id, 'F', 'N6') // 結束後才加入：算未到
     k = await counts()
     expect(k.no_show).toBe(3)
-    expect(rollSummary(k)).toContain('全部已發車')
+    expect(rollSummary(k)).toContain('全部已出發')
     await setGuestCancelled(d, true)
     expect((await verifyRollCall(e.id, s.id, 'N4', 'QR')).result).toBe('invalid')
   })

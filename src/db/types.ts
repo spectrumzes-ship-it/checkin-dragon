@@ -129,7 +129,7 @@ export interface AttendanceSession {
   createdAt: number
   closedAt?: number // 舊版：整個點名一起結束的時間
   closedBy?: string
-  closedBuses?: Record<string, number> // 每架車各自「確認發車」的時間（key = 巴士 id；'none' = 未分車的人）
+  closedBuses?: Record<string, number> // 每架車各自「確認出發」的時間（key = 巴士 id；'none' = 未分車的人）
 }
 
 // 點名狀態：沒有紀錄 = 待上車（點名進行中不會顯示「缺席」）

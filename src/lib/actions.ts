@@ -631,7 +631,7 @@ export const busKeyOf = async (pid: string) => {
   return NO_BUS
 }
 
-// 確認發車（每架車分開）：這架車仍「待上車」的人批次記為「未到」（在途中、請假的人不變）
+// 確認出發（每架車分開）：這架車仍「待上車」的人批次記為「未到」（在途中、請假的人不變）
 export const closeSession = async (sessionId: string, eventId: string, pendingIds: string[], busKey: string, busLabel = '') => {
   const { operator, deviceId } = who()
   const now = Date.now()
@@ -639,7 +639,7 @@ export const closeSession = async (sessionId: string, eventId: string, pendingId
     await db.attendance.bulkPut(pendingIds.map((pid) => ({ id: `${sessionId}:${pid}`, sessionId, eventId, participantId: pid, status: 'no_show' as const, checkedAt: now, deviceId, operator })))
     const s = await db.sessions.get(sessionId)
     await db.sessions.update(sessionId, { closedBuses: { ...(s?.closedBuses ?? {}), [busKey]: now }, closedBy: operator })
-    await audit(eventId, `確認發車${busLabel ? ` ${busLabel}` : ''}（未到 ${pendingIds.length} 人）`, 'session', sessionId)
+    await audit(eventId, `確認出發${busLabel ? ` ${busLabel}` : ''}（未到 ${pendingIds.length} 人）`, 'session', sessionId)
   })
 }
 
@@ -650,7 +650,7 @@ export const reopenSession = async (sessionId: string, eventId: string, busKey: 
   const s = await db.sessions.get(sessionId)
   const closedBuses = { ...(s?.closedBuses ?? {}) }
   delete closedBuses[busKey]
-  // 舊資料（整個點名一起結束）：重新開放其中一架車時，其他車保持已發車
+  // 舊資料（整個點名一起結束）：重新開放其中一架車時，其他車保持已出發
   const legacy = s?.closedAt
   if (legacy) for (const r of await db.resources.where('eventId').equals(eventId).filter((x) => x.type === 'bus').toArray()) if (r.id !== busKey && !(r.id in closedBuses)) closedBuses[r.id] = legacy
   if (legacy && busKey !== NO_BUS && !(NO_BUS in closedBuses)) closedBuses[NO_BUS] = legacy

@@ -214,7 +214,7 @@ export function RollCallSession() {
   const recs = useLiveQuery(() => (sid ? db.attendance.where('sessionId').equals(sid).toArray() : []), [sid]) ?? []
   const { data, index } = useEventData(ev.id)
   const [confirmClear, setConfirmClear] = useState(false)
-  const [closing, setClosing] = useState<string | null>(null) // 正在確認發車的車（巴士 id 或 'none'）
+  const [closing, setClosing] = useState<string | null>(null) // 正在確認出發的車（巴士 id 或 'none'）
   const [reopening, setReopening] = useState<string | null>(null)
   const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
   const [view, setView] = useState<View>('roll')
@@ -242,7 +242,7 @@ export function RollCallSession() {
   const panes = [...groups.map((x) => ({ key: x.key, label: x.label })), { key: EVERYONE, label: '全員名單' }]
   const current = panes.some((p) => p.key === pane) ? pane : panes[0].key
 
-  // 點一下名字：未上車 → 已上車；已上車 → 改回（已發車的車會變回未到）。已發車後補登記為遲到
+  // 點一下名字：未上車 → 已上車；已上車 → 改回（已出發的車會變回未到）。已出發後補登記為遲到
   const toggle = async (e: GuestEntry) => {
     const toPresent = statusOf(e) !== 'present'
     feedback(toPresent ? 'valid' : 'tap')
@@ -338,7 +338,7 @@ export function RollCallSession() {
         }
       />
 
-      {/* 狀態分類：點名（按車點名＋全員名單）／已上車／待上車（含已發車未到）／在途中／請假 */}
+      {/* 狀態分類：點名（按車點名＋全員名單）／已上車／待上車（含已出發未到）／在途中／請假 */}
       <div className="rc-stats">
         {tabs.map(([k, zh, n, tone]) => (
           <button key={k} className={cx(tone, view === k && 'active')} aria-pressed={view === k} onClick={() => setView(view === k ? 'roll' : k)}>
@@ -392,13 +392,13 @@ export function RollCallSession() {
                     </button>
                   ) : (
                     <button className="btn btn-primary btn-sm" onClick={() => setClosing(grp.key)}>
-                      <Flag size={16} /> 確認發車
+                      <Flag size={16} /> 確認出發
                     </button>
                   )}
                 </header>
                 {closedAt && (
                   <p className="rc-closed">
-                    <Flag size={14} /> 已於 {formatTime(closedAt)} 確認發車 · 未到 {countIn(grp.list, 'no_show')} 人。遲到的人點名字即可補登。
+                    <Flag size={14} /> 已於 {formatTime(closedAt)} 確認出發 · 未到 {countIn(grp.list, 'no_show')} 人。遲到的人點名字即可補登。
                   </p>
                 )}
                 {grp.key !== NO_BUS && (
@@ -526,14 +526,14 @@ export function RollCallSession() {
                   <small>
                     {st === 'present'
                       ? isBusClosed(session, busKey(menu))
-                        ? '這架車已發車，會記為遲到'
+                        ? '這架車已出發，會記為遲到'
                         : '已核實上車'
                       : st === 'on_the_way'
                         ? '已聯絡，正在趕來（避免重複催促）'
                         : st === 'excused'
                           ? '事前告知不來；座位保留，可釋出'
                           : st === 'no_show'
-                            ? '發車時仍未到'
+                            ? '出發時仍未到'
                             : '還未上車'}
                   </small>
                 </span>
@@ -550,9 +550,9 @@ export function RollCallSession() {
           if (!closingGroup) return
           const pend = closingGroup.list.filter((e) => statusOf(e) === 'pending')
           await closeSession(session.id, ev.id, pend.map((e) => e.p.id), closingGroup.key, closingGroup.label)
-          toast(pend.length ? `${closingGroup.label}已確認發車，${pend.length} 人記為未到` : `${closingGroup.label}已確認發車，全部到齊`)
+          toast(pend.length ? `${closingGroup.label}已確認出發，${pend.length} 人記為未到` : `${closingGroup.label}已確認出發，全部到齊`)
         }}
-        title={`確認發車 · ${closingGroup?.label ?? ''}`}
+        title={`確認出發 · ${closingGroup?.label ?? ''}`}
         message={
           closingGroup && (
             <p>
@@ -562,7 +562,7 @@ export function RollCallSession() {
             </p>
           )
         }
-        confirmText="確認發車"
+        confirmText="確認出發"
       />
       <ConfirmSheet
         open={!!reopenGroup}
@@ -586,7 +586,7 @@ export function RollCallSession() {
         title="重新點名"
         message={
           <p>
-            把「{session.name}」所有車的所有人（已上車 {present.length} 人，以及在途中、請假、未到的標記）全部改回「待上車」，並取消所有「確認發車」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
+            把「{session.name}」所有車的所有人（已上車 {present.length} 人，以及在途中、請假、未到的標記）全部改回「待上車」，並取消所有「確認出發」，重新點一次？點名環節會保留，此操作會記錄在操作紀錄。
           </p>
         }
         confirmText="重新點名"

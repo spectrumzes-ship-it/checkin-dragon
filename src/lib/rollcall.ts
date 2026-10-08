@@ -1,11 +1,11 @@
 import type { AttendanceRecord, AttendanceSession, Participant, RollStatus } from '../db/types'
 
 // 點名的共用規則（點名頁、點名列表、統計頁都用同一套，數字才會一致）
-// 每架車分開點名、分開「確認發車」；沒有安排巴士的人歸入「未分車」（key = 'none'）
+// 每架車分開點名、分開「確認出發」；沒有安排巴士的人歸入「未分車」（key = 'none'）
 
 export const NO_BUS = 'none'
 
-// 這架車（或未分車）是否已確認發車；舊資料的 closedAt = 所有車一起結束
+// 這架車（或未分車）是否已確認出發；舊資料的 closedAt = 所有車一起結束
 export const busClosedAt = (s: AttendanceSession, busKey: string) => s.closedBuses?.[busKey] ?? s.closedAt
 export const isBusClosed = (s: AttendanceSession, busKey: string) => !!busClosedAt(s, busKey)
 
@@ -13,7 +13,7 @@ export const isBusClosed = (s: AttendanceSession, busKey: string) => !!busClosed
 export const rollPeople = <T extends { p: Participant }>(list: T[], recs: Map<string, AttendanceRecord>) =>
   list.filter((e) => e.p.status === 'active' && !e.p.giftOnly && (!e.p.leftAt || recs.has(e.p.id)))
 
-// 每人狀態：沒有紀錄 = 點名中「待上車」；所屬車已發車 = 「未到」
+// 每人狀態：沒有紀錄 = 點名中「待上車」；所屬車已出發 = 「未到」
 export const rollStatus = (rec: AttendanceRecord | undefined, closed: boolean): RollStatus | 'pending' =>
   !rec || rec.status === 'absent' ? (closed ? 'no_show' : 'pending') : rec.status
 
@@ -46,7 +46,7 @@ export const rollSummary = (c: ReturnType<typeof rollCounts>) =>
     !c.done && c.no_show ? `未到 ${c.no_show}` : '',
     c.on_the_way ? `在途中 ${c.on_the_way}` : '',
     c.excused ? `請假 ${c.excused}` : '',
-    c.closed ? '全部已發車' : c.partlyClosed ? '部分已發車' : '',
+    c.closed ? '全部已出發' : c.partlyClosed ? '部分已出發' : '',
   ]
     .filter(Boolean)
     .join(' · ')
