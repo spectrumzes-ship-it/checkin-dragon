@@ -5513,3 +5513,80 @@ body:has(.rc-dock) .toast {
     bottom: 110px;
   }
 }
+
+/* ===== 和色方案（2026-10-08）：白底卡片＋代表色色條／圖示方塊／分頁底線／主要按鈕 ===== */
+/* 活動頁頂部：白底，圖示方塊用模式淺色 */
+.event-head {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+}
+.event-head-icon {
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+}
+.event-tabs a {
+  color: var(--text-2);
+  opacity: 1;
+}
+.event-tabs a.active {
+  color: var(--mode-ink);
+  border-color: var(--mode-ink);
+  border-bottom-width: 3px;
+}
+/* 模式內的主要按鈕用代表色 */
+[data-mode] .btn-primary {
+  background: var(--mode-solid);
+  color: #fff;
+}
+.rc-go:not(.sec),
+.rc-count-btns .btn-primary {
+  background: var(--mode-solid);
+}
+/* 首頁：今日活動卡改為白卡＋左邊代表色色條 */
+.event-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-left: 6px solid var(--mode-ink);
+}
+.event-card-icon {
+  background: var(--mode-bg);
+}
+.event-card .muted {
+  color: var(--text-2);
+  opacity: 1;
+}
+.event-card .progress {
+  background: var(--surface-3);
+}
+/* 首頁模式方塊：白底＋頂部代表色色帶，圖示方塊淺色 */
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-top: 5px solid var(--mode-ink);
+}
+.mode-card-icon {
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+  border-radius: 10px;
+}
+[data-mode='gift'].mode-card,
+[data-mode='gift'].event-card {
+  border-top-color: #f8b500;
+}
+[data-mode='gift'].event-card {
+  border-left-color: #f8b500;
+  border-top-color: var(--border-soft);
+}
+/* 底部導覽：設計不變，只改顏色 */
+.bn-item.active {
+  color: var(--brand);
+}
+.bn-scan-btn {
+  background: var(--text);
+}
+/* 印章用朱色 */
+.rc-row.here .rc-seal,
+.rc-seat-cell.here::after {
+  border-color: #c8442f;
+  color: #c8442f;
+}

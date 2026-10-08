@@ -34,8 +34,8 @@ const RoundTable = ({ capacity, arrived, seated }: { capacity: number; arrived: 
             cx={x}
             cy={y}
             r="6"
-            fill={filled ? 'var(--ok-ink)' : 'var(--surface)'}
-            stroke={assigned ? (filled ? 'var(--ok-ink)' : 'var(--text-3)') : 'var(--border)'}
+            fill={filled ? 'var(--mode-solid)' : assigned ? 'var(--mode-bg)' : 'var(--surface)'}
+            stroke={assigned ? 'var(--mode-solid)' : 'var(--border)'}
             strokeWidth="1.5"
             strokeDasharray={assigned ? undefined : '2 2'}
           />

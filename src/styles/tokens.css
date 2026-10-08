@@ -2,43 +2,54 @@
    所有顏色、字體、圓角都在這裏定義一次，全 App 共用。 */
 
 :root {
-  --bg: #faf9f6;
+  /* 和色方案（2026-10-08）：生成色底、墨色字 */
+  --bg: #f7f6f1;
   --surface: #ffffff;
-  --surface-2: #f3f1ec;
-  --surface-3: #ebe8e1;
-  --text: #2c2b29;
-  --text-2: #77736c;
-  --text-3: #a29d94;
-  --border: #d9d6cf;
-  --border-soft: #e8e5de;
+  --surface-2: #f0eee8;
+  --surface-3: #e7e4dc;
+  --text: #23262b;
+  --text-2: #6b717b;
+  --text-3: #9aa0a8;
+  --border: #dedcd4;
+  --border-soft: #eae8e1;
 
-  /* 模式色：淺底 + 深一級文字 */
-  --event-bg: #dceaf5;
-  --event-ink: #315b75;
-  --banquet-bg: #f4e3df;
-  --banquet-ink: #7a4a40;
-  --bus-bg: #ddefe6;
-  --bus-ink: #2f6650;
-  --gift-bg: #f5ead4;
-  --gift-ink: #7a5718;
+  /* 品牌：瑠璃 */
+  --brand: #1e50a2;
+  --brand-bg: #e6edf8;
+
+  /* 模式色：淺底 + 代表色（代表色同時用作文字、色條、主要按鈕底色） */
+  --event-bg: #eeeaf5; /* 江戸紫 */
+  --event-ink: #745399;
+  --event-solid: #745399;
+  --banquet-bg: #f7e8e7; /* 臙脂 */
+  --banquet-ink: #9e3d3f;
+  --banquet-solid: #9e3d3f;
+  --bus-bg: #e1f0f2; /* 浅葱 */
+  --bus-ink: #00687a;
+  --bus-solid: #00687a;
+  --gift-bg: #fcf1d6; /* 山吹 */
+  --gift-ink: #8a5a00;
+  --gift-solid: #8a5a00;
   --souvenir-bg: #f7efd9;
   --souvenir-ink: #6e5a22;
 
   /* 狀態色 */
-  --ok-bg: #ddf3e4;
-  --ok-ink: #245b3a;
-  --bad-bg: #f7d9dd;
-  --bad-ink: #7a3038;
-  --warn-bg: #f6e5c7;
-  --warn-ink: #755520;
-  --info-bg: #dceaf5;
-  --info-ink: #315b75;
+  /* 狀態色（所有模式共用）：若竹／朱／琥珀／瑠璃 */
+  --ok-bg: #e6f2eb;
+  --ok-ink: #276b49;
+  --bad-bg: #fbeae6;
+  --bad-ink: #a93a26;
+  --warn-bg: #fbf1e2;
+  --warn-ink: #8a560f;
+  --info-bg: #e6edf8;
+  --info-ink: #1e50a2;
   --vip: #b8892b;
   --phone: #2fb36a;
 
   /* 目前模式（進入活動後由 data-mode 覆寫） */
   --mode-bg: var(--surface-2);
   --mode-ink: var(--text);
+  --mode-solid: var(--brand);
 
   --camera: #1f1e1c;
 
@@ -85,24 +96,26 @@
     --text-3: #7d786f;
     --border: #3a3833;
     --border-soft: #312f2b;
-    --event-bg: #22323f;
-    --event-ink: #b9d6ec;
-    --banquet-bg: #3a2b27;
-    --banquet-ink: #f0cfc6;
-    --bus-bg: #1f3329;
-    --bus-ink: #bfe6d2;
+    --brand: #8fb0ea;
+    --brand-bg: #1d2c45;
+    --event-bg: #2b2438;
+    --event-ink: #cbb9ec;
+    --banquet-bg: #3a2425;
+    --banquet-ink: #f0c0c1;
+    --bus-bg: #12303a;
+    --bus-ink: #96d6e2;
     --gift-bg: #3a3020;
-    --gift-ink: #ecd9a8;
+    --gift-ink: #f3d48a;
     --souvenir-bg: #3a3322;
     --souvenir-ink: #eedfae;
-    --ok-bg: #1f3a2a;
-    --ok-ink: #bfe8cc;
-    --bad-bg: #43252a;
-    --bad-ink: #f5c7cd;
-    --warn-bg: #413420;
-    --warn-ink: #f2d9a8;
-    --info-bg: #22323f;
-    --info-ink: #b9d6ec;
+    --ok-bg: #1d3a2b;
+    --ok-ink: #a9dfc0;
+    --bad-bg: #432520;
+    --bad-ink: #f4b9ad;
+    --warn-bg: #3f3220;
+    --warn-ink: #f0cf95;
+    --info-bg: #1d2c45;
+    --info-ink: #b4c9f0;
     --vip: #e2b85c;
     --phone: #7ddba4;
     --camera: #0f0f0e;
@@ -120,24 +133,26 @@
   --text-3: #7d786f;
   --border: #3a3833;
   --border-soft: #312f2b;
-  --event-bg: #22323f;
-  --event-ink: #b9d6ec;
-  --banquet-bg: #3a2b27;
-  --banquet-ink: #f0cfc6;
-  --bus-bg: #1f3329;
-  --bus-ink: #bfe6d2;
+  --brand: #8fb0ea;
+  --brand-bg: #1d2c45;
+  --event-bg: #2b2438;
+  --event-ink: #cbb9ec;
+  --banquet-bg: #3a2425;
+  --banquet-ink: #f0c0c1;
+  --bus-bg: #12303a;
+  --bus-ink: #96d6e2;
   --gift-bg: #3a3020;
-  --gift-ink: #ecd9a8;
+  --gift-ink: #f3d48a;
   --souvenir-bg: #3a3322;
   --souvenir-ink: #eedfae;
-  --ok-bg: #1f3a2a;
-  --ok-ink: #bfe8cc;
-  --bad-bg: #43252a;
-  --bad-ink: #f5c7cd;
-  --warn-bg: #413420;
-  --warn-ink: #f2d9a8;
-  --info-bg: #22323f;
-  --info-ink: #b9d6ec;
+  --ok-bg: #1d3a2b;
+  --ok-ink: #a9dfc0;
+  --bad-bg: #432520;
+  --bad-ink: #f4b9ad;
+  --warn-bg: #3f3220;
+  --warn-ink: #f0cf95;
+  --info-bg: #1d2c45;
+  --info-ink: #b4c9f0;
   --vip: #e2b85c;
   --phone: #7ddba4;
   --camera: #0f0f0e;
@@ -148,16 +163,20 @@
 [data-mode='event'] {
   --mode-bg: var(--event-bg);
   --mode-ink: var(--event-ink);
+  --mode-solid: var(--event-solid);
 }
 [data-mode='banquet'] {
   --mode-bg: var(--banquet-bg);
   --mode-ink: var(--banquet-ink);
+  --mode-solid: var(--banquet-solid);
 }
 [data-mode='bus'] {
   --mode-bg: var(--bus-bg);
   --mode-ink: var(--bus-ink);
+  --mode-solid: var(--bus-solid);
 }
 [data-mode='gift'] {
   --mode-bg: var(--gift-bg);
   --mode-ink: var(--gift-ink);
+  --mode-solid: var(--gift-solid);
 }
