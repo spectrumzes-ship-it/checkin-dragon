@@ -6,7 +6,7 @@ import { setSettings, useSettings } from '../lib/settings'
 import { NO_BUS, busClosedAt, isBusClosed, rollCounts, rollPeople, rollStatus, rollSummary } from '../lib/rollcall'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, CircleCheck, ChevronLeft } from 'lucide-react'
+import { LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, ChevronLeft, Check } from 'lucide-react'
 import { db } from '../db/db'
 import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
 import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
@@ -269,6 +269,8 @@ export function RollCallSession() {
   const [menu, setMenu] = useState<GuestEntry | null>(null) // 單人狀態選單
   const [view, setView] = useState<View>('roll')
   const [flash, setFlash] = useState('') // 剛點選上車的人：綠色勾號效果
+  const [selecting, setSelecting] = useState(false) // 選擇名單（全選、批量改狀態）
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const [pane, setPane] = useState('') // 點名頁顯示哪一組：巴士 id／'none'／'everyone'（全員名單）
   const swipe = useRef<{ x: number; y: number } | null>(null)
   // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
@@ -315,11 +317,12 @@ export function RollCallSession() {
   }
 
   // colored：只有「全員名單」用狀態顏色及圖案；點名時只有白底圓圈（未點）及綠色勾號（已上車）
+  // 一行：座位號方塊＋姓名＋狀態＋印章（已上車蓋「到」印）。colored：只有全員名單用狀態底色
   const Row = ({ e, colored }: { e: GuestEntry; colored?: boolean }) => {
     const st = statusOf(e)
     const rec = recOf.get(e.p.id)
     const bs = e.seats.find((x) => x.resource.type === 'bus')
-    const icon = st === 'present' ? 'arrived' : colored ? ICON[st] : 'not_arrived'
+    const on = picked.has(e.p.id)
     return (
       <div
         className={cx(
@@ -330,38 +333,60 @@ export function RollCallSession() {
           colored && st === 'no_show' && 'noshow',
           colored && st === 'on_the_way' && 'otw',
           colored && st === 'excused' && 'excused',
+          selecting && on && 'picked',
         )}
       >
-        <button className="rc-main" onClick={() => toggle(e)} aria-pressed={st === 'present'}>
-          <span className="rc-mark">
-            <StatusIcon kind={icon} size={36} />
+        <button className="rc-main" onClick={() => (selecting ? pick(e) : toggle(e))} aria-pressed={selecting ? on : st === 'present'}>
+          {selecting && <span className={cx('rc-check', on && 'on')} aria-hidden="true">{on && <Check size={16} strokeWidth={3} />}</span>}
+          <span className={cx('rc-seatno', st === 'present' && 'on')}>
+            <small>{bs?.resource.label ?? '–'}</small>
+            <b>{bs?.seatLabel || '–'}</b>
           </span>
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
             <span className="muted">
               {names(e.p).secondary}
               {e.sameName && ` · 同名 #${e.p.memberId}`}
+              {st === 'present' && rec && ` · ${formatTime(rec.checkedAt)} 上車`}
             </span>
           </span>
-          {st !== 'pending' && (
-            <span className={cx('rc-status', `st-${st}`)}>
-              {ROLL_LABEL[st]}
-              {rec?.late && '（遲到）'}
-              {st === 'present' && rec && <small>{formatTime(rec.checkedAt)}</small>}
+          {(st !== 'pending' || colored) && (st !== 'present' || rec?.late) && (
+            <span className={cx('rc-status', `st-${st}`)}>{st === 'present' ? '遲到' : ROLL_LABEL[st]}</span>
+          )}
+          {!selecting && (
+            <span className="rc-seal" aria-hidden="true">
+              到
             </span>
           )}
-          <span className="rc-seat">{bs ? `${bs.resource.label}-${bs.seatLabel}` : ''}</span>
         </button>
-        {st !== 'present' && e.p.phone && (
+        {!selecting && st !== 'present' && e.p.phone && (
           <a className="icon-btn" href={`tel:${e.p.phone.replace(/\s+/g, '')}`} aria-label={`致電 ${nameOf(e.p)}`}>
             <Phone size={18} />
           </a>
         )}
-        <button className="icon-btn" aria-label={`更改 ${nameOf(e.p)} 的狀態`} onClick={() => setMenu(e)}>
-          <MoreHorizontal size={18} />
-        </button>
+        {!selecting && (
+          <button className="icon-btn" aria-label={`更改 ${nameOf(e.p)} 的狀態`} onClick={() => setMenu(e)}>
+            <MoreHorizontal size={18} />
+          </button>
+        )}
       </div>
     )
+  }
+  const pick = (e: GuestEntry) =>
+    setPicked((p) => {
+      const n = new Set(p)
+      if (n.has(e.p.id)) n.delete(e.p.id)
+      else n.add(e.p.id)
+      return n
+    })
+  // 批量改狀態：待上車在已出發的車會記為未到
+  const applyBatch = async (st: RollStatus | 'pending') => {
+    const list = people.filter((e) => picked.has(e.p.id))
+    for (const e of list) await setRollStatus(session.id, ev.id, e.p, st === 'pending' && isBusClosed(session, busKey(e)) ? 'no_show' : st)
+    feedback(st === 'present' ? 'valid' : 'tap')
+    toast(`已把 ${list.length} 人設為${ROLL_LABEL[st]}`)
+    setPicked(new Set())
+    setSelecting(false)
   }
 
   // 點名時：未上車的人在前，已上車的人排在後面
@@ -441,7 +466,7 @@ export function RollCallSession() {
           {/* A 車／B 車／全員名單：按上面切換，或在名單上左右掃動 */}
           <div className="rc-panes" role="tablist">
             {panes.map((p) => (
-              <button key={p.key} role="tab" aria-selected={current === p.key} className={cx('rc-line', current === p.key && 'active')} onClick={() => setPane(p.key)}>
+              <button key={p.key} role="tab" aria-selected={current === p.key} className={cx('rc-line', current === p.key && 'active')} onClick={() => (setPane(p.key), setPicked(new Set()))}>
                 <LineMark k={p.key} />
                 {p.label}
               </button>
@@ -475,8 +500,11 @@ export function RollCallSession() {
                     {countIn(grp.list, 'on_the_way') ? ` · 在途中 ${countIn(grp.list, 'on_the_way')}` : ''}
                     {countIn(grp.list, 'excused') ? ` · 請假 ${countIn(grp.list, 'excused')}` : ''}
                   </span>
+                  <button className={cx('btn btn-sm', selecting ? 'btn-primary' : 'btn-ghost')} onClick={() => (setSelecting(!selecting), setPicked(new Set()))}>
+                    {selecting ? '完成' : '選擇'}
+                  </button>
                 </header>
-                {grp.key !== NO_BUS && (
+                {grp.key !== NO_BUS && !selecting && (
                   <div className="seg rc-viewmode" role="radiogroup" aria-label="點名方式">
                     <button role="radio" aria-checked={seatMode} className={seatMode ? 'active' : ''} onClick={() => setSettings({ rollView: 'seats' })}>
                       <Armchair size={16} /> 座位表
@@ -486,7 +514,7 @@ export function RollCallSession() {
                     </button>
                   </div>
                 )}
-                {seatMode && grp.key !== NO_BUS ? (
+                {seatMode && !selecting && grp.key !== NO_BUS ? (
                   (() => {
                     const bus = buses.find((b) => b.id === grp.key)!
                     const layout = ev.modeConfig.buses?.find((x) => x.label === bus.label)?.layout ?? defaultLayout(bus.capacity)
@@ -511,10 +539,7 @@ export function RollCallSession() {
                                 const st = statusOf(e)
                                 return (
                                   <button key={k} className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just')} onClick={() => toggle(e)} aria-pressed={st === 'present'}>
-                                    <small>
-                                      {n}
-                                      {st === 'present' && <CircleCheck size={12} />}
-                                    </small>
+                                    <small>{n}</small>
                                     <strong>{names(e.p).primary}</strong>
                                     {st !== 'pending' && st !== 'present' && <em>{ROLL_LABEL[st]}</em>}
                                   </button>
@@ -543,7 +568,12 @@ export function RollCallSession() {
 
           {current === EVERYONE && (
           <section className="rc-all rc-everyone">
-            <h3>全員名單 · {people.length}（按狀態顏色顯示）</h3>
+            <h3>
+              全員名單 · {people.length}（按狀態顏色顯示）
+              <button className={cx('btn btn-sm rc-showall', selecting ? 'btn-primary' : 'btn-ghost')} onClick={() => (setSelecting(!selecting), setPicked(new Set()))}>
+                {selecting ? '完成' : '選擇'}
+              </button>
+            </h3>
             {[...people]
               .sort((a, b) => seatNo(a) - seatNo(b))
               .sort((a, b) => Number(statusOf(a) === 'present') - Number(statusOf(b) === 'present'))
@@ -554,8 +584,32 @@ export function RollCallSession() {
           )}
           </div>
 
+          {/* 選擇名單：全選＋批量改狀態（取代底部發車表） */}
+          {selecting && (() => {
+            const scope = current === EVERYONE ? people : g(current)?.list ?? []
+            const all = scope.length > 0 && scope.every((e) => picked.has(e.p.id))
+            return (
+              <div className="rc-dock">
+                <div className="rc-batch">
+                  <div className="rc-batch-top">
+                    <span>已選 {picked.size} 人</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setPicked(all ? new Set() : new Set(scope.map((e) => e.p.id)))}>
+                      {all ? '取消全選' : '全選'}
+                    </button>
+                  </div>
+                  <div className="rc-batch-btns">
+                    {(['present', 'on_the_way', 'excused', 'pending'] as const).map((st) => (
+                      <button key={st} className={st === 'present' ? 'main' : ''} disabled={!picked.size} onClick={() => applyBatch(st)}>
+                        {ROLL_LABEL[st]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
           {/* 發車表式「確認出發」：固定在畫面底部，按目前顯示的車 */}
-          {current !== EVERYONE && g(current) && (() => {
+          {!selecting && current !== EVERYONE && g(current) && (() => {
             const grp = g(current)!
             const closedAt = busClosedAt(session, grp.key)
             const left = countIn(grp.list, 'pending', 'on_the_way')

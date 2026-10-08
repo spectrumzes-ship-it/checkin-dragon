@@ -5260,3 +5260,256 @@ legend {
     transition: none;
   }
 }
+
+/* ===== 點名頁：預覽餘下設計（印章、座位號方塊、看板、全選名單） ===== */
+/* 看板：一條連在一起的五格，選中的一格反白 */
+.rc-stats {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 0;
+  background: var(--surface);
+}
+.rc-stats > button {
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  align-items: center;
+  text-align: center;
+  padding: 8px 4px 9px;
+}
+.rc-stats > button:last-child {
+  border-right: 0;
+}
+.rc-stats > button small {
+  letter-spacing: 0.06em;
+}
+.rc-stats > button.tone-ok strong {
+  color: var(--ok-ink);
+}
+.rc-stats > button.tone-info strong {
+  color: var(--info-ink);
+}
+.rc-stats > button.tone-warn strong {
+  color: var(--warn-ink);
+}
+.rc-stats > button.tone-grey strong {
+  color: var(--text-2);
+}
+.rc-stats > button.tone-ok,
+.rc-stats > button.tone-info,
+.rc-stats > button.tone-warn,
+.rc-stats > button.tone-grey {
+  background: var(--surface);
+}
+.rc-stats > button.active {
+  background: var(--text);
+  box-shadow: none;
+}
+.rc-stats > button.active small,
+.rc-stats > button.active strong {
+  color: var(--surface);
+}
+.rollcall .rc-stats {
+  position: static;
+  margin-bottom: 10px;
+}
+/* 名單行：座位號方塊＋印章 */
+.rc-seatno {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--text);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.rc-seatno small {
+  font-size: 9px;
+  color: var(--text-2);
+  letter-spacing: 0.08em;
+}
+.rc-seatno b {
+  font-family: var(--num);
+  font-size: 19px;
+  font-weight: 700;
+}
+.rc-seatno.on {
+  border-color: var(--ok-ink);
+  color: var(--ok-ink);
+}
+.rc-seal {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--border);
+  color: transparent;
+  font-weight: 900;
+  font-size: 16px;
+}
+.rc-row.here .rc-seal {
+  border: 2.5px solid #c8442f;
+  color: #c8442f;
+  background: rgba(255, 255, 255, 0.6);
+  transform: rotate(-12deg);
+}
+.rc-row.here {
+  background: var(--ok-bg);
+  border-color: transparent;
+}
+.rc-row.just .rc-seal {
+  animation: rc-stamp 0.42s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.rc-row.just .rc-mark {
+  animation: none;
+}
+@keyframes rc-stamp {
+  0% {
+    transform: scale(1.8) rotate(-12deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-12deg);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rc-row.just .rc-seal {
+    animation: none;
+  }
+}
+.rc-status {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  align-items: center;
+}
+.rc-status.st-present {
+  background: #fff;
+  color: #c8442f;
+  border: 1px solid #c8442f;
+}
+.rc-status.st-pending {
+  background: var(--info-bg);
+  color: var(--info-ink);
+}
+.rc-status.st-on_the_way {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+.rc-status.st-no_show {
+  background: #fff;
+  color: var(--bad-ink);
+}
+/* 座位表：已上車的座位角落蓋小印章 */
+.rc-seat-cell {
+  position: relative;
+}
+.rc-seat-cell.here::after {
+  content: '到';
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #c8442f;
+  color: #c8442f;
+  font-size: 10px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  transform: rotate(-12deg);
+  background: rgba(255, 255, 255, 0.7);
+}
+.rc-seat-cell small {
+  font-family: var(--num);
+  font-size: 13px;
+}
+/* 選擇名單 */
+.rc-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid var(--text-2);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.rc-check.on {
+  background: #1f4fa3;
+  border-color: #1f4fa3;
+}
+.rc-row.picked {
+  box-shadow: inset 0 0 0 2px #1f4fa3;
+}
+.rc-batch {
+  background: var(--surface);
+  border: 1.5px solid var(--text);
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.35);
+}
+.rc-batch-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+}
+.rc-batch-btns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.rc-batch-btns button {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 2px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rc-batch-btns button.main {
+  background: var(--ok-ink);
+  border-color: var(--ok-ink);
+  color: #fff;
+}
+.rc-batch-btns button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* 名單行：英文名一行顯示，過長以「…」截斷 */
+.rc-name .muted {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rc-row .rc-main {
+  gap: 10px;
+  padding: 8px 10px;
+}
+/* 點名頁底部有發車表時，提示訊息移到發車表之上 */
+body:has(.rc-dock) .toast {
+  bottom: calc(var(--nav-h) + var(--safe-b) + 104px);
+}
+@media (min-width: 768px) {
+  body:has(.rc-dock) .toast {
+    bottom: 110px;
+  }
+}
