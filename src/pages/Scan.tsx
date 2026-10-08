@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, Flashlight, FlashlightOff, Keyboard, Loader2, QrCode, ScanText, X } from 'lucide-react'
+import { Camera, ChevronDown, Flashlight, FlashlightOff, Keyboard, Loader2, Plus, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
-import type { Participant, ScanMethod } from '../db/types'
+import type { EventRec, Participant, ScanMethod } from '../db/types'
 import { checkIn, undoCheckIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
-import { cx } from '../lib/util'
+import { cx, isOnDay, isUpcoming, todayKey } from '../lib/util'
 import { nameOf } from '../lib/names'
 import { getQrDetector, grabFrame, grabFromFrame, grabView, recognizeText, useCamera, useOcrState, warmUpOcr } from '../lib/scanner'
 import { GuestRow } from '../components/GuestRow'
@@ -63,6 +63,15 @@ export default function Scan() {
   const settings = useSettings()
   const { index } = useEventData(id)
   const sessions = useLiveQuery(() => (id ? db.sessions.where('eventId').equals(id).sortBy('time') : []), [id]) ?? []
+  // 可切換的活動：今日活動排前，之後是即將舉行，再之後是過去的（已封存的不列出）
+  const allEvents = useLiveQuery(() => db.events.toArray(), []) ?? []
+  const eventChoices = useMemo(() => {
+    const today = todayKey()
+    const rank = (e: EventRec) => (isOnDay(e, today) ? 0 : isUpcoming(e, today) ? 1 : 2)
+    return allEvents
+      .filter((e) => e.status !== 'archived' || e.id === id)
+      .sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)))
+  }, [allEvents, id])
   const souvenirs = useLiveQuery(() => (id ? db.souvenirs.where('eventId').equals(id).sortBy('sortOrder') : []), [id]) ?? []
 
   const [mode, setMode] = useState<ScanMode>(() =>
@@ -122,6 +131,7 @@ export default function Scan() {
     if (ev === null) setSettings({ currentEventId: null })
   }, [id, ev])
 
+  const addTo = purpose === 'souvenir' ? `/e/${id}/souvenirs/records?item=${targetId}&tab=pending&reg=1` : `/e/${id}/guests/new`
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
 
   // ---- QR 連續掃描：每秒約 8 次讀取掃描框內的畫面 ----
@@ -273,9 +283,18 @@ export default function Scan() {
           <X size={24} />
         </button>
         <div className="scan-title">
-          <span className="scan-event">
-            <ModeIcon mode={ev.mode} size={16} /> {ev.name}
-          </span>
+          <label className="scan-event">
+            <ModeIcon mode={ev.mode} size={16} />
+            <span className="scan-event-name">{ev.name}</span>
+            <select value={ev.id} onChange={(e) => nav(`/e/${e.target.value}/scan`, { replace: true })} aria-label="切換活動">
+              {eventChoices.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} />
+          </label>
           <select
             className="scan-purpose"
             value={purposeKey}
@@ -390,15 +409,22 @@ export default function Scan() {
         )}
         {mode === 'qr' && (
           <div className="demo">
-            {!armed && !outcome && (
-              <button className="btn btn-primary btn-lg btn-block" onClick={() => setArmed(true)}>
-                <QrCode size={20} /> 掃描下一張
+            <ol className="ocr-steps">
+              <li>
+                <b>1</b>QR Code 放入框內
+              </li>
+              <li>
+                <b>2</b>自動讀取
+              </li>
+            </ol>
+            {!armed && !outcome ? (
+              <button className="ocr-shoot" onClick={() => setArmed(true)}>
+                <QrCode size={22} /> 掃描下一張
               </button>
-            )}
-            {armed && (
-              <div className="ocr-live">
-                {cam.status === 'ready' ? <QrCode size={18} /> : <Loader2 size={18} className="spin" />}
-                <span>{cam.status === 'ready' ? '自動掃描中 · 將 QR Code 放入框內' : '等待相機…'}</span>
+            ) : (
+              <div className="ocr-shoot is-status" role="status">
+                {cam.status === 'ready' ? <QrCode size={22} /> : <Loader2 size={22} className="spin" />}
+                {cam.status === 'ready' ? '自動掃描中' : '等待相機…'}
               </div>
             )}
           </div>
@@ -484,14 +510,22 @@ export default function Scan() {
 
         {mode === 'manual' && (
           <div className="manual">
-            <SearchBar value={q} onChange={setQ} placeholder="姓名／編號／電話／公司／座位" autoFocus />
+            {/* 搜尋欄旁的「新增」：手機彈出鍵盤時仍看得到 */}
+            <div className="manual-bar">
+              <SearchBar value={q} onChange={setQ} placeholder="姓名／編號／電話／公司／座位" autoFocus />
+              <Link className="manual-add" to={addTo}>
+                <Plus size={18} /> {purpose === 'souvenir' ? '登記' : '新增'}
+              </Link>
+            </div>
             <div className="manual-results">
               {!dq && <p className="muted pad center">輸入姓名、編號、電話、公司或座位，結果會即時出現</p>}
-              {dq && results.length === 0 && <p className="muted pad">找不到「{dq}」</p>}
-              {purpose === 'souvenir' && (
-                <Link className="btn btn-mode manual-register" to={`/e/${ev.id}/souvenirs/records?item=${targetId}&tab=pending&reg=1`}>
-                  ＋ 即場登記領取人
-                </Link>
+              {dq && results.length === 0 && (
+                <div className="manual-none">
+                  <p>找不到「{dq}」，是否新增？</p>
+                  <Link className="ocr-shoot" to={addTo}>
+                    <Plus size={20} /> {purpose === 'souvenir' ? '即場登記領取人' : '新增嘉賓'}
+                  </Link>
+                </div>
               )}
               {results.map((e) => {
                 // 簽到用途：每行可直接「簽到」或「取消簽到」
