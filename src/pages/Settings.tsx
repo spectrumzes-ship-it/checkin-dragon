@@ -170,7 +170,7 @@ export default function Settings() {
         <Item zh="預設掃描方式" en="Default Scan Mode">
           <Seg value={s.defaultScanMode} options={[['qr', 'QR'], ['text', '文字'], ['last', '上次使用']]} onChange={(v) => set({ defaultScanMode: v })} />
         </Item>
-        <Item zh="試聽提示音" en="Test Sounds">
+        <Item zh="試聽提示音" en="Test Sounds" hint="參考日本車站改札機及發車鐘聲（原創合成）">
           <div className="chips">
             <button className="chip" onClick={() => feedback('valid')}>
               有效
@@ -180,6 +180,12 @@ export default function Settings() {
             </button>
             <button className="chip" onClick={() => feedback('duplicate')}>
               重複
+            </button>
+            <button className="chip" onClick={() => feedback('manual')}>
+              手動
+            </button>
+            <button className="chip" onClick={() => feedback('depart')}>
+              確認出發
             </button>
           </div>
         </Item>

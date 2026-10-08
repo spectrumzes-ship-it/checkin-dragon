@@ -622,6 +622,7 @@ export function RollCallSession() {
           if (!closingGroup) return
           const pend = closingGroup.list.filter((e) => statusOf(e) === 'pending')
           await closeSession(session.id, ev.id, pend.map((e) => e.p.id), closingGroup.key, closingGroup.label)
+          feedback('depart')
           toast(pend.length ? `${closingGroup.label}已確認出發，${pend.length} 人記為未到` : `${closingGroup.label}已確認出發，全部到齊`)
         }}
         title={`確認出發 · ${closingGroup?.label ?? ''}`}
