@@ -74,7 +74,7 @@ export const ModeCard = ({ mode, count, live = 0 }: { mode: Mode; count?: number
           {live > 0 ? (
             <>
               <i aria-hidden />
-              今日 {live} 個<span className="mc-long">進行中</span>
+              今日 {live} 個進行中
             </>
           ) : (
             '今日沒有活動'

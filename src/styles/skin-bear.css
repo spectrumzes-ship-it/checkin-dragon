@@ -117,10 +117,10 @@
   width: 28px;
   height: 28px;
 }
-@media (max-width: 520px) {
+@media (max-width: 420px) {
   [data-skin='bear'] .mode-card-icon {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
   }
   [data-skin='bear'] .mode-card-icon svg {
     width: 22px;

@@ -87,15 +87,15 @@
   width: 30px;
   height: 30px;
 }
-@media (max-width: 520px) {
+@media (max-width: 420px) {
   [data-skin='soft'] .mode-card-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
   }
   [data-skin='soft'] .mode-card-icon svg {
-    width: 21px;
-    height: 21px;
+    width: 23px;
+    height: 23px;
   }
 }
 [data-skin='soft'] .mode-card-name b {

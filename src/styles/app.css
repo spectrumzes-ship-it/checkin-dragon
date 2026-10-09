@@ -6768,39 +6768,23 @@ body:has(.rc-dock) .toast {
   color: var(--text-2);
   white-space: nowrap;
 }
-/* 手機：兩欄收細——「今日 N 個」與「共 N 個」放同一行 */
-@media (max-width: 520px) {
+@media (max-width: 420px) {
   .mode-card {
     column-gap: 9px;
-    row-gap: 8px;
+    row-gap: 10px;
     padding: 10px;
   }
   .mode-card-icon {
-    width: 34px;
-    height: 34px;
-  }
-  .mode-card-icon svg {
-    width: 19px;
-    height: 19px;
+    width: 36px;
+    height: 36px;
   }
   .mode-card-name b {
     font-size: 16px;
   }
   .mode-card-foot {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
-  }
-  .mode-card-live {
-    padding: 2px 8px;
-    font-size: 11px;
-  }
-  .mode-card-total {
-    font-size: 11px;
-  }
-  .mc-long {
-    display: none;
   }
 }
 
@@ -6969,18 +6953,5 @@ body:has(.rc-dock) .toast {
 @media (min-width: 768px) {
   .today-dots {
     display: none;
-  }
-}
-/* 手機底部導覽上方淡出：內容被蓋住時不會一刀切 */
-@media (max-width: 700px) {
-  .bottom-nav::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 100%;
-    height: 24px;
-    background: linear-gradient(180deg, transparent, var(--bg));
-    pointer-events: none;
   }
 }
