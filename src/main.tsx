@@ -8,6 +8,7 @@ import './styles/tokens.css'
 import './styles/app.css'
 import './styles/skin-bear.css'
 import './styles/skin-kiosk.css'
+import './styles/skin-soft.css'
 import App from './App'
 import { ensureSeeded } from './db/seed'
 

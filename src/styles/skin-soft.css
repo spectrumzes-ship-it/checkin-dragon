@@ -1,0 +1,321 @@
+/* ===== 介面主題：柔和購票機（設定 → 介面主題）=====
+   柔和版的車站售票機：淺灰藍機台底、粉藍／薄荷綠／蜜桃／淡紫四色分功能；
+   大圓角立體按鈕（漸層、高光、厚邊框、底部陰影），按下有凹陷感，選中加深外框，不能用的淡化。
+   只用繁體中文。固定淺色外觀。 */
+
+:root[data-skin='soft'],
+:root[data-skin='soft'][data-theme='dark'] {
+  --s-machine: #dfe7ef;
+  --s-machine-2: #edf2f7;
+  --s-panel: #f7f9fc;
+  --s-navy: #2c3e5c;
+  --s-sky: #a9cdf2;     /* 粉藍 */
+  --s-sky-deep: #5f9ad6;
+  --s-mint: #aee8d0;    /* 薄荷綠 */
+  --s-mint-deep: #4fb68c;
+  --s-peach: #ffcfb5;   /* 蜜桃 */
+  --s-peach-deep: #e98a63;
+  --s-lilac: #d7c8f2;   /* 淡紫 */
+  --s-lilac-deep: #8d73c9;
+
+  --bg: var(--s-machine);
+  --surface: #ffffff;
+  --surface-2: #eef3f8;
+  --surface-3: #e1e9f1;
+  --text: #24324a;
+  --text-2: #56657c;
+  --text-3: #8492a6;
+  --border: #c3cfdc;
+  --border-soft: #d6dfe9;
+  --brand: var(--s-sky-deep);
+  --shadow: none;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-skin='soft']:not([data-theme]) {
+    --bg: #dfe7ef;
+    --surface: #ffffff;
+    --surface-2: #eef3f8;
+    --surface-3: #e1e9f1;
+    --text: #24324a;
+    --text-2: #56657c;
+    --text-3: #8492a6;
+    --border: #c3cfdc;
+    --border-soft: #d6dfe9;
+    color-scheme: light;
+  }
+}
+[data-skin='soft'] body {
+  background: linear-gradient(180deg, var(--s-machine-2), var(--s-machine)) fixed;
+}
+
+/* 四種模式改用柔和四色 */
+[data-skin='soft'] [data-mode='event'] { --mode-bg: #ece4fb; --mode-ink: #5b449a; --mode-solid: var(--s-lilac-deep); --s-c: var(--s-lilac); }
+[data-skin='soft'] [data-mode='banquet'] { --mode-bg: #ffe8dc; --mode-ink: #a2492a; --mode-solid: var(--s-peach-deep); --s-c: var(--s-peach); }
+[data-skin='soft'] [data-mode='bus'] { --mode-bg: #ddebfa; --mode-ink: #2f639c; --mode-solid: var(--s-sky-deep); --s-c: var(--s-sky); }
+[data-skin='soft'] [data-mode='gift'] { --mode-bg: #daf5e9; --mode-ink: #23735a; --mode-solid: var(--s-mint-deep); --s-c: var(--s-mint); }
+[data-skin='soft'] [data-mode='event'][data-mode],
+[data-skin='soft'] [data-mode] [data-mode='event'] { --mode-bg: #ece4fb; --mode-ink: #5b449a; --mode-solid: var(--s-lilac-deep); --s-c: var(--s-lilac); }
+
+/* ---------- 立體按鈕（通用卡片：白色） ---------- */
+[data-skin='soft'] .card,
+[data-skin='soft'] .rc-sign,
+[data-skin='soft'] .room-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1.5px solid #d3dde8;
+  border-radius: 18px;
+  box-shadow: none;
+}
+/* 有模式的卡片：柔和色立體按鈕 */
+[data-skin='soft'] .event-card,
+[data-skin='soft'] .mode-card,
+[data-skin='soft'] .dash-hero,
+[data-skin='soft'] .guests-hero,
+[data-skin='soft'] .souvenir-card,
+[data-skin='soft'] [data-mode='gift'] .guests-hero,
+[data-skin='soft'] [data-mode='gift'] .souvenir-card,
+[data-skin='soft'] [data-mode='gift'].event-card,
+[data-skin='soft'] [data-mode='gift'].mode-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 45%, #fff), color-mix(in srgb, var(--mode-solid) 22%, var(--mode-bg)));
+  border: 2px solid color-mix(in srgb, var(--mode-solid) 50%, #fff);
+  border-radius: 16px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 4px 0 color-mix(in srgb, var(--mode-solid) 60%, #7f98b8);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+/* 按下：凹陷 */
+[data-skin='soft'] .mode-card:active,
+[data-skin='soft'] .event-card:active,
+[data-skin='soft'] .souvenir-card:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 0 color-mix(in srgb, var(--mode-solid) 55%, #fff);
+}
+/* 大圖示 */
+[data-skin='soft'] .mode-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--mode-bg) 60%, #fff));
+  border: 2px solid color-mix(in srgb, var(--mode-solid) 40%, #fff);
+  color: var(--mode-ink);
+}
+[data-skin='soft'] .mode-card-icon svg {
+  width: 30px;
+  height: 30px;
+}
+@media (max-width: 420px) {
+  [data-skin='soft'] .mode-card-icon {
+    width: 46px;
+    height: 46px;
+  }
+  [data-skin='soft'] .mode-card-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+[data-skin='soft'] .mode-card-name b {
+  font-size: 19px;
+  font-weight: 900;
+}
+[data-skin='soft'] .event-card-icon,
+[data-skin='soft'] .souvenir-icon {
+  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--mode-solid) 40%, #fff);
+  border-radius: 12px;
+}
+[data-skin='soft'] .mode-card-live,
+[data-skin='soft'] .event-card-mode {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- 按鈕 ---------- */
+[data-skin='soft'] .btn,
+[data-skin='soft'] .dash-scan,
+[data-skin='soft'] .ocr-shoot,
+[data-skin='soft'] .manual-add {
+  border-radius: 999px;
+  font-weight: 800;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+[data-skin='soft'] .btn-primary,
+[data-skin='soft'] .dash-scan,
+[data-skin='soft'] .ocr-shoot:not(.is-status),
+[data-skin='soft'] .manual-add,
+[data-skin='soft'] .btn-mode {
+  background: linear-gradient(180deg, #e9f2fc, #b7d0ee);
+  color: var(--s-navy);
+  border: 2px solid #8fa9c9;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 3px 0 #7f98b8;
+}
+[data-skin='soft'] .btn-ghost,
+[data-skin='soft'] .btn-secondary {
+  background: linear-gradient(180deg, #f3f7fc, #d6e3f2);
+  color: var(--s-navy);
+  border: 2px solid #a6bad3;
+  box-shadow: inset 0 2px 0 #fff, 0 3px 0 #94a9c4;
+}
+/* 危險／清除類按鈕：蜜桃色 */
+[data-skin='soft'] .btn-danger {
+  background: linear-gradient(180deg, #ffeadf, var(--s-peach));
+  color: #7a3416;
+  border: 2px solid #e2a184;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 3px 0 #d28c6c;
+}
+/* 輸入框：淺灰藍填色、圓角 */
+[data-skin='soft'] .search,
+[data-skin='soft'] .set-input,
+[data-skin='soft'] input[type='text'],
+[data-skin='soft'] input[type='search'],
+[data-skin='soft'] select {
+  border-radius: 12px;
+}
+[data-skin='soft'] .search {
+  background: #eef3f9;
+  border: 1.5px solid #d3dde8;
+}
+[data-skin='soft'] .btn:active:not(:disabled),
+[data-skin='soft'] .dash-scan:active,
+[data-skin='soft'] .ocr-shoot:active:not(:disabled),
+[data-skin='soft'] .manual-add:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+/* 不能使用：淡化 */
+[data-skin='soft'] .btn:disabled,
+[data-skin='soft'] .ocr-shoot:disabled,
+[data-skin='soft'] button:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+/* 選中：加深外框 */
+[data-skin='soft'] .chip.active,
+[data-skin='soft'] [role='radio'][aria-checked='true'] {
+  box-shadow: inset 0 0 0 2.5px var(--s-navy);
+}
+[data-skin='soft'] .event-tabs a.active,
+[data-skin='soft'] .tbl-tabs a.active {
+  font-weight: 800;
+}
+
+/* ---------- 頂部 ---------- */
+[data-skin='soft'] .home-head {
+  margin: -16px -16px 10px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #ffffff, var(--s-panel));
+  border-bottom: 2px solid #cdd8e4;
+}
+[data-skin='soft'] .home-logo {
+  border-radius: 16px;
+  border: 2px solid #cdd8e4;
+}
+[data-skin='soft'] .event-head {
+  background: linear-gradient(180deg, #ffffff, var(--s-panel));
+  border-bottom: 2px solid #cdd8e4;
+}
+[data-skin='soft'] .event-head-icon {
+  border: 2px solid color-mix(in srgb, var(--mode-solid) 40%, #fff);
+}
+[data-skin='soft'] .event-tabs a.active {
+  color: var(--s-navy);
+  border-bottom: 3px solid var(--mode-solid);
+}
+
+/* ---------- 底部導覽 ---------- */
+[data-skin='soft'] .bottom-nav {
+  background: linear-gradient(180deg, #ffffff, var(--s-panel));
+  border-top: 2px solid #cdd8e4;
+}
+[data-skin='soft'] .bn-item.active {
+  color: var(--s-sky-deep);
+}
+[data-skin='soft'] .bn-scan-btn {
+  background: linear-gradient(180deg, #bcd9f6, var(--s-sky));
+  color: var(--s-navy);
+  border: 2px solid #86b4e3;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 4px 0 #86b4e3;
+}
+@media (min-width: 701px) {
+  [data-skin='soft'] .sidebar {
+    background: linear-gradient(180deg, #ffffff, var(--s-panel));
+    border-right: 2px solid #cdd8e4;
+  }
+  [data-skin='soft'] .side-item.active {
+    background: linear-gradient(180deg, #e6f0fb, #d3e5f7);
+    color: var(--s-navy);
+    box-shadow: inset 0 0 0 2px #86b4e3;
+  }
+}
+
+/* ---------- 掃描頁 ---------- */
+[data-skin='soft'] .scan-frame i {
+  border-color: var(--s-sky);
+}
+[data-skin='soft'] .text-scanline {
+  background: var(--s-mint);
+  box-shadow: 0 0 14px 3px var(--s-mint);
+}
+[data-skin='soft'] .scan-panel {
+  background: linear-gradient(180deg, var(--s-machine-2), var(--s-machine));
+}
+[data-skin='soft'] .ocr-steps li {
+  background: #fff;
+  color: var(--s-navy);
+  border: 2px solid #cdd8e4;
+  border-radius: 14px;
+}
+[data-skin='soft'] .ocr-steps b {
+  background: var(--s-sky);
+  color: var(--s-navy);
+}
+[data-skin='soft'] .ocr-shoot.is-status {
+  background: #fff;
+  color: var(--s-navy);
+  border: 2px solid #cdd8e4;
+}
+[data-skin='soft'] .scan-modes {
+  background: transparent;
+  gap: 8px;
+  padding: 0;
+}
+[data-skin='soft'] .scan-modes button {
+  background: linear-gradient(180deg, #ffffff, #eef3f8);
+  color: var(--text);
+  border: 2px solid #cdd8e4;
+  border-radius: 14px;
+  box-shadow: inset 0 2px 0 #fff, 0 3px 0 #c3cfdc;
+}
+[data-skin='soft'] .scan-modes button.active {
+  background: linear-gradient(180deg, #d9f6ea, var(--s-mint));
+  color: #1f5f4a;
+  border-color: var(--s-mint-deep);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(2px);
+}
+
+/* ---------- 掃描結果 ---------- */
+[data-skin='soft'] .result.tone-ok {
+  --t-bg: #e4f7ee;
+  --t-ink: #23735a;
+}
+[data-skin='soft'] .result-seats span {
+  align-self: center;
+  padding: 8px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #f1f5f9);
+  color: var(--text);
+  border: 2px solid #cdd8e4;
+  box-shadow: 0 4px 0 #c3cfdc;
+}
+
+/* ---------- 巴士點名 ---------- */
+[data-skin='soft'] .rc-depart {
+  background: linear-gradient(180deg, #ffffff, var(--s-panel));
+  color: var(--text);
+  border: 2px solid #cdd8e4;
+  box-shadow: 0 4px 0 #c3cfdc;
+}
+[data-skin='soft'] .rc-go {
+  background: linear-gradient(180deg, #ffd9c6, var(--s-peach));
+  color: #7a3416;
+  border: 2px solid var(--s-peach-deep);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 3px 0 var(--s-peach-deep);
+}

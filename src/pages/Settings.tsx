@@ -106,8 +106,8 @@ export default function Settings() {
             onChange={(v) => set({ nameOrder: v })}
           />
         </Item>
-        <Item zh="介面主題" en="Skin" hint="熊本熊：薄荷綠、制服藍、帽徽金；售票機：仿車站自助售票機的立體大按鈕">
-          <Seg value={s.skin} options={[['default', '預設'], ['bear', '熊本熊'], ['kiosk', '售票機']]} onChange={(v) => set({ skin: v })} />
+        <Item zh="介面主題" en="Skin" hint="熊本熊：薄荷綠、制服藍、帽徽金；售票機：仿車站自助售票機的立體大按鈕；柔和：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵">
+          <Seg value={s.skin} options={[['default', '預設'], ['bear', '熊本熊'], ['kiosk', '售票機'], ['soft', '柔和']]} onChange={(v) => set({ skin: v })} />
         </Item>
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />
