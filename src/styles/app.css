@@ -6768,23 +6768,39 @@ body:has(.rc-dock) .toast {
   color: var(--text-2);
   white-space: nowrap;
 }
-@media (max-width: 420px) {
+/* 手機：兩欄收細——「今日 N 個」與「共 N 個」放同一行 */
+@media (max-width: 520px) {
   .mode-card {
     column-gap: 9px;
-    row-gap: 10px;
+    row-gap: 8px;
     padding: 10px;
   }
   .mode-card-icon {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+  }
+  .mode-card-icon svg {
+    width: 19px;
+    height: 19px;
   }
   .mode-card-name b {
     font-size: 16px;
   }
   .mode-card-foot {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 4px;
+  }
+  .mode-card-live {
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  .mode-card-total {
+    font-size: 11px;
+  }
+  .mc-long {
+    display: none;
   }
 }
 
@@ -6922,3 +6938,49 @@ body:has(.rc-dock) .toast {
 .mini-glass .mini-bar { background: rgba(255,255,255,.6); border-bottom: 1px solid #fff; }
 .mini-glass .t1, .mini-glass .t2 { background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.35)); border: 1px solid #fff; box-shadow: 0 0 6px rgba(120,145,180,.35); }
 .mini-glass .mini-btn { background: linear-gradient(180deg, #e3f1ff 0%, #a9cff6 48%, #86baf0 52%, #b8dcfc 100%); border: 1px solid rgba(40,90,150,.45); }
+
+/* 首頁今日卡：分頁圓點（只在手機顯示） */
+.today-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+.today-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1.5px var(--border);
+  transition: width 0.2s, background 0.2s;
+}
+.today-dots i.on {
+  width: 20px;
+  background: var(--text);
+  box-shadow: none;
+}
+.today-dots-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 768px) {
+  .today-dots {
+    display: none;
+  }
+}
+/* 手機底部導覽上方淡出：內容被蓋住時不會一刀切 */
+@media (max-width: 700px) {
+  .bottom-nav::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 24px;
+    background: linear-gradient(180deg, transparent, var(--bg));
+    pointer-events: none;
+  }
+}

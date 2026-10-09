@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
@@ -20,6 +21,18 @@ export default function Home() {
   events?.forEach((e) => e.status !== 'archived' && counts[e.mode]++)
   const live = { event: 0, banquet: 0, bus: 0, gift: 0 }
   todays?.forEach((e) => live[e.mode]++)
+
+  // 今日卡左右滑動：記下目前在第幾張，供分頁圓點使用
+  const rowRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(0)
+  const onRowScroll = () => {
+    const row = rowRef.current
+    const first = row?.firstElementChild as HTMLElement | null
+    if (!row || !first) return
+    const step = first.getBoundingClientRect().width + 12
+    const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4
+    setPage(atEnd ? row.children.length - 1 : Math.round(row.scrollLeft / step))
+  }
 
   if (!events) return <div className="page" />
 
@@ -44,11 +57,25 @@ export default function Home() {
         }
       />
       {todays && todays.length > 0 ? (
-        <div className="today-cards">
-          {todays.map((e) => (
-            <EventCard key={e.id} event={e} stats={summaries[e.id]} />
-          ))}
-        </div>
+        <>
+          <div className="today-cards" ref={rowRef} onScroll={onRowScroll}>
+            {todays.map((e) => (
+              <EventCard key={e.id} event={e} stats={summaries[e.id]} />
+            ))}
+          </div>
+          {/* 分頁圓點（只在手機、今日有兩個或以上活動時顯示；超過 6 個改為數字） */}
+          {todays.length >= 2 && (
+            <div className="today-dots" aria-hidden="true">
+              {todays.length > 6 ? (
+                <span className="today-dots-num">
+                  {page + 1} / {todays.length}
+                </span>
+              ) : (
+                todays.map((e, i) => <i key={e.id} className={i === page ? 'on' : ''} />)
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div className="card">
           <EmptyState
