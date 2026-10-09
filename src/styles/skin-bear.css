@@ -56,8 +56,15 @@
   border: 2px solid var(--bear-line);
   box-shadow: 3px 3px 0 var(--bear-drop);
 }
-[data-skin='bear'] .event-card {
+[data-skin='bear'] .event-card,
+[data-skin='bear'] .mode-card,
+[data-skin='bear'] .dash-hero,
+[data-skin='bear'] .guests-hero,
+[data-skin='bear'] .souvenir-card {
   background: var(--surface);
+}
+[data-skin='bear'] .mode-card-live.on {
+  background: var(--mode-bg);
 }
 
 /* ---------- 主要按鈕：帽徽金＋深藍字 ---------- */
