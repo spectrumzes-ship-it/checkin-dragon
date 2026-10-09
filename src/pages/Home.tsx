@@ -18,6 +18,8 @@ export default function Home() {
   const summaries = useEventSummaries(todays)
   const counts = { event: 0, banquet: 0, bus: 0, gift: 0 }
   events?.forEach((e) => e.status !== 'archived' && counts[e.mode]++)
+  const live = { event: 0, banquet: 0, bus: 0, gift: 0 }
+  todays?.forEach((e) => live[e.mode]++)
 
   if (!events) return <div className="page" />
 
@@ -64,10 +66,10 @@ export default function Home() {
 
       <SectionTitle zh="模式" en="Modes" />
       <div className="mode-cards">
-        <ModeCard mode="event" count={counts.event} />
-        <ModeCard mode="banquet" count={counts.banquet} />
-        <ModeCard mode="bus" count={counts.bus} />
-        <ModeCard mode="gift" count={counts.gift} />
+        <ModeCard mode="event" count={counts.event} live={live.event} />
+        <ModeCard mode="banquet" count={counts.banquet} live={live.banquet} />
+        <ModeCard mode="bus" count={counts.bus} live={live.bus} />
+        <ModeCard mode="gift" count={counts.gift} live={live.gift} />
       </div>
 
       {upcoming && upcoming.length > 0 && (

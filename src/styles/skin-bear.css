@@ -95,21 +95,20 @@
 /* 模式方塊：圖示放大 */
 [data-skin='bear'] .mode-card {
   border: 2px solid var(--bear-line);
-  box-shadow: 3px 3px 0 var(--bear-drop);
+  box-shadow: inset 0 6px 0 var(--mode-solid), 3px 3px 0 var(--bear-drop);
 }
 [data-skin='bear'] .mode-card-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
   border: 2px solid var(--bear-line);
+  background: var(--mode-solid);
+  color: #fff;
   box-shadow: none;
 }
 [data-skin='bear'] .mode-card-icon svg {
   width: 28px;
   height: 28px;
-}
-[data-skin='bear'] .mode-card-band {
-  border-top: 2px solid var(--bear-line);
 }
 @media (max-width: 420px) {
   [data-skin='bear'] .mode-card-icon {
@@ -119,12 +118,6 @@
   [data-skin='bear'] .mode-card-icon svg {
     width: 25px;
     height: 25px;
-  }
-  [data-skin='bear'] .mode-card {
-    gap: 7px;
-  }
-  [data-skin='bear'] .mode-card-name small {
-    letter-spacing: 0.06em;
   }
 }
 

@@ -57,25 +57,31 @@ export const PageHeader = ({
 
 // ---------- 卡片 ----------
 
-export const ModeCard = ({ mode, count }: { mode: Mode; count?: number }) => {
+// 首頁模式方塊：一眼看到是甚麼模式、今日有幾多個活動進行中、共有幾多個
+export const ModeCard = ({ mode, count, live = 0 }: { mode: Mode; count?: number; live?: number }) => {
   const m = MODE_META[mode]
   return (
-    // 站名牌風格：路線符號（代表色方塊＋圖示）、大字站名、英文站名、底部路線色帶
     <Link to={`/events?mode=${mode}`} className="mode-card" data-mode={mode}>
       <span className="mode-card-icon">
-        <ModeIcon mode={mode} size={22} />
+        <ModeIcon mode={mode} size={24} />
       </span>
       <span className="mode-card-name">
         <b>{m.zh}</b>
         <small>{m.en}</small>
       </span>
-      {count !== undefined && (
-        <span className="mode-card-count">
-          <b>{count}</b>
-          <small>個活動</small>
+      <span className="mode-card-foot">
+        <span className={cx('mode-card-live', live > 0 && 'on')}>
+          {live > 0 ? (
+            <>
+              <i aria-hidden />
+              今日 {live} 個進行中
+            </>
+          ) : (
+            '今日沒有活動'
+          )}
         </span>
-      )}
-      <i className="mode-card-band" aria-hidden />
+        {count !== undefined && <span className="mode-card-total">共 {count} 個</span>}
+      </span>
     </Link>
   )
 }
