@@ -79,14 +79,14 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 45%, #fff), color-mix(in srgb, var(--mode-solid) 22%, var(--mode-bg)));
   border: 2px solid color-mix(in srgb, var(--mode-solid) 50%, #fff);
   border-radius: 16px;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 4px 0 color-mix(in srgb, var(--mode-solid) 60%, #7f98b8);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 2px 0 color-mix(in srgb, var(--mode-solid) 60%, #7f98b8);
   transition: transform 0.08s, box-shadow 0.08s;
 }
 /* 按下：凹陷 */
 [data-skin='soft'] .mode-card:active,
 [data-skin='soft'] .event-card:active,
 [data-skin='soft'] .souvenir-card:active {
-  transform: translateY(3px);
+  transform: translateY(2px);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 0 color-mix(in srgb, var(--mode-solid) 55%, #fff);
 }
 /* 大圖示 */
@@ -144,21 +144,21 @@
   background: linear-gradient(180deg, #e9f2fc, #b7d0ee);
   color: var(--s-navy);
   border: 2px solid #8fa9c9;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 3px 0 #7f98b8;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 2px 0 #7f98b8;
 }
 [data-skin='soft'] .btn-ghost,
 [data-skin='soft'] .btn-secondary {
   background: linear-gradient(180deg, #f3f7fc, #d6e3f2);
   color: var(--s-navy);
   border: 2px solid #a6bad3;
-  box-shadow: inset 0 2px 0 #fff, 0 3px 0 #94a9c4;
+  box-shadow: inset 0 2px 0 #fff, 0 2px 0 #94a9c4;
 }
 /* 危險／清除類按鈕：蜜桃色 */
 [data-skin='soft'] .btn-danger {
   background: linear-gradient(180deg, #ffeadf, var(--s-peach));
   color: #7a3416;
   border: 2px solid #e2a184;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 3px 0 #d28c6c;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 2px 0 #d28c6c;
 }
 /* 輸入框：淺灰藍填色、圓角 */
 [data-skin='soft'] .search,
@@ -176,7 +176,7 @@
 [data-skin='soft'] .dash-scan:active,
 [data-skin='soft'] .ocr-shoot:active:not(:disabled),
 [data-skin='soft'] .manual-add:active {
-  transform: translateY(3px);
+  transform: translateY(2px);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 /* 不能使用：淡化 */
@@ -231,7 +231,7 @@
   background: linear-gradient(180deg, #bcd9f6, var(--s-sky));
   color: var(--s-navy);
   border: 2px solid #86b4e3;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 4px 0 #86b4e3;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 2px 0 #86b4e3;
 }
 @media (min-width: 701px) {
   [data-skin='soft'] .sidebar {
@@ -281,14 +281,14 @@
   color: var(--text);
   border: 2px solid #cdd8e4;
   border-radius: 14px;
-  box-shadow: inset 0 2px 0 #fff, 0 3px 0 #c3cfdc;
+  box-shadow: inset 0 2px 0 #fff, 0 2px 0 #c3cfdc;
 }
 [data-skin='soft'] .scan-modes button.active {
   background: linear-gradient(180deg, #d9f6ea, var(--s-mint));
   color: #1f5f4a;
   border-color: var(--s-mint-deep);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
-  transform: translateY(2px);
+  transform: translateY(1px);
 }
 
 /* ---------- 掃描結果 ---------- */
@@ -303,7 +303,7 @@
   background: linear-gradient(180deg, #fff, #f1f5f9);
   color: var(--text);
   border: 2px solid #cdd8e4;
-  box-shadow: 0 4px 0 #c3cfdc;
+  box-shadow: 0 2px 0 #c3cfdc;
 }
 
 /* ---------- 巴士點名 ---------- */
@@ -311,73 +311,13 @@
   background: linear-gradient(180deg, #ffffff, var(--s-panel));
   color: var(--text);
   border: 2px solid #cdd8e4;
-  box-shadow: 0 4px 0 #c3cfdc;
+  box-shadow: 0 2px 0 #c3cfdc;
 }
 [data-skin='soft'] .rc-go {
   background: linear-gradient(180deg, #ffd9c6, var(--s-peach));
   color: #7a3416;
   border: 2px solid var(--s-peach-deep);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 3px 0 var(--s-peach-deep);
-}
-
-/* ===== 均勻厚邊（用戶 2026-10-10 選方案一）=====
-   取代以上的「底部陰影」：四邊同為 3px 厚邊，內圈一條白色高光；按下時整個縮小及變深（四周一齊凹下） */
-[data-skin='soft'] .event-card,
-[data-skin='soft'] .mode-card,
-[data-skin='soft'] .dash-hero,
-[data-skin='soft'] .guests-hero,
-[data-skin='soft'] .souvenir-card,
-[data-skin='soft'] [data-mode='gift'] .guests-hero,
-[data-skin='soft'] [data-mode='gift'] .souvenir-card,
-[data-skin='soft'] [data-mode='gift'].event-card,
-[data-skin='soft'] [data-mode='gift'].mode-card {
-  border: 3px solid color-mix(in srgb, var(--mode-solid) 55%, #fff);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
-}
-[data-skin='soft'] .btn-primary,
-[data-skin='soft'] .dash-scan,
-[data-skin='soft'] .ocr-shoot:not(.is-status),
-[data-skin='soft'] .manual-add,
-[data-skin='soft'] .btn-mode,
-[data-skin='soft'] .bn-scan-btn {
-  border: 3px solid #93acca;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
-}
-[data-skin='soft'] .btn-ghost,
-[data-skin='soft'] .btn-secondary,
-[data-skin='soft'] .scan-modes button {
-  border: 3px solid #aabdd5;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
-}
-[data-skin='soft'] .btn-danger {
-  border: 3px solid #e2a184;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.8);
-}
-[data-skin='soft'] .result-seats span,
-[data-skin='soft'] .rc-depart {
-  border: 3px solid #cdd8e4;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
-}
-[data-skin='soft'] .rc-go {
-  border: 3px solid var(--s-peach-deep);
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7);
-}
-[data-skin='soft'] .mode-card:active,
-[data-skin='soft'] .event-card:active,
-[data-skin='soft'] .souvenir-card:active,
-[data-skin='soft'] .btn:active:not(:disabled),
-[data-skin='soft'] .dash-scan:active,
-[data-skin='soft'] .ocr-shoot:active:not(:disabled),
-[data-skin='soft'] .manual-add:active,
-[data-skin='soft'] .scan-modes button:active {
-  transform: scale(0.97);
-  filter: brightness(0.95);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.06);
-}
-[data-skin='soft'] .scan-modes button.active {
-  transform: none;
-  border-color: var(--s-mint-deep);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 2px 0 var(--s-peach-deep);
 }
 
 /* 掃描頁跟活動代表色（活動淡紫、宴會蜜桃、旅遊粉藍、禮品薄荷綠） */
