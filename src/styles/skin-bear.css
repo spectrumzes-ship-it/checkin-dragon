@@ -21,7 +21,7 @@
   --bad-ink: #c2311f;
   --bg: #f4fbf8;
   --surface-2: #eaf6f2;
-  --shadow: 2px 2px 0 var(--bear-drop);
+  --shadow: 1px 1px 0 var(--bear-drop);
 }
 /* 深色模式：描邊改淺色，陰影改黑 */
 :root[data-skin='bear'][data-theme='dark'] {
@@ -54,7 +54,7 @@
 [data-skin='bear'] .souvenir-card,
 [data-skin='bear'] .guests-hero {
   border: 1.5px solid var(--bear-line);
-  box-shadow: 2px 2px 0 var(--bear-drop);
+  box-shadow: 1px 1px 0 var(--bear-drop);
 }
 [data-skin='bear'] .event-card,
 [data-skin='bear'] .mode-card,
@@ -102,7 +102,7 @@
 /* 模式方塊：圖示放大 */
 [data-skin='bear'] .mode-card {
   border: 1.5px solid var(--bear-line);
-  box-shadow: inset 0 6px 0 var(--mode-solid), 2px 2px 0 var(--bear-drop);
+  box-shadow: 1px 1px 0 var(--bear-drop); /* 方案三：不加色帶，顏色只在實色圖示及「進行中」膠囊 */
 }
 [data-skin='bear'] .mode-card-icon {
   width: 48px;
