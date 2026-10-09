@@ -6770,3 +6770,21 @@ body:has(.rc-dock) .toast {
     gap: 4px;
   }
 }
+
+/* ===== 預設主題：髮絲線（用戶 2026-10-10 選方案一）=====
+   卡片去掉代表色粗邊，只留一條淡灰線，白卡浮在生成色底上；
+   顏色只留在圖示、標籤、進度格。熊本熊主題另有自己的描邊。 */
+.event-card,
+.dash-hero,
+.guests-hero,
+.souvenir-card,
+[data-mode='gift'] .guests-hero,
+[data-mode='gift'] .souvenir-card,
+[data-mode='gift'].event-card {
+  border: 1px solid var(--border);
+}
+.mode-card,
+[data-mode='gift'].mode-card {
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
