@@ -251,9 +251,9 @@ export default function Settings() {
 
       <SectionTitle zh="關於" en="About" />
       <div className="card about">
-        <img src={logo} alt="點名龍 Logo" width={96} height={96} />
+        <img src={logo} alt="點名熊 Logo" width={96} height={96} />
         <div>
-          <h3>Check-In Dragon 點名龍</h3>
+          <h3>Check-In Bear 點名熊</h3>
           <p className="muted">活動・宴會・旅遊、禮品管理</p>
           <p className="muted">製作者：Kevin</p>
           <p className="muted">版權所有 SPARKY</p>
@@ -301,7 +301,7 @@ export default function Settings() {
             <li>用 Safari 打開本 App 的網址</li>
             <li>按底部（iPad 在頂部）的「分享」按鈕 □↑</li>
             <li>向下捲動，按「加入主畫面」</li>
-            <li>按「新增」，主畫面就會出現小龍圖示</li>
+            <li>按「新增」，主畫面就會出現小熊圖示</li>
           </ol>
           <h4>Android（Chrome）</h4>
           <ol>

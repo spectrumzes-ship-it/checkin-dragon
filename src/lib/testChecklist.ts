@@ -16,7 +16,7 @@ export const TEST_GROUPS: TestGroup[] = [
     title: '一、安裝及離線',
     note: '用 iPhone、iPad、Android 各試一次',
     items: [
-      { id: 'install', do: '用 Safari／Chrome 打開 ticket.sparky.hk →「加入主畫面」', expect: '主畫面出現點名龍圖示，打開時沒有網址列' },
+      { id: 'install', do: '用 Safari／Chrome 打開 ticket.sparky.hk →「加入主畫面」', expect: '主畫面出現點名熊圖示，打開時沒有網址列' },
       { id: 'offline', do: '開飛航模式，再打開 App，簽到一位嘉賓', expect: 'App 照常開啟，簽到成功' },
       { id: 'update', do: '「設定 → 關於」看更新時間', expect: '顯示最新的更新時間' },
     ],

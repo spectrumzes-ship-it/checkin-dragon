@@ -26,8 +26,8 @@ export default function Home() {
       <header className="home-head">
         <img src={logo} alt="" className="home-logo" width={48} height={48} />
         <div className="bi">
-          <span className="bi-zh home-title">點名龍</span>
-          <span className="bi-en">Check-In Dragon</span>
+          <span className="bi-zh home-title">點名熊</span>
+          <span className="bi-en">Check-In Bear</span>
         </div>
         <SyncIndicator />
       </header>

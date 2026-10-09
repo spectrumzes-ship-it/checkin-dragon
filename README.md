@@ -1,4 +1,4 @@
-# Check-In Dragon 點名龍
+# Check-In Bear 點名熊
 
 活動・宴會・巴士出席管理 App（個人使用）。
 
