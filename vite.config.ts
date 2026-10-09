@@ -17,9 +17,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: 'Check-In Bear 點名熊',
+        name: '點名熊 Check-In Bear',
         short_name: '點名熊',
-        description: '活動・宴會・巴士出席管理',
+        description: '活動・宴會・旅遊・禮品領取的簽到及點名',
         lang: 'zh-Hant',
         start_url: './',
         scope: './',
@@ -29,9 +29,9 @@ export default defineConfig({
         background_color: '#FAF9F6',
         theme_color: '#FAF9F6',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon-192.png?v=bear', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png?v=bear', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-512.png?v=bear', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

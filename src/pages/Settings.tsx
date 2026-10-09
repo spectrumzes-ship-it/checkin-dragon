@@ -256,7 +256,7 @@ export default function Settings() {
       <div className="card about">
         <img src={logo} alt="點名熊 Logo" width={96} height={96} />
         <div>
-          <h3>Check-In Bear 點名熊</h3>
+          <h3>點名熊 Check-In Bear</h3>
           <p className="muted">活動・宴會・旅遊、禮品管理</p>
           <p className="muted">製作者：Kevin</p>
           <p className="muted">版權所有 SPARKY</p>
