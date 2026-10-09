@@ -119,12 +119,12 @@
 }
 @media (max-width: 420px) {
   [data-skin='bear'] .mode-card-icon {
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
   }
   [data-skin='bear'] .mode-card-icon svg {
-    width: 25px;
-    height: 25px;
+    width: 22px;
+    height: 22px;
   }
 }
 
@@ -208,4 +208,24 @@
 }
 [data-skin='bear'] .rc-station {
   border-bottom: 4px solid var(--bear-gold);
+}
+
+/* ===================== 熊本：深色修正 ===================== */
+:root[data-skin='bear'][data-scheme='dark'] {
+  --bad-ink: #ff8f80;
+  --brand: #a7f5e3;
+  --text: #eef3f2;
+  --text-2: #b3c2bf;
+}
+:root[data-skin='bear'][data-scheme='dark'] .bn-item.active,
+:root[data-skin='bear'][data-scheme='dark'] .side-item.active {
+  color: var(--bear-mint);
+}
+:root[data-skin='bear'][data-scheme='dark'] .card,
+:root[data-skin='bear'][data-scheme='dark'] .event-card,
+:root[data-skin='bear'][data-scheme='dark'] .mode-card,
+:root[data-skin='bear'][data-scheme='dark'] .dash-hero,
+:root[data-skin='bear'][data-scheme='dark'] .guests-hero,
+:root[data-skin='bear'][data-scheme='dark'] .souvenir-card {
+  background: #1f2726;
 }

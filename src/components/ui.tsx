@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Cloud, CloudOff, Search, Star, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CloudOff, RefreshCw, Search, Star, X } from 'lucide-react'
 import type { EventRec, Mode } from '../db/types'
 import type { Stats } from '../lib/hooks'
 import { useOnline } from '../lib/hooks'
@@ -361,8 +361,8 @@ export const EmptyState = ({ art, zh, en, action }: { art: ReactNode; zh: string
 export const SyncIndicator = () => {
   const online = useOnline()
   return online ? (
-    <span className="sync ok" title="資料已保存在本機">
-      <Cloud size={16} /> <span>已保存</span>
+    <span className="sync ok" title="資料已保存在本機（多部裝置同步在第 4 階段加入）">
+      <RefreshCw size={15} /> <span>已同步</span>
     </span>
   ) : (
     <span className="sync off" title="離線中，資料照常保存在本機">

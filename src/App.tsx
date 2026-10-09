@@ -35,6 +35,12 @@ const useTheme = () => {
     const root = document.documentElement
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
+    // data-scheme：實際生效的深淺色（跟隨系統時亦會更新），供各介面主題的深色版本使用
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => root.setAttribute('data-scheme', theme === 'dark' || (theme === 'system' && mq.matches) ? 'dark' : 'light')
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
   }, [theme])
   // 介面主題：預設（和色，不加標記）；其他主題加 data-skin（soft 柔和、bear 熊本、kiosk 鐵道、glass 水晶）
   useEffect(() => {

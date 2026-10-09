@@ -460,6 +460,10 @@ code {
 .today-cards > * {
   scroll-snap-align: start;
 }
+/* 捲動對齊時保留左右 16px，第一張卡不會貼住屏幕邊 */
+.today-cards {
+  scroll-padding-inline: 16px;
+}
 .today-cards:has(> :only-child) {
   grid-auto-columns: 100%;
 }
@@ -6766,15 +6770,16 @@ body:has(.rc-dock) .toast {
 }
 @media (max-width: 420px) {
   .mode-card {
-    column-gap: 10px;
-    padding: 12px;
+    column-gap: 9px;
+    row-gap: 10px;
+    padding: 10px;
   }
   .mode-card-icon {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
   }
   .mode-card-name b {
-    font-size: 17px;
+    font-size: 16px;
   }
   .mode-card-foot {
     flex-direction: column;

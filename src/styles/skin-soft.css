@@ -1,10 +1,9 @@
 /* ===== 介面主題：柔和購票機（設定 → 介面主題）=====
    柔和版的車站售票機：淺灰藍機台底、粉藍／薄荷綠／蜜桃／淡紫四色分功能；
    大圓角立體按鈕（漸層、高光、厚邊框、底部陰影），按下有凹陷感，選中加深外框，不能用的淡化。
-   只用繁體中文。固定淺色外觀。 */
+   只用繁體中文。深色版本在檔案最後（data-scheme="dark"）。 */
 
-:root[data-skin='soft'],
-:root[data-skin='soft'][data-theme='dark'] {
+:root[data-skin='soft'] {
   --s-machine: #dfe7ef;
   --s-machine-2: #edf2f7;
   --s-panel: #f7f9fc;
@@ -30,20 +29,6 @@
   --brand: var(--s-sky-deep);
   --shadow: none;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-skin='soft']:not([data-theme]) {
-    --bg: #dfe7ef;
-    --surface: #ffffff;
-    --surface-2: #eef3f8;
-    --surface-3: #e1e9f1;
-    --text: #24324a;
-    --text-2: #56657c;
-    --text-3: #8492a6;
-    --border: #c3cfdc;
-    --border-soft: #d6dfe9;
-    color-scheme: light;
-  }
 }
 [data-skin='soft'] body {
   background: linear-gradient(180deg, var(--s-machine-2), var(--s-machine)) fixed;
@@ -104,16 +89,17 @@
 }
 @media (max-width: 420px) {
   [data-skin='soft'] .mode-card-icon {
-    width: 46px;
-    height: 46px;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
   }
   [data-skin='soft'] .mode-card-icon svg {
-    width: 26px;
-    height: 26px;
+    width: 23px;
+    height: 23px;
   }
 }
 [data-skin='soft'] .mode-card-name b {
-  font-size: 19px;
+  font-size: clamp(16px, 4.6vw, 19px);
   font-weight: 900;
 }
 [data-skin='soft'] .event-card-icon,
@@ -308,7 +294,7 @@
 
 /* ---------- 巴士點名 ---------- */
 [data-skin='soft'] .rc-depart {
-  background: linear-gradient(180deg, #3c5378, var(--s-navy));
+  background: linear-gradient(180deg, #3c5378, #2c3e5c);
   color: #fff;
   border: 2px solid #2a3b57;
   box-shadow: 0 2px 0 #1f2c42;
@@ -342,4 +328,129 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 45%, #fff), color-mix(in srgb, var(--mode-solid) 30%, var(--mode-bg)));
   color: var(--mode-ink);
   border-color: color-mix(in srgb, var(--mode-solid) 60%, #fff);
+}
+
+/* ===================== 柔和：深色版本 ===================== */
+:root[data-skin='soft'][data-scheme='dark'] {
+  --s-machine: #171d28;
+  --s-machine-2: #1f2735;
+  --s-panel: #222b3a;
+  --s-navy: #dbe6f5;
+  --bg: #171d28;
+  --surface: #252e3d;
+  --surface-2: #2c3647;
+  --surface-3: #364154;
+  --text: #e6ecf5;
+  --text-2: #a9b5c7;
+  --text-3: #7d899b;
+  --border: #3a4558;
+  --border-soft: #313b4c;
+  --brand: #8fbcef;
+  color-scheme: dark;
+}
+:root[data-skin='soft'][data-scheme='dark'] [data-mode='event'] { --mode-bg: #2e2745; --mode-ink: #cdbdf5; --mode-solid: #9d85d9; }
+:root[data-skin='soft'][data-scheme='dark'] [data-mode='banquet'] { --mode-bg: #3d2a22; --mode-ink: #f5bea3; --mode-solid: #e98a63; }
+:root[data-skin='soft'][data-scheme='dark'] [data-mode='bus'] { --mode-bg: #1f3147; --mode-ink: #b0d2f4; --mode-solid: #5f9ad6; }
+:root[data-skin='soft'][data-scheme='dark'] [data-mode='gift'] { --mode-bg: #1d3a30; --mode-ink: #a6e3c9; --mode-solid: #4fb68c; }
+:root[data-skin='soft'][data-scheme='dark'] .card,
+:root[data-skin='soft'][data-scheme='dark'] .rc-sign,
+:root[data-skin='soft'][data-scheme='dark'] .room-card {
+  background: rgba(37, 46, 61, 0.88);
+  border-color: #3a4558;
+}
+:root[data-skin='soft'][data-scheme='dark'] .event-card,
+:root[data-skin='soft'][data-scheme='dark'] .mode-card,
+:root[data-skin='soft'][data-scheme='dark'] .dash-hero,
+:root[data-skin='soft'][data-scheme='dark'] .guests-hero,
+:root[data-skin='soft'][data-scheme='dark'] .souvenir-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 75%, #3a4558), var(--mode-bg));
+  border-color: color-mix(in srgb, var(--mode-solid) 55%, #171d28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 color-mix(in srgb, var(--mode-solid) 35%, #0d1118);
+}
+:root[data-skin='soft'][data-scheme='dark'] .mode-card-icon,
+:root[data-skin='soft'][data-scheme='dark'] .event-card-icon,
+:root[data-skin='soft'][data-scheme='dark'] .souvenir-icon {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--mode-solid) 45%, #171d28);
+}
+:root[data-skin='soft'][data-scheme='dark'] .mode-card-live,
+:root[data-skin='soft'][data-scheme='dark'] .event-card-mode {
+  background: rgba(0, 0, 0, 0.25);
+}
+:root[data-skin='soft'][data-scheme='dark'] .btn-primary,
+:root[data-skin='soft'][data-scheme='dark'] .dash-scan,
+:root[data-skin='soft'][data-scheme='dark'] .ocr-shoot:not(.is-status),
+:root[data-skin='soft'][data-scheme='dark'] .manual-add,
+:root[data-skin='soft'][data-scheme='dark'] .btn-mode,
+:root[data-skin='soft'][data-scheme='dark'] .bn-scan-btn {
+  background: linear-gradient(180deg, #3d5f8c, #2c476d);
+  color: #eaf3ff;
+  border-color: #5479aa;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 0 #1d3150;
+}
+:root[data-skin='soft'][data-scheme='dark'] .btn-ghost,
+:root[data-skin='soft'][data-scheme='dark'] .btn-secondary {
+  background: linear-gradient(180deg, #313c4f, #273141);
+  color: #dbe6f5;
+  border-color: #47556c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 #151b26;
+}
+:root[data-skin='soft'][data-scheme='dark'] .btn-danger {
+  background: linear-gradient(180deg, #5a3426, #45271c);
+  color: #ffd2bd;
+  border-color: #8a4b33;
+  box-shadow: 0 2px 0 #2a160f;
+}
+:root[data-skin='soft'][data-scheme='dark'] .search {
+  background: #222b3a;
+  border-color: #3a4558;
+}
+:root[data-skin='soft'][data-scheme='dark'] .home-head,
+:root[data-skin='soft'][data-scheme='dark'] .event-head,
+:root[data-skin='soft'][data-scheme='dark'] .bottom-nav,
+:root[data-skin='soft'][data-scheme='dark'] .sidebar {
+  background: linear-gradient(180deg, #232c3b, #1d2532);
+  border-color: #3a4558;
+}
+:root[data-skin='soft'][data-scheme='dark'] .home-logo {
+  border-color: #3a4558;
+}
+:root[data-skin='soft'][data-scheme='dark'] .bn-item.active {
+  color: #8fbcef;
+}
+:root[data-skin='soft'][data-scheme='dark'] .side-item.active {
+  background: linear-gradient(180deg, #2c3d55, #24334a);
+  box-shadow: inset 0 0 0 2px #5479aa;
+}
+:root[data-skin='soft'][data-scheme='dark'] .ocr-steps li,
+:root[data-skin='soft'][data-scheme='dark'] .ocr-shoot.is-status,
+:root[data-skin='soft'][data-scheme='dark'] .scan-modes button {
+  background: #252e3d;
+  color: #dbe6f5;
+  border-color: #3a4558;
+  box-shadow: none;
+}
+:root[data-skin='soft'][data-scheme='dark'] .result.tone-ok {
+  --t-bg: #16302a;
+  --t-ink: #9fe3c6;
+}
+:root[data-skin='soft'][data-scheme='dark'] .result-seats span {
+  background: #252e3d;
+  color: #e6ecf5;
+  border-color: #47556c;
+  box-shadow: 0 2px 0 #151b26;
+}
+/* 深色：掃描頁仍跟活動代表色 */
+:root[data-skin='soft'][data-scheme='dark'] .scan .ocr-shoot:not(.is-status),
+:root[data-skin='soft'][data-scheme='dark'] .scan .scan-modes button.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-solid) 45%, #252e3d), color-mix(in srgb, var(--mode-solid) 30%, #1f2735));
+  color: #fff;
+  border-color: color-mix(in srgb, var(--mode-solid) 70%, #171d28);
+}
+:root[data-skin='soft'][data-scheme='dark'] .scan .ocr-steps b {
+  background: color-mix(in srgb, var(--mode-solid) 35%, #252e3d);
+  color: #fff;
+}
+:root[data-skin='soft'][data-scheme='dark'] .scan-panel {
+  background: linear-gradient(180deg, #1f2735, #171d28);
 }

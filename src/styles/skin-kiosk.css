@@ -1,10 +1,9 @@
 /* ===== 介面主題：鐵道（車站售票機風格，設定 → 介面主題）=====
    參考日本車站自助售票機：灰色觸控屏底、深灰指示列（重點字黃色）、
    彩色立體漸變大按鈕（上淺下深、細黑邊、頂部高光）、藍色機身色掃描鍵。
-   固定淺色外觀（深色模式下亦維持，確保字與底對比）。四種模式代表色保留作按鈕配色。 */
+   深色版本在檔案最後（data-scheme="dark"）。四種模式代表色保留作按鈕配色。 */
 
-:root[data-skin='kiosk'],
-:root[data-skin='kiosk'][data-theme='dark'] {
+:root[data-skin='kiosk'] {
   --k-body: #2f86d6;
   --k-body-dark: #1f63a8;
   --k-bar: #3a3d42;
@@ -26,20 +25,6 @@
   --brand: var(--k-body-dark);
   --shadow: none;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-skin='kiosk']:not([data-theme]) {
-    --bg: #c4ccd4;
-    --surface: #ffffff;
-    --surface-2: #e4e9ee;
-    --surface-3: #d3dae1;
-    --text: #1f2328;
-    --text-2: #4b535c;
-    --text-3: #6f7882;
-    --border: #9aa4ae;
-    --border-soft: #b8c1ca;
-    color-scheme: light;
-  }
 }
 [data-skin='kiosk'] body {
   background: linear-gradient(180deg, #d6dce2, #b9c1ca) fixed;
@@ -74,7 +59,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 0 rgba(0, 0, 0, 0.25);
 }
 [data-skin='kiosk'] .mode-card-name b {
-  font-size: 19px;
+  font-size: clamp(16px, 4.6vw, 19px);
   font-weight: 900;
 }
 [data-skin='kiosk'] .mode-card-icon,
@@ -248,4 +233,69 @@
   color: #fff;
   border: 1px solid rgba(0, 0, 0, 0.5);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ===================== 鐵道：深色版本（夜間售票機屏幕） ===================== */
+:root[data-skin='kiosk'][data-scheme='dark'] {
+  --bg: #1b1e23;
+  --surface: #262a31;
+  --surface-2: #2e333b;
+  --surface-3: #383e47;
+  --text: #eef1f4;
+  --text-2: #b4bcc6;
+  --text-3: #87909b;
+  --border: #4a525d;
+  --border-soft: #3a4048;
+  --brand: #6fb0f0;
+  --k-edge: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-skin='kiosk'][data-scheme='dark'] body {
+  background: linear-gradient(180deg, #23272d, #16181c) fixed;
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .card,
+:root[data-skin='kiosk'][data-scheme='dark'] .rc-sign,
+:root[data-skin='kiosk'][data-scheme='dark'] .room-card {
+  background: linear-gradient(180deg, #2e333b, #24282e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .event-card,
+:root[data-skin='kiosk'][data-scheme='dark'] .mode-card,
+:root[data-skin='kiosk'][data-scheme='dark'] .dash-hero,
+:root[data-skin='kiosk'][data-scheme='dark'] .guests-hero,
+:root[data-skin='kiosk'][data-scheme='dark'] .souvenir-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-solid) 40%, #2e333b), color-mix(in srgb, var(--mode-solid) 22%, #1d2025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .mode-card-icon,
+:root[data-skin='kiosk'][data-scheme='dark'] .event-card-icon,
+:root[data-skin='kiosk'][data-scheme='dark'] .souvenir-icon,
+:root[data-skin='kiosk'][data-scheme='dark'] .mode-card-live,
+:root[data-skin='kiosk'][data-scheme='dark'] .event-card-mode {
+  background: rgba(0, 0, 0, 0.28);
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .btn-ghost,
+:root[data-skin='kiosk'][data-scheme='dark'] .btn-secondary,
+:root[data-skin='kiosk'][data-scheme='dark'] .scan-modes button,
+:root[data-skin='kiosk'][data-scheme='dark'] .ocr-steps li {
+  background: linear-gradient(180deg, #3a4048, #2a2e35);
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .scan-modes button.active {
+  background: linear-gradient(180deg, #fff6b8, var(--k-hilite));
+  color: #3a2f00;
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .scan-panel {
+  background: linear-gradient(180deg, #23272d, #16181c);
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .result.tone-ok {
+  --t-bg: #15291d;
+  --t-ink: #8fe0a8;
+}
+:root[data-skin='kiosk'][data-scheme='dark'] .result-seats span {
+  background: #262a31;
+  color: var(--text);
+  border-color: var(--text-2);
 }

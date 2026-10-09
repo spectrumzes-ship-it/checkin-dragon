@@ -297,7 +297,7 @@ export function RollCallSession() {
   const LineMark = ({ k }: { k: string }) => {
     const i = buses.findIndex((b) => b.id === k)
     const text = k === EVERYONE ? '全' : i >= 0 ? buses[i].label.slice(0, 2) : '–'
-    const bg = k === EVERYONE ? 'var(--text)' : i >= 0 ? lineColor(i) : 'var(--text-3)'
+    const bg = k === EVERYONE ? '#2b2f36' : i >= 0 ? lineColor(i) : 'var(--text-3)'
     return (
       <span className="rc-mark-line" style={{ background: bg }} aria-hidden="true">
         {text}

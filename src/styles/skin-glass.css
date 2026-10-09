@@ -1,10 +1,9 @@
 /* ===== 介面主題：水晶（水玻璃，設定 → 介面主題）=====
    似 macOS 的玻璃質感：半透明卡片＋背景模糊、上半部光澤、四周平均的白色亮邊及淡淡光暈；
    主要按鈕似 Aqua 果凍（上半發亮、下半透藍）。背景有柔和彩色光斑，讓玻璃透出顏色。
-   四種模式沿用柔和四色（活動淡紫、宴會蜜桃、旅遊粉藍、禮品薄荷綠）。固定淺色外觀。 */
+   四種模式沿用柔和四色（活動淡紫、宴會蜜桃、旅遊粉藍、禮品薄荷綠）。深色版本在檔案最後（data-scheme="dark"）。 */
 
-:root[data-skin='glass'],
-:root[data-skin='glass'][data-theme='dark'] {
+:root[data-skin='glass'] {
   --g-navy: #12345a;
   --g-btn-ink: #3a6a9e; /* 按鈕字：較淺的藍 */
   --bg: #e8eef5;
@@ -19,20 +18,6 @@
   --brand: #3d7fc9;
   --shadow: none;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-skin='glass']:not([data-theme]) {
-    --bg: #e8eef5;
-    --surface: rgba(255, 255, 255, 0.6);
-    --surface-2: rgba(255, 255, 255, 0.45);
-    --surface-3: rgba(255, 255, 255, 0.35);
-    --text: #1e2b40;
-    --text-2: #4f5e75;
-    --text-3: #7d8aa0;
-    --border: rgba(255, 255, 255, 0.85);
-    --border-soft: rgba(255, 255, 255, 0.7);
-    color-scheme: light;
-  }
 }
 [data-skin='glass'] body {
   background:
@@ -131,7 +116,7 @@
   height: 28px;
 }
 [data-skin='glass'] .mode-card-name b {
-  font-size: 19px;
+  font-size: clamp(16px, 4.6vw, 19px);
   font-weight: 900;
 }
 [data-skin='glass'] .mode-card-live,
@@ -326,4 +311,130 @@
 /* 名單行：較不透明，向左拉時刪除按鈕不會透出 */
 [data-skin='glass'] .swipe-front {
   background: rgba(255, 255, 255, 0.9);
+}
+
+/* ===================== 水晶：深色版本（夜色玻璃） ===================== */
+:root[data-skin='glass'][data-scheme='dark'] {
+  --g-navy: #e3ecf8;
+  --g-btn-ink: #1f4f86;
+  --bg: #0f1520;
+  --surface: rgba(30, 40, 58, 0.6);
+  --surface-2: rgba(40, 52, 72, 0.55);
+  --surface-3: rgba(52, 66, 88, 0.5);
+  --text: #e8eef7;
+  --text-2: #a9b6c9;
+  --text-3: #7c8a9f;
+  --border: rgba(255, 255, 255, 0.18);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --brand: #8fc2f5;
+  color-scheme: dark;
+}
+:root[data-skin='glass'][data-scheme='dark'] body {
+  background:
+    radial-gradient(40vmax 40vmax at 8% 12%, rgba(141, 115, 201, 0.28), transparent 70%),
+    radial-gradient(42vmax 42vmax at 92% 30%, rgba(233, 138, 99, 0.2), transparent 70%),
+    radial-gradient(46vmax 46vmax at 18% 78%, rgba(95, 154, 214, 0.28), transparent 70%),
+    radial-gradient(40vmax 40vmax at 88% 92%, rgba(79, 182, 140, 0.22), transparent 70%),
+    linear-gradient(180deg, #121a27, #0b1019) fixed;
+  background-attachment: fixed;
+}
+:root[data-skin='glass'][data-scheme='dark'] [data-mode='event'] { --mode-bg: #2e2745; --mode-ink: #cdbdf5; --mode-solid: #9d85d9; }
+:root[data-skin='glass'][data-scheme='dark'] [data-mode='banquet'] { --mode-bg: #3d2a22; --mode-ink: #f5bea3; --mode-solid: #e98a63; }
+:root[data-skin='glass'][data-scheme='dark'] [data-mode='bus'] { --mode-bg: #1f3147; --mode-ink: #b0d2f4; --mode-solid: #5f9ad6; }
+:root[data-skin='glass'][data-scheme='dark'] [data-mode='gift'] { --mode-bg: #1d3a30; --mode-ink: #a6e3c9; --mode-solid: #4fb68c; }
+:root[data-skin='glass'][data-scheme='dark'] .card,
+:root[data-skin='glass'][data-scheme='dark'] .rc-sign,
+:root[data-skin='glass'][data-scheme='dark'] .room-card {
+  background: linear-gradient(180deg, rgba(40, 52, 72, 0.7), rgba(24, 32, 46, 0.6));
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 16px rgba(0, 0, 0, 0.3);
+}
+:root[data-skin='glass'][data-scheme='dark'] .event-card,
+:root[data-skin='glass'][data-scheme='dark'] .mode-card,
+:root[data-skin='glass'][data-scheme='dark'] .dash-hero,
+:root[data-skin='glass'][data-scheme='dark'] .guests-hero,
+:root[data-skin='glass'][data-scheme='dark'] .souvenir-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-solid) 30%, rgba(30, 40, 58, 0.7)), color-mix(in srgb, var(--mode-solid) 14%, rgba(16, 22, 34, 0.6)));
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 0 1px color-mix(in srgb, var(--mode-solid) 30%, transparent), 0 0 18px color-mix(in srgb, var(--mode-solid) 20%, transparent);
+}
+:root[data-skin='glass'][data-scheme='dark'] .event-card::before,
+:root[data-skin='glass'][data-scheme='dark'] .mode-card::before,
+:root[data-skin='glass'][data-scheme='dark'] .dash-hero::before,
+:root[data-skin='glass'][data-scheme='dark'] .guests-hero::before,
+:root[data-skin='glass'][data-scheme='dark'] .souvenir-card::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+}
+:root[data-skin='glass'][data-scheme='dark'] .mode-card-icon,
+:root[data-skin='glass'][data-scheme='dark'] .event-card-icon,
+:root[data-skin='glass'][data-scheme='dark'] .souvenir-icon,
+:root[data-skin='glass'][data-scheme='dark'] .mode-card-live,
+:root[data-skin='glass'][data-scheme='dark'] .event-card-mode,
+:root[data-skin='glass'][data-scheme='dark'] .ocr-steps li,
+:root[data-skin='glass'][data-scheme='dark'] .ocr-shoot.is-status,
+:root[data-skin='glass'][data-scheme='dark'] .search {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+:root[data-skin='glass'][data-scheme='dark'] .mode-card-icon,
+:root[data-skin='glass'][data-scheme='dark'] .event-card-icon,
+:root[data-skin='glass'][data-scheme='dark'] .souvenir-icon,
+:root[data-skin='glass'][data-scheme='dark'] .mode-card-live {
+  color: var(--mode-ink);
+}
+:root[data-skin='glass'][data-scheme='dark'] .rc-cars-row i:not(.on):not(.half) {
+  background: rgba(255, 255, 255, 0.15);
+}
+:root[data-skin='glass'][data-scheme='dark'] .btn-ghost,
+:root[data-skin='glass'][data-scheme='dark'] .btn-secondary,
+:root[data-skin='glass'][data-scheme='dark'] .scan-modes button {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  color: #dce8f7;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+:root[data-skin='glass'][data-scheme='dark'] .home-head,
+:root[data-skin='glass'][data-scheme='dark'] .event-head,
+:root[data-skin='glass'][data-scheme='dark'] .bottom-nav,
+:root[data-skin='glass'][data-scheme='dark'] .sidebar {
+  background: rgba(16, 22, 34, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+:root[data-skin='glass'][data-scheme='dark'] .bn-item.active {
+  color: #8fc2f5;
+}
+:root[data-skin='glass'][data-scheme='dark'] .side-item.active {
+  background: rgba(255, 255, 255, 0.12);
+}
+:root[data-skin='glass'][data-scheme='dark'] .swipe-front {
+  background: rgba(24, 32, 46, 0.94);
+}
+:root[data-skin='glass'][data-scheme='dark'] .scan-panel {
+  background: rgba(16, 22, 34, 0.85);
+}
+:root[data-skin='glass'][data-scheme='dark'] .scan .scan-modes button.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-solid) 45%, rgba(30, 40, 58, 0.8)), color-mix(in srgb, var(--mode-solid) 28%, rgba(16, 22, 34, 0.8)));
+  color: #fff;
+}
+:root[data-skin='glass'][data-scheme='dark'] .result.tone-ok {
+  --t-bg: #12291f;
+  --t-ink: #9fe3c6;
+}
+:root[data-skin='glass'][data-scheme='dark'] .result-seats span {
+  background: rgba(30, 40, 58, 0.8);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 420px) {
+  [data-skin='glass'] .mode-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+  [data-skin='glass'] .mode-card-icon svg {
+    width: 23px;
+    height: 23px;
+  }
 }
