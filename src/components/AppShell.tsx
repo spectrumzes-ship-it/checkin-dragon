@@ -1,7 +1,9 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ChartPie, FolderOpen, House, ScanLine, Settings, Users, FileText } from 'lucide-react'
 import { useSettings } from '../lib/settings'
-import { cx } from '../lib/util'
+import { cx, pickScanEvent } from '../lib/util'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
 import { ToastHost } from './ui'
 
 
@@ -11,7 +13,10 @@ export const AppShell = () => {
   const loc = useLocation()
   const ev = currentEventId ? `/e/${currentEventId}` : null
   const guests = ev ? `${ev}/guests` : '/events?pick=guests'
-  const scan = ev ? `${ev}/scan` : '/events?pick=scan'
+  // 掃描：按時間自動揀今日的活動；今日沒有活動才用上次的活動
+  const events = useLiveQuery(() => db.events.toArray(), []) ?? []
+  const auto = pickScanEvent(events)
+  const scan = auto ? `/e/${auto.id}/scan` : ev ? `${ev}/scan` : '/events?pick=scan'
   const stats = ev ? ev : '/events?pick=stats'
 
   const path = loc.pathname

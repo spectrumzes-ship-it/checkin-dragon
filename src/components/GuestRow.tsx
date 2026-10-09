@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Gift } from 'lucide-react'
 import type { GuestEntry } from '../lib/search'
-import { cx, formatTime } from '../lib/util'
+import { cx, formatTime, roomText } from '../lib/util'
 import { SoftTag, VipBadge } from './ui'
 import { StatusIcon } from './StatusIcon'
 import { isAnonymous, names } from '../lib/names'
@@ -59,7 +59,7 @@ export const GuestRow = ({
           {p.guestCount > 1 && <SoftTag>{p.attendance === 'partial' ? `${p.arrivedCount}/` : ''}{p.guestCount} 位</SoftTag>}
         </span>
         <span className="guest-row-sub">
-          {e.room && <span className="muted">房號 {e.room.label}　</span>}
+          {e.room && <span className="muted">{roomText(e.room)}　</span>}
           {seatText(e) || (isAnonymous(p) ? <span className="muted">不記名</span> : seating ? <span className="muted">未安排座位</span> : null)}
           {p.tags.map((t) => (
             <SoftTag key={t}>{t}</SoftTag>

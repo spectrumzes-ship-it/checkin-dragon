@@ -7,7 +7,7 @@ import { db } from '../db/db'
 import type { EventRec } from '../db/types'
 import { names } from '../lib/names'
 import { useSettings } from '../lib/settings'
-import { formatDate, formatDateRange } from '../lib/util'
+import { formatDate, formatDateRange, roomText } from '../lib/util'
 import { useEventData } from '../lib/hooks'
 import { TEST_GROUPS } from '../lib/testChecklist'
 import { MODE_META } from '../components/icons'
@@ -195,7 +195,7 @@ export default function TestKit() {
                   {ev.mode === 'bus' && (
                     <em>
                       {bus ? `${bus.resource.label} 車 ${bus.seatLabel} 號` : ''}
-                      {e.room ? ` · 房號 ${e.room.label}` : ''}
+                      {e.room ? ` · ${roomText(e.room)}` : ''}
                     </em>
                   )}
                   {ev.mode === 'event' && <em>{formatDateRange(ev)} · {ev.startTime}</em>}

@@ -60,12 +60,22 @@ export const PageHeader = ({
 export const ModeCard = ({ mode, count }: { mode: Mode; count?: number }) => {
   const m = MODE_META[mode]
   return (
+    // 站名牌風格：路線符號（代表色方塊＋圖示）、大字站名、英文站名、底部路線色帶
     <Link to={`/events?mode=${mode}`} className="mode-card" data-mode={mode}>
       <span className="mode-card-icon">
-        <ModeIcon mode={mode} size={28} />
+        <ModeIcon mode={mode} size={22} />
       </span>
-      <Bi zh={m.zh} en={m.en} />
-      {count !== undefined && <span className="mode-card-count">{count} 個活動</span>}
+      <span className="mode-card-name">
+        <b>{m.zh}</b>
+        <small>{m.en}</small>
+      </span>
+      {count !== undefined && (
+        <span className="mode-card-count">
+          <b>{count}</b>
+          <small>個活動</small>
+        </span>
+      )}
+      <i className="mode-card-band" aria-hidden />
     </Link>
   )
 }

@@ -75,3 +75,26 @@ export const ageFromBirth = (birth: string, now = new Date()) => {
   if (now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) age--
   return age >= 0 && age < 150 ? String(age) : ''
 }
+
+// 主選單「掃描」按時間揀活動：今日正在進行的活動優先，其次是今日開始時間最接近現在的；今日沒有活動就回傳 null（用上次的活動）
+export const pickScanEvent = <T extends Dated & { id: string; startTime: string; endTime: string; status: string }>(events: T[], now = new Date()) => {
+  const today = toDateKey(now)
+  const mins = now.getHours() * 60 + now.getMinutes()
+  const toMin = (t: string) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : NaN)
+  const todays = events.filter((e) => e.status !== 'archived' && isOnDay(e, today))
+  if (!todays.length) return null
+  const ongoing = todays.filter((e) => {
+    const s = toMin(e.startTime)
+    const end = toMin(e.endTime)
+    return !(s > mins) && !(end < mins) // 未填時間當作全日進行
+  })
+  const pool = ongoing.length ? ongoing : todays
+  const dist = (e: T) => {
+    const s = toMin(e.startTime)
+    return Number.isNaN(s) ? 9999 : Math.abs(s - mins)
+  }
+  return [...pool].sort((a, b) => dist(a) - dist(b))[0]
+}
+
+// 房間顯示：已填酒店房號 →「房號 1203」；未填（到埗才知道）→「房 #3」
+export const roomText = (r: { label: string; purpose?: string }) => (r.purpose === 'custom' ? `房號 ${r.label}` : `房 #${r.label}`)

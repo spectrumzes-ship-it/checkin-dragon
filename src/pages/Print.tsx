@@ -6,7 +6,7 @@ import { useEvent, useEventData } from '../lib/hooks'
 import { names, nameOf } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
 import type { Resource } from '../db/types'
-import { formatDateTime, formatDateRange } from '../lib/util'
+import { formatDateTime, formatDateRange, roomText } from '../lib/util'
 import { typeLabel } from '../components/icons'
 import { buildSlots } from '../components/TableSeatList'
 
@@ -67,7 +67,7 @@ export default function Print() {
           ? `${s.resource.purpose === '晚餐' ? '餐席 ' : ''}第 ${s.resource.label} 席${s.seatLabel ? ` · ${s.seatLabel} 號` : ''}`
           : `${s.resource.label} 車${s.seatLabel ? ` ${s.seatLabel} 號` : ''}`,
       ),
-      ...(e.room ? [`房號 ${e.room.label}`] : []),
+      ...(e.room ? [roomText(e.room)] : []),
     ].join('、') || (ev.mode === 'banquet' || ev.mode === 'bus' ? '未安排' : '')
   const showSeat = ev.mode !== 'gift' && ev.mode !== 'event' ? true : all.some((e) => e.seats.length || e.room)
   const checkLabel = ev.mode === 'bus' ? '報到' : '簽到'
@@ -189,7 +189,7 @@ export default function Print() {
       ) : (
         tables.map(({ t, slots, count }) => (
           <section key={t.id} className={`print-sheet ${cont ? 'cont' : 'page'}`}>
-            {head(`${t.purpose === '晚餐' ? '餐席 ' : ''}第 ${t.label} 席 · ${count} / ${t.capacity} 位`)}
+            {head(`${t.purpose === '晚餐' ? '餐席 ' : ''}第 ${t.label.replace(/^0+(?=\d)/, '')} 席 · ${count} / ${t.capacity} 位`)}
             <table className="print-table">
               <thead>
                 <tr>
