@@ -6585,11 +6585,15 @@ body:has(.rc-dock) .toast {
 .scan-pick-text {
   flex: 1;
   min-width: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  white-space: nowrap;
+  line-height: 1.15;
+  /* 名稱較長時分兩行顯示，盡量看到全名 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .scan-pick select {
   position: absolute;

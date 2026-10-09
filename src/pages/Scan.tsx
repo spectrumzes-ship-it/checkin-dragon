@@ -147,11 +147,11 @@ export default function Scan() {
 
   const purposeOptions: [string, string][] = [
     ...(ev?.mode !== 'gift' ? [['checkin', '簽到'] as [string, string]] : []),
-    ...sessions.map((x): [string, string] => [`r:${x.id}`, `點名：${x.name}`]),
+    ...sessions.map((x): [string, string] => [`r:${x.id}`, `點名：${zhName(x.name)}`]),
     ...souvenirs.map((x): [string, string] => [`s:${x.id}`, `${ev?.mode === 'gift' ? '禮品' : '紀念品'}：${x.name}`]),
   ]
   // 方塊內只顯示簡短名稱（「禮品：」「紀念品：」等前綴已由「掃描目的」說明）
-  const purposeLabel = (purposeOptions.find(([v]) => v === purposeKey)?.[1] ?? '簽到').replace(/^(禮品|紀念品)：/, '')
+  const purposeLabel = (purposeOptions.find(([v]) => v === purposeKey)?.[1] ?? '簽到').replace(/^(禮品|紀念品|點名)：/, '')
   const addTo = purpose === 'souvenir' ? `/e/${id}/souvenirs/records?item=${targetId}&tab=pending&reg=1` : `/e/${id}/guests/new`
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
 
@@ -657,4 +657,11 @@ function OcrEdit({ value, onChange, onClear }: { value: string; onChange: (v: st
       <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
     </label>
   )
+}
+
+// 中文介面：名稱有中文就只顯示中文部分（例如「酒店出發 Hotel Departure」→「酒店出發」）
+function zhName(name: string) {
+  if (!/[\u3400-\u9fff]/.test(name)) return name
+  const zh = name.replace(/\s+[A-Za-z][A-Za-z0-9 .,'&()·-]*$/, '').trim()
+  return zh || name
 }
