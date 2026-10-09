@@ -6569,12 +6569,17 @@ body:has(.rc-dock) .toast {
   cursor: pointer;
 }
 .scan-pick:first-child {
-  flex-grow: 3;
+  flex: 1 1 0;
 }
+/* 掃描目的方塊按名稱闊度（最多約一半），餘下空間留給活動名稱 */
 .scan-pick.purpose {
-  flex-grow: 2;
+  flex: 0 1 auto;
+  max-width: 46%;
   background: var(--mode-bg);
   color: var(--mode-ink);
+}
+.scan-pick.purpose .scan-pick-text {
+  flex: 0 1 auto;
 }
 .scan-pick > svg {
   flex-shrink: 0;
@@ -6585,15 +6590,12 @@ body:has(.rc-dock) .toast {
 .scan-pick-text {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.15;
-  /* 名稱較長時分兩行顯示，盡量看到全名 */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  /* 一行顯示；太長由程式縮細字體（FitText） */
+  white-space: nowrap;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
 }
 .scan-pick select {
   position: absolute;

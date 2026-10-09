@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, ChevronDown, Flashlight, FlashlightOff, Keyboard, Loader2, Plus, QrCode, ScanText, X } from 'lucide-react'
@@ -155,13 +155,15 @@ export default function Scan() {
     if (ev === null) setSettings({ currentEventId: null })
   }, [id, ev])
 
-  const purposeOptions: [string, string][] = [
-    ...(!noCheckin ? [['checkin', ev?.mode === 'bus' ? '報到' : '簽到'] as [string, string]] : []),
-    ...sessions.map((x): [string, string] => [`r:${x.id}`, `點名：${zhName(x.name)}`]),
-    ...souvenirs.map((x): [string, string] => [`s:${x.id}`, `${ev?.mode === 'gift' ? '禮品' : '紀念品'}：${x.name}`]),
+  // 掃描目的選單：只顯示名稱（例如「酒店出發」「環保袋」），不加「點名：」「禮品：」前綴；有多種類別時用分組標題分開
+  const groupName = ev?.mode === 'gift' ? '禮品' : '紀念品'
+  const purposeOptions: { v: string; l: string; g: string }[] = [
+    ...(!noCheckin ? [{ v: 'checkin', l: ev?.mode === 'bus' ? '報到' : '簽到', g: '' }] : []),
+    ...sessions.map((x) => ({ v: `r:${x.id}`, l: zhName(x.name), g: '點名' })),
+    ...souvenirs.map((x) => ({ v: `s:${x.id}`, l: x.name, g: groupName })),
   ]
-  // 方塊內只顯示簡短名稱（「禮品：」「紀念品：」等前綴已由「掃描目的」說明）
-  const purposeLabel = (purposeOptions.find(([v]) => v === purposeKey)?.[1] ?? '簽到').replace(/^(禮品|紀念品|點名)：/, '')
+  const purposeGroups = [...new Set(purposeOptions.map((o) => o.g))]
+  const purposeLabel = purposeOptions.find((o) => o.v === purposeKey)?.l ?? '簽到'
   const addTo = purpose === 'souvenir' ? `/e/${id}/souvenirs/records?item=${targetId}&tab=pending&reg=1` : `/e/${id}/guests/new`
   const results = useMemo(() => (dq ? searchGuests(index, dq).slice(0, 30) : []), [index, dq])
 
@@ -317,7 +319,7 @@ export default function Scan() {
         <div className="scan-title">
           <label className="scan-pick">
             <ModeIcon mode={ev.mode} size={18} />
-            <span className="scan-pick-text">{ev.name}</span>
+            <FitText text={ev.name} />
             <ChevronDown size={16} />
             <select value={ev.id} onChange={(e) => nav(`/e/${e.target.value}/scan`, { replace: true })} aria-label="切換活動">
               {eventChoices.map((x) => (
@@ -330,14 +332,32 @@ export default function Scan() {
           {/* 只有一個掃描目的（例如只有簽到）就不顯示右邊方塊 */}
           {purposeOptions.length > 1 && (
             <label className="scan-pick purpose">
-              <span className="scan-pick-text">{purposeLabel}</span>
+              <FitText text={purposeLabel} />
               <ChevronDown size={16} />
               <select value={purposeKey} onChange={(e) => setParams({ p: e.target.value }, { replace: true })} aria-label="掃描目的">
-                {purposeOptions.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
+                {purposeGroups.length > 1
+                  ? purposeGroups.map((g) =>
+                      g ? (
+                        <optgroup key={g} label={g}>
+                          {purposeOptions.filter((o) => o.g === g).map((o) => (
+                            <option key={o.v} value={o.v}>
+                              {o.l}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : (
+                        purposeOptions.filter((o) => o.g === g).map((o) => (
+                          <option key={o.v} value={o.v}>
+                            {o.l}
+                          </option>
+                        ))
+                      ),
+                    )
+                  : purposeOptions.map((o) => (
+                      <option key={o.v} value={o.v}>
+                        {o.l}
+                      </option>
+                    ))}
               </select>
             </label>
           )}
@@ -674,4 +694,27 @@ function zhName(name: string) {
   if (!/[\u3400-\u9fff]/.test(name)) return name
   const zh = name.replace(/\s+[A-Za-z][A-Za-z0-9 .,'&()·-]*$/, '').trim()
   return zh || name
+}
+
+// 名稱一行顯示：太長時自動縮細字體（16 → 最細 11），仍太長才用「…」
+function FitText({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const fit = () => {
+      let size = 16
+      el.style.fontSize = `${size}px`
+      while (el.scrollWidth > el.clientWidth + 1 && size > 11) el.style.fontSize = `${--size}px`
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [text])
+  return (
+    <span ref={ref} className="scan-pick-text">
+      {text}
+    </span>
+  )
 }
