@@ -106,8 +106,22 @@ export default function Settings() {
             onChange={(v) => set({ nameOrder: v })}
           />
         </Item>
-        <Item zh="介面主題" en="Skin" hint="柔和（預設）：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵；和色：淡染卡片、日本傳統色；熊本熊：薄荷綠、制服藍、帽徽金；售票機：仿車站自助售票機">
-          <Seg value={s.skin} options={[['soft', '柔和'], ['wairo', '和色'], ['bear', '熊本熊'], ['kiosk', '售票機']]} onChange={(v) => set({ skin: v })} />
+        <Item zh="介面主題" en="Skin" hint="柔和（預設）：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵；和色：淡染卡片、日本傳統色；熊本熊：薄荷綠、制服藍、帽徽金；售票機：仿車站自助售票機；水晶：似 macOS 的水玻璃質感">
+          <select className="set-input set-select" value={s.skin} onChange={(e) => set({ skin: e.target.value as typeof s.skin })} aria-label="介面主題">
+            {(
+              [
+                ['soft', '柔和（預設）'],
+                ['wairo', '和色'],
+                ['bear', '熊本熊'],
+                ['kiosk', '車站售票機'],
+                ['glass', '水晶'],
+              ] as const
+            ).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
         </Item>
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />

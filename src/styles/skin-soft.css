@@ -308,10 +308,10 @@
 
 /* ---------- 巴士點名 ---------- */
 [data-skin='soft'] .rc-depart {
-  background: linear-gradient(180deg, #ffffff, var(--s-panel));
-  color: var(--text);
-  border: 2px solid #cdd8e4;
-  box-shadow: 0 2px 0 #c3cfdc;
+  background: linear-gradient(180deg, #3c5378, var(--s-navy));
+  color: #fff;
+  border: 2px solid #2a3b57;
+  box-shadow: 0 2px 0 #1f2c42;
 }
 [data-skin='soft'] .rc-go {
   background: linear-gradient(180deg, #ffd9c6, var(--s-peach));
