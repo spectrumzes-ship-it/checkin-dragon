@@ -126,9 +126,19 @@ export default function Scan() {
     const dist = (t: string) => Math.abs(Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) - mins)
     return open.sort((a, b) => dist(a.time) - dist(b.time))[0] ?? null
   }, [ev?.mode, sessions, evData])
+  // 旅遊：已建立點名就不提供「報到」，只用點名（全部點名已結束時用最後一個）
+  const noCheckin = ev?.mode === 'gift' || (ev?.mode === 'bus' && sessions.length > 0)
+  const lastSession = sessions.length ? [...sessions].sort((a, b) => (a.time || '').localeCompare(b.time || '')).at(-1)! : null
+  const asked = params.get('p')
   const purposeKey =
-    params.get('p') ??
-    (ev?.mode === 'gift' && souvenirs[0] ? `s:${souvenirs[0].id}` : nearSession ? `r:${nearSession.id}` : 'checkin')
+    (asked && !(asked === 'checkin' && noCheckin) ? asked : null) ??
+    (ev?.mode === 'gift' && souvenirs[0]
+      ? `s:${souvenirs[0].id}`
+      : nearSession
+        ? `r:${nearSession.id}`
+        : ev?.mode === 'bus' && lastSession
+          ? `r:${lastSession.id}`
+          : 'checkin')
   const purpose: 'checkin' | 'rollcall' | 'souvenir' = purposeKey.startsWith('s:') ? 'souvenir' : purposeKey.startsWith('r:') ? 'rollcall' : 'checkin'
   const targetId = purposeKey.slice(2)
 
@@ -146,7 +156,7 @@ export default function Scan() {
   }, [id, ev])
 
   const purposeOptions: [string, string][] = [
-    ...(ev?.mode !== 'gift' ? [['checkin', '簽到'] as [string, string]] : []),
+    ...(!noCheckin ? [['checkin', ev?.mode === 'bus' ? '報到' : '簽到'] as [string, string]] : []),
     ...sessions.map((x): [string, string] => [`r:${x.id}`, `點名：${zhName(x.name)}`]),
     ...souvenirs.map((x): [string, string] => [`s:${x.id}`, `${ev?.mode === 'gift' ? '禮品' : '紀念品'}：${x.name}`]),
   ]
