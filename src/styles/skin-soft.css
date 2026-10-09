@@ -319,3 +319,87 @@
   border: 2px solid var(--s-peach-deep);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 3px 0 var(--s-peach-deep);
 }
+
+/* ===== 均勻厚邊（用戶 2026-10-10 選方案一）=====
+   取代以上的「底部陰影」：四邊同為 3px 厚邊，內圈一條白色高光；按下時整個縮小及變深（四周一齊凹下） */
+[data-skin='soft'] .event-card,
+[data-skin='soft'] .mode-card,
+[data-skin='soft'] .dash-hero,
+[data-skin='soft'] .guests-hero,
+[data-skin='soft'] .souvenir-card,
+[data-skin='soft'] [data-mode='gift'] .guests-hero,
+[data-skin='soft'] [data-mode='gift'] .souvenir-card,
+[data-skin='soft'] [data-mode='gift'].event-card,
+[data-skin='soft'] [data-mode='gift'].mode-card {
+  border: 3px solid color-mix(in srgb, var(--mode-solid) 55%, #fff);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+[data-skin='soft'] .btn-primary,
+[data-skin='soft'] .dash-scan,
+[data-skin='soft'] .ocr-shoot:not(.is-status),
+[data-skin='soft'] .manual-add,
+[data-skin='soft'] .btn-mode,
+[data-skin='soft'] .bn-scan-btn {
+  border: 3px solid #93acca;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+}
+[data-skin='soft'] .btn-ghost,
+[data-skin='soft'] .btn-secondary,
+[data-skin='soft'] .scan-modes button {
+  border: 3px solid #aabdd5;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+}
+[data-skin='soft'] .btn-danger {
+  border: 3px solid #e2a184;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.8);
+}
+[data-skin='soft'] .result-seats span,
+[data-skin='soft'] .rc-depart {
+  border: 3px solid #cdd8e4;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+[data-skin='soft'] .rc-go {
+  border: 3px solid var(--s-peach-deep);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+}
+[data-skin='soft'] .mode-card:active,
+[data-skin='soft'] .event-card:active,
+[data-skin='soft'] .souvenir-card:active,
+[data-skin='soft'] .btn:active:not(:disabled),
+[data-skin='soft'] .dash-scan:active,
+[data-skin='soft'] .ocr-shoot:active:not(:disabled),
+[data-skin='soft'] .manual-add:active,
+[data-skin='soft'] .scan-modes button:active {
+  transform: scale(0.97);
+  filter: brightness(0.95);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+[data-skin='soft'] .scan-modes button.active {
+  transform: none;
+  border-color: var(--s-mint-deep);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+/* 掃描頁跟活動代表色（活動淡紫、宴會蜜桃、旅遊粉藍、禮品薄荷綠） */
+[data-skin='soft'] .scan .scan-frame i {
+  border-color: color-mix(in srgb, var(--mode-solid) 70%, #fff);
+}
+[data-skin='soft'] .scan .text-scanline {
+  background: color-mix(in srgb, var(--mode-solid) 70%, #fff);
+  box-shadow: 0 0 14px 3px color-mix(in srgb, var(--mode-solid) 60%, #fff);
+}
+[data-skin='soft'] .scan .ocr-steps b {
+  background: var(--mode-bg);
+  color: var(--mode-ink);
+  border: 2px solid color-mix(in srgb, var(--mode-solid) 50%, #fff);
+}
+[data-skin='soft'] .scan .ocr-shoot:not(.is-status) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 45%, #fff), color-mix(in srgb, var(--mode-solid) 30%, var(--mode-bg)));
+  color: var(--mode-ink);
+  border-color: color-mix(in srgb, var(--mode-solid) 55%, #fff);
+}
+[data-skin='soft'] .scan .scan-modes button.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 45%, #fff), color-mix(in srgb, var(--mode-solid) 30%, var(--mode-bg)));
+  color: var(--mode-ink);
+  border-color: color-mix(in srgb, var(--mode-solid) 60%, #fff);
+}
