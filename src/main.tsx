@@ -7,6 +7,7 @@ import '@fontsource/barlow-condensed/700.css'
 import './styles/tokens.css'
 import './styles/app.css'
 import './styles/skin-bear.css'
+import './styles/skin-kiosk.css'
 import App from './App'
 import { ensureSeeded } from './db/seed'
 

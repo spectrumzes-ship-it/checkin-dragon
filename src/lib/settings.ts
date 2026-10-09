@@ -4,7 +4,7 @@ import { uid } from './util'
 // 裝置設定：保存在這部裝置的瀏覽器內。
 export interface Settings {
   theme: 'light' | 'dark' | 'system'
-  skin: 'default' | 'bear' // 介面主題：預設（和色）或熊本熊
+  skin: 'default' | 'bear' | 'kiosk' // 介面主題：預設（和色）、熊本熊、車站售票機
   autoReturn: number // 毫秒；0 = 關閉
   nameOrder: 'auto' | 'zh' | 'en'
   sound: boolean

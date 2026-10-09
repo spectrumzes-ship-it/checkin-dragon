@@ -1,0 +1,251 @@
+/* ===== 介面主題：車站售票機（設定 → 介面主題）=====
+   參考日本車站自助售票機：灰色觸控屏底、深灰指示列（重點字黃色）、
+   彩色立體漸變大按鈕（上淺下深、細黑邊、頂部高光）、藍色機身色掃描鍵。
+   固定淺色外觀（深色模式下亦維持，確保字與底對比）。四種模式代表色保留作按鈕配色。 */
+
+:root[data-skin='kiosk'],
+:root[data-skin='kiosk'][data-theme='dark'] {
+  --k-body: #2f86d6;
+  --k-body-dark: #1f63a8;
+  --k-bar: #3a3d42;
+  --k-bar-2: #4a4e54;
+  --k-hilite: #f2d23a;
+  --k-edge: rgba(0, 0, 0, 0.35);
+  --k-navy-1: #6f7fb8;
+  --k-navy-2: #3a4887;
+
+  --bg: #c4ccd4;
+  --surface: #ffffff;
+  --surface-2: #e4e9ee;
+  --surface-3: #d3dae1;
+  --text: #1f2328;
+  --text-2: #4b535c;
+  --text-3: #6f7882;
+  --border: #9aa4ae;
+  --border-soft: #b8c1ca;
+  --brand: var(--k-body-dark);
+  --shadow: none;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-skin='kiosk']:not([data-theme]) {
+    --bg: #c4ccd4;
+    --surface: #ffffff;
+    --surface-2: #e4e9ee;
+    --surface-3: #d3dae1;
+    --text: #1f2328;
+    --text-2: #4b535c;
+    --text-3: #6f7882;
+    --border: #9aa4ae;
+    --border-soft: #b8c1ca;
+    color-scheme: light;
+  }
+}
+[data-skin='kiosk'] body {
+  background: linear-gradient(180deg, #d6dce2, #b9c1ca) fixed;
+}
+
+/* ---------- 立體按鈕（卡片） ---------- */
+[data-skin='kiosk'] .card,
+[data-skin='kiosk'] .rc-sign,
+[data-skin='kiosk'] .room-card {
+  background: linear-gradient(180deg, #ffffff, #e9edf1);
+  border: 1px solid var(--k-edge);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(0, 0, 0, 0.22);
+}
+[data-skin='kiosk'] .event-card,
+[data-skin='kiosk'] .mode-card,
+[data-skin='kiosk'] .dash-hero,
+[data-skin='kiosk'] .guests-hero,
+[data-skin='kiosk'] .souvenir-card,
+[data-skin='kiosk'] [data-mode='gift'] .guests-hero,
+[data-skin='kiosk'] [data-mode='gift'] .souvenir-card,
+[data-skin='kiosk'] [data-mode='gift'].event-card,
+[data-skin='kiosk'] [data-mode='gift'].mode-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-bg) 70%, #fff), color-mix(in srgb, var(--mode-solid) 30%, var(--mode-bg)));
+  border: 1px solid var(--k-edge);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+[data-skin='kiosk'] .mode-card:active,
+[data-skin='kiosk'] .event-card:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 0 rgba(0, 0, 0, 0.25);
+}
+[data-skin='kiosk'] .mode-card-name b {
+  font-size: 19px;
+  font-weight: 900;
+}
+[data-skin='kiosk'] .mode-card-icon,
+[data-skin='kiosk'] .event-card-icon,
+[data-skin='kiosk'] .souvenir-icon {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--k-edge);
+}
+
+/* ---------- 主要按鈕：深藍立體鍵 ---------- */
+[data-skin='kiosk'] .btn-primary,
+[data-skin='kiosk'] .dash-scan,
+[data-skin='kiosk'] .ocr-shoot:not(.is-status),
+[data-skin='kiosk'] .manual-add,
+[data-skin='kiosk'] .btn-mode {
+  background: linear-gradient(180deg, var(--k-navy-1), var(--k-navy-2));
+  color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+[data-skin='kiosk'] .btn-ghost,
+[data-skin='kiosk'] .btn-secondary {
+  background: linear-gradient(180deg, #f4f6f8, #c9d0d7);
+  color: var(--text);
+  border: 1px solid var(--k-edge);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- 頂部：深灰指示列 ---------- */
+[data-skin='kiosk'] .home-head {
+  margin: -16px -16px 10px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+}
+[data-skin='kiosk'] .home-head .bi-zh {
+  color: var(--k-hilite);
+}
+[data-skin='kiosk'] .home-head .bi-en {
+  color: #c9ced4;
+}
+[data-skin='kiosk'] .event-head {
+  background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+  border-bottom: 0;
+  color: #fff;
+}
+[data-skin='kiosk'] .event-head .icon-btn,
+[data-skin='kiosk'] .event-head-text,
+[data-skin='kiosk'] .event-head-text strong,
+[data-skin='kiosk'] .event-head-text span {
+  color: #fff;
+}
+[data-skin='kiosk'] .event-head-text span {
+  color: #c9ced4;
+}
+[data-skin='kiosk'] .event-head .event-head-icon {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--k-hilite);
+}
+[data-skin='kiosk'] .event-tabs a {
+  color: #c9ced4;
+}
+[data-skin='kiosk'] .event-tabs a.active {
+  color: var(--k-hilite);
+  border-bottom-color: var(--k-hilite);
+}
+[data-skin='kiosk'] .section-title .bi-zh {
+  font-weight: 900;
+}
+
+/* ---------- 底部：深灰列＋藍色機身掃描鍵 ---------- */
+[data-skin='kiosk'] .bottom-nav {
+  background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+  border-top: 0;
+}
+[data-skin='kiosk'] .bn-item,
+[data-skin='kiosk'] .bn-scan {
+  color: #c9ced4;
+}
+[data-skin='kiosk'] .bn-item.active {
+  color: var(--k-hilite);
+}
+[data-skin='kiosk'] .bn-scan-btn {
+  background: linear-gradient(180deg, #3b93e0, var(--k-body) 45%, var(--k-body-dark));
+  color: #fff;
+  border: 2px solid #e8edf2;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+@media (min-width: 701px) {
+  [data-skin='kiosk'] .sidebar {
+    background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+    border-right: 0;
+  }
+  [data-skin='kiosk'] .side-item {
+    color: #c9ced4;
+  }
+  [data-skin='kiosk'] .side-item:hover,
+  [data-skin='kiosk'] .side-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--k-hilite);
+  }
+  [data-skin='kiosk'] .sidebar-brand .bi-zh {
+    color: var(--k-hilite);
+  }
+  [data-skin='kiosk'] .sidebar-brand .bi-en {
+    color: #c9ced4;
+  }
+}
+
+/* ---------- 掃描頁 ---------- */
+[data-skin='kiosk'] .scan-frame i {
+  border-color: var(--k-hilite);
+}
+[data-skin='kiosk'] .text-scanline {
+  background: var(--k-hilite);
+  box-shadow: 0 0 14px 3px var(--k-hilite);
+}
+[data-skin='kiosk'] .scan-panel {
+  background: linear-gradient(180deg, #d6dce2, #b9c1ca);
+}
+[data-skin='kiosk'] .ocr-steps li {
+  background: linear-gradient(180deg, #f4f6f8, #d3dae1);
+  color: var(--text);
+  border: 1px solid var(--k-edge);
+}
+[data-skin='kiosk'] .ocr-steps b {
+  background: var(--k-bar);
+  color: var(--k-hilite);
+}
+[data-skin='kiosk'] .ocr-shoot.is-status {
+  background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+  color: var(--k-hilite);
+}
+[data-skin='kiosk'] .scan-modes {
+  background: transparent;
+  gap: 6px;
+  padding: 0;
+}
+[data-skin='kiosk'] .scan-modes button {
+  background: linear-gradient(180deg, #f4f6f8, #c9d0d7);
+  color: var(--text);
+  border: 1px solid var(--k-edge);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+[data-skin='kiosk'] .scan-modes button.active {
+  background: linear-gradient(180deg, #fff6b8, var(--k-hilite));
+  color: #3a2f00;
+}
+
+/* ---------- 掃描結果：席號、座位用車票格式 ---------- */
+[data-skin='kiosk'] .result.tone-ok {
+  --t-bg: #e3f3e8;
+  --t-ink: #1e7c40;
+}
+[data-skin='kiosk'] .result-seats span {
+  align-self: center;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: #fffdf2;
+  color: var(--text);
+  border: 2px solid var(--text);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- 巴士點名 ---------- */
+[data-skin='kiosk'] .rc-depart {
+  background: linear-gradient(180deg, var(--k-bar-2), var(--k-bar));
+  border: 1px solid rgba(0, 0, 0, 0.5);
+}
+[data-skin='kiosk'] .rc-go {
+  background: linear-gradient(180deg, #3b93e0, var(--k-body-dark));
+  color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 0 rgba(0, 0, 0, 0.3);
+}

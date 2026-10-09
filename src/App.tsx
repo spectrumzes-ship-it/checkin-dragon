@@ -36,10 +36,10 @@ const useTheme = () => {
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
   }, [theme])
-  // 介面主題：預設不加標記；熊本熊主題加 data-skin="bear"
+  // 介面主題：預設不加標記；其他主題加 data-skin（bear 熊本熊、kiosk 車站售票機）
   useEffect(() => {
     const root = document.documentElement
-    if (skin === 'bear') root.setAttribute('data-skin', 'bear')
+    if (skin && skin !== 'default') root.setAttribute('data-skin', skin)
     else root.removeAttribute('data-skin')
   }, [skin])
 }
