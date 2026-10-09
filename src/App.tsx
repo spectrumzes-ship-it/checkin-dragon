@@ -36,7 +36,7 @@ const useTheme = () => {
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
   }, [theme])
-  // 介面主題：和色是基本樣式（不加標記）；其他主題加 data-skin（soft 柔和〔預設〕、bear 熊本熊、kiosk 車站售票機）
+  // 介面主題：預設（和色，不加標記）；其他主題加 data-skin（soft 柔和、bear 熊本、kiosk 鐵道、glass 水晶）
   useEffect(() => {
     const root = document.documentElement
     if (skin && skin !== 'wairo') root.setAttribute('data-skin', skin)

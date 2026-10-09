@@ -4,7 +4,7 @@ import { uid } from './util'
 // 裝置設定：保存在這部裝置的瀏覽器內。
 export interface Settings {
   theme: 'light' | 'dark' | 'system'
-  skin: 'soft' | 'wairo' | 'bear' | 'kiosk' | 'glass' // 介面主題：柔和（預設）、和色、熊本熊、車站售票機、水晶
+  skin: 'wairo' | 'soft' | 'bear' | 'kiosk' | 'glass' // 介面主題：預設（和色）、柔和、熊本、鐵道（車站售票機）、水晶
   autoReturn: number // 毫秒；0 = 關閉
   nameOrder: 'auto' | 'zh' | 'en'
   sound: boolean
@@ -26,7 +26,7 @@ const KEY = 'ckd-settings'
 
 const defaults = (): Settings => ({
   theme: 'light',
-  skin: 'soft',
+  skin: 'wairo',
   autoReturn: 3000,
   nameOrder: 'auto',
   sound: true,
@@ -64,6 +64,12 @@ const load = (): Settings => {
         localStorage.setItem('ckd-skin2', '1')
       }
       if ((s.skin as string) === 'default') s.skin = 'wairo'
+      // 2026-10-10（第二次）：和色改回預設主題；之前自動轉了柔和的裝置轉回預設（只做一次）
+      if (!localStorage.getItem('ckd-skin3')) {
+        if (s.skin === 'soft') s.skin = 'wairo'
+        localStorage.setItem(KEY, JSON.stringify(s))
+        localStorage.setItem('ckd-skin3', '1')
+      }
       return s
     }
   } catch {

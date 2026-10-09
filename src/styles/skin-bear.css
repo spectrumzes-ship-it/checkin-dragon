@@ -1,4 +1,4 @@
-/* ===== 介面主題：熊本熊（設定 → 介面主題）=====
+/* ===== 介面主題：熊本（設定 → 介面主題）=====
    取材自點名熊圖示：薄荷綠底、制服藍、帽徽金、臉頰紅、勾號綠；
    卡片及按鈕用貼紙式黑描邊＋制服藍錯位陰影。四種模式代表色不變。 */
 
@@ -21,7 +21,7 @@
   --bad-ink: #c2311f;
   --bg: #f4fbf8;
   --surface-2: #eaf6f2;
-  --shadow: 3px 3px 0 var(--bear-drop);
+  --shadow: 2px 2px 0 var(--bear-drop);
 }
 /* 深色模式：描邊改淺色，陰影改黑 */
 :root[data-skin='bear'][data-theme='dark'] {
@@ -53,8 +53,8 @@
 [data-skin='bear'] .room-card,
 [data-skin='bear'] .souvenir-card,
 [data-skin='bear'] .guests-hero {
-  border: 2px solid var(--bear-line);
-  box-shadow: 3px 3px 0 var(--bear-drop);
+  border: 1.5px solid var(--bear-line);
+  box-shadow: 2px 2px 0 var(--bear-drop);
 }
 [data-skin='bear'] .event-card,
 [data-skin='bear'] .mode-card,
@@ -74,8 +74,8 @@
 [data-skin='bear'] .manual-add {
   background: var(--bear-gold);
   color: var(--bear-navy-ink);
-  border: 2px solid var(--bear-line);
-  box-shadow: 3px 3px 0 var(--bear-line);
+  border: 1.5px solid var(--bear-line);
+  box-shadow: 2px 2px 0 var(--bear-line);
 }
 [data-skin='bear'] .btn-primary:active,
 [data-skin='bear'] .dash-scan:active,
@@ -96,19 +96,19 @@
   color: var(--bear-navy-ink);
 }
 [data-skin='bear'] .home-logo {
-  border: 2px solid var(--bear-line);
+  border: 1.5px solid var(--bear-line);
   background: #fff;
 }
 /* 模式方塊：圖示放大 */
 [data-skin='bear'] .mode-card {
-  border: 2px solid var(--bear-line);
-  box-shadow: inset 0 6px 0 var(--mode-solid), 3px 3px 0 var(--bear-drop);
+  border: 1.5px solid var(--bear-line);
+  box-shadow: inset 0 6px 0 var(--mode-solid), 2px 2px 0 var(--bear-drop);
 }
 [data-skin='bear'] .mode-card-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  border: 2px solid var(--bear-line);
+  border: 1.5px solid var(--bear-line);
   background: var(--mode-solid);
   color: #fff;
   box-shadow: none;
@@ -132,7 +132,7 @@
 [data-skin='bear'] .bn-scan-btn {
   background: var(--bear-navy);
   color: var(--bear-gold);
-  border: 2px solid var(--bear-line);
+  border: 1.5px solid var(--bear-line);
 }
 [data-skin='bear'] .bn-item.active,
 [data-skin='bear'] .side-item.active {
@@ -198,8 +198,8 @@
 /* ---------- 巴士點名 ---------- */
 [data-skin='bear'] .rc-depart {
   background: var(--bear-navy);
-  border: 2px solid var(--bear-line);
-  box-shadow: 3px 3px 0 var(--bear-line);
+  border: 1.5px solid var(--bear-line);
+  box-shadow: 2px 2px 0 var(--bear-line);
 }
 [data-skin='bear'] .rc-go {
   background: var(--bear-gold);

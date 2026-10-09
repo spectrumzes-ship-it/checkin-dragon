@@ -106,14 +106,14 @@ export default function Settings() {
             onChange={(v) => set({ nameOrder: v })}
           />
         </Item>
-        <Item zh="介面主題" en="Skin" hint="柔和（預設）：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵；和色：淡染卡片、日本傳統色；熊本熊：薄荷綠、制服藍、帽徽金；售票機：仿車站自助售票機；水晶：似 macOS 的水玻璃質感">
+        <Item zh="介面主題" en="Skin" hint="預設：淡染卡片、日本傳統色；柔和：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵；熊本：薄荷綠、制服藍、帽徽金；鐵道：仿車站自助售票機；水晶：似 macOS 的水玻璃質感">
           <select className="set-input set-select" value={s.skin} onChange={(e) => set({ skin: e.target.value as typeof s.skin })} aria-label="介面主題">
             {(
               [
-                ['soft', '柔和（預設）'],
-                ['wairo', '和色'],
-                ['bear', '熊本熊'],
-                ['kiosk', '車站售票機'],
+                ['wairo', '預設'],
+                ['soft', '柔和'],
+                ['bear', '熊本'],
+                ['kiosk', '鐵道'],
                 ['glass', '水晶'],
               ] as const
             ).map(([v, l]) => (
