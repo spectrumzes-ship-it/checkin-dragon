@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Check } from 'lucide-react'
 import { useOcrState, warmUpOcr } from '../lib/scanner'
 import { Sheet } from '../components/ui'
 import { clearAll, DEMO_VERSION, demoVersionOnDevice, resetDemo } from '../db/seed'
@@ -19,6 +20,15 @@ const Seg = <T extends string | number>({ value, options, onChange }: { value: T
     ))}
   </div>
 )
+
+// 介面主題選項：值、名稱、簡介
+const SKINS: ['wairo' | 'soft' | 'bear' | 'kiosk' | 'glass', string, string][] = [
+  ['wairo', '預設', '淡染・和色'],
+  ['soft', '柔和', '圓角立體鍵'],
+  ['bear', '熊本', '貼紙・制服藍'],
+  ['kiosk', '鐵道', '車站售票機'],
+  ['glass', '水晶', '水玻璃'],
+]
 
 const Toggle = ({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) => (
   <button role="switch" aria-checked={on} aria-label={label} className={cx('toggle', on && 'on')} onClick={() => onChange(!on)}>
@@ -106,23 +116,44 @@ export default function Settings() {
             onChange={(v) => set({ nameOrder: v })}
           />
         </Item>
-        <Item zh="介面主題" en="Skin" hint="預設：淡染卡片、日本傳統色；柔和：淺灰藍底、粉藍／薄荷／蜜桃／淡紫圓角立體鍵；熊本：薄荷綠、制服藍、帽徽金；鐵道：仿車站自助售票機；水晶：似 macOS 的水玻璃質感">
-          <select className="set-input set-select" value={s.skin} onChange={(e) => set({ skin: e.target.value as typeof s.skin })} aria-label="介面主題">
-            {(
-              [
-                ['wairo', '預設'],
-                ['soft', '柔和'],
-                ['bear', '熊本'],
-                ['kiosk', '鐵道'],
-                ['glass', '水晶'],
-              ] as const
-            ).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
+        {/* 介面主題：左右滑動的主題卡（每張有小預覽） */}
+        <div className="set-item skin-item">
+          <div className="set-label">
+            <span>介面主題</span>
+            <small>Skin</small>
+            <em>左右滑動，按一下即套用</em>
+          </div>
+          <div
+            className="skin-strip"
+            role="radiogroup"
+            aria-label="介面主題"
+            ref={(el) => {
+              // 打開設定時，捲到目前用緊的主題
+              const on = el?.querySelector<HTMLElement>('.skin-card.on')
+              if (el && on && !el.dataset.done) {
+                el.dataset.done = '1'
+                requestAnimationFrame(() => {
+                  el.scrollLeft += on.getBoundingClientRect().left - el.getBoundingClientRect().left - 20
+                })
+              }
+            }}
+          >
+            {SKINS.map(([v, name, desc]) => (
+              <button key={v} role="radio" aria-checked={s.skin === v} className={cx('skin-card', s.skin === v && 'on')} onClick={() => set({ skin: v })}>
+                <span className={`skin-mini mini-${v}`} aria-hidden>
+                  <i className="mini-bar" />
+                  <i className="mini-tile t1" />
+                  <i className="mini-tile t2" />
+                  <i className="mini-btn" />
+                </span>
+                <b>
+                  {s.skin === v && <Check size={14} strokeWidth={3} />} {name}
+                </b>
+                <small>{desc}</small>
+              </button>
             ))}
-          </select>
-        </Item>
+          </div>
+        </div>
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />
         </Item>

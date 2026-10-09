@@ -4817,7 +4817,13 @@ legend {
   border-top: 2px dashed var(--border);
 }
 
-/* 向左拉刪除（通用） */
+/* 向左拉刪除（通用）：未拉開時刪除按鈕隱藏，向左拉才出現 */
+.swipe-del {
+  visibility: hidden;
+}
+.swipe-row.swiping .swipe-del {
+  visibility: visible;
+}
 .swipe-front {
   display: flex;
   align-items: center;
@@ -6811,3 +6817,103 @@ body:has(.rc-dock) .toast {
 .dash-split a {
   border-color: color-mix(in srgb, var(--mode-ink) 14%, transparent);
 }
+
+/* ===== 設定：介面主題卡（左右滑動） ===== */
+.skin-item {
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.skin-item .set-label {
+  width: 100%;
+}
+.skin-strip {
+  width: calc(100% + 40px);
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 112px;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  margin: 0 -20px;
+  padding: 4px 20px 8px;
+  scrollbar-width: none;
+}
+.skin-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 10px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.skin-card.on {
+  border-color: var(--brand);
+  background: var(--surface);
+}
+.skin-card b {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.skin-card small {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+/* 小預覽：頂列、兩個方塊、一個按鈕；用各主題自己的顏色（不受目前主題影響） */
+.skin-mini {
+  position: relative;
+  width: 92px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 12px 1fr 12px;
+  gap: 4px;
+  padding: 0 6px 6px;
+}
+.skin-mini i {
+  display: block;
+  border-radius: 5px;
+}
+.skin-mini .mini-bar {
+  grid-column: 1 / -1;
+  margin: 0 -6px;
+  border-radius: 0;
+}
+.skin-mini .mini-btn {
+  grid-column: 1 / -1;
+  border-radius: 999px;
+}
+.mini-wairo { background: #f7f6f1; }
+.mini-wairo .mini-bar { background: #ffffff; border-bottom: 1px solid #e4e1d8; }
+.mini-wairo .t1 { background: #eeeaf5; }
+.mini-wairo .t2 { background: #e1f0f2; }
+.mini-wairo .mini-btn { background: #745399; }
+.mini-soft { background: linear-gradient(180deg, #edf2f7, #dfe7ef); }
+.mini-soft .mini-bar { background: #fff; border-bottom: 1px solid #cdd8e4; }
+.mini-soft .t1 { background: linear-gradient(180deg, #f5f0fd, #ddd0f5); border: 1.5px solid #c6b5ea; box-shadow: 0 2px 0 #b9a6e3; }
+.mini-soft .t2 { background: linear-gradient(180deg, #fff3ec, #ffd9c6); border: 1.5px solid #f2b496; box-shadow: 0 2px 0 #e9a07f; }
+.mini-soft .mini-btn { background: linear-gradient(180deg, #e9f2fc, #b7d0ee); border: 1.5px solid #8fa9c9; }
+.mini-bear { background: #f4fbf8; }
+.mini-bear .mini-bar { background: #a7f5e3; border-bottom: 1.5px solid #161616; }
+.mini-bear .t1, .mini-bear .t2 { background: #fff; border: 1.5px solid #161616; box-shadow: 2px 2px 0 #1f2f6e; }
+.mini-bear .mini-btn { background: #f3c234; border: 1.5px solid #161616; }
+.mini-kiosk { background: linear-gradient(180deg, #d6dce2, #b9c1ca); }
+.mini-kiosk .mini-bar { background: #3a3d42; box-shadow: inset 0 -2px 0 #f2d23a; }
+.mini-kiosk .t1 { background: linear-gradient(180deg, #f0b0a8, #c8463c); border: 1px solid rgba(0,0,0,.35); }
+.mini-kiosk .t2 { background: linear-gradient(180deg, #bfeef0, #5ec3c9); border: 1px solid rgba(0,0,0,.35); }
+.mini-kiosk .mini-btn { background: linear-gradient(180deg, #6f7fb8, #3a4887); border-radius: 5px; }
+.mini-glass { background: radial-gradient(40px 40px at 15% 30%, rgba(141,115,201,.45), transparent 70%), radial-gradient(40px 40px at 85% 70%, rgba(95,154,214,.45), transparent 70%), #eef3f8; }
+.mini-glass .mini-bar { background: rgba(255,255,255,.6); border-bottom: 1px solid #fff; }
+.mini-glass .t1, .mini-glass .t2 { background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.35)); border: 1px solid #fff; box-shadow: 0 0 6px rgba(120,145,180,.35); }
+.mini-glass .mini-btn { background: linear-gradient(180deg, #e3f1ff 0%, #a9cff6 48%, #86baf0 52%, #b8dcfc 100%); border: 1px solid rgba(40,90,150,.45); }

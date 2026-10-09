@@ -322,3 +322,8 @@
   background: linear-gradient(180deg, #e3f1ff 0%, #a9cff6 48%, #86baf0 52%, #b8dcfc 100%);
   border: 1px solid rgba(40, 90, 150, 0.45);
 }
+
+/* 名單行：較不透明，向左拉時刪除按鈕不會透出 */
+[data-skin='glass'] .swipe-front {
+  background: rgba(255, 255, 255, 0.9);
+}

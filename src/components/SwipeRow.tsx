@@ -29,7 +29,8 @@ export default function SwipeRow({
   const [dx, setDx] = useState<number | null>(null)
   const offset = selecting ? 0 : dx ?? (open ? -W : 0)
   return (
-    <div className="swipe-row">
+    // 未拉開時隱藏刪除按鈕（半透明主題下不會透出來）
+    <div className={cx('swipe-row', offset !== 0 && 'swiping')}>
       {!selecting && (
         <button className="swipe-del" onClick={onDelete} tabIndex={open ? 0 : -1} aria-hidden={!open}>
           <Trash2 size={18} /> {label}
