@@ -30,12 +30,18 @@ const Reports = () => (
 )
 
 const useTheme = () => {
-  const { theme } = useSettings()
+  const { theme, skin } = useSettings()
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
   }, [theme])
+  // 介面主題：預設不加標記；熊本熊主題加 data-skin="bear"
+  useEffect(() => {
+    const root = document.documentElement
+    if (skin === 'bear') root.setAttribute('data-skin', 'bear')
+    else root.removeAttribute('data-skin')
+  }, [skin])
 }
 
 export default function App() {

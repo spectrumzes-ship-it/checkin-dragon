@@ -106,6 +106,9 @@ export default function Settings() {
             onChange={(v) => set({ nameOrder: v })}
           />
         </Item>
+        <Item zh="介面主題" en="Skin" hint="熊本熊主題：薄荷綠、制服藍、帽徽金，貼紙式黑描邊">
+          <Seg value={s.skin} options={[['default', '預設'], ['bear', '熊本熊']]} onChange={(v) => set({ skin: v })} />
+        </Item>
         <Item zh="外觀" en="Theme">
           <Seg value={s.theme} options={[['light', '淺色'], ['dark', '深色'], ['system', '跟隨系統']]} onChange={(v) => set({ theme: v })} />
         </Item>

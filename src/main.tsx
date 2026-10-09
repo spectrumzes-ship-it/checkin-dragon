@@ -6,6 +6,7 @@ import '@fontsource/barlow-condensed/600.css'
 import '@fontsource/barlow-condensed/700.css'
 import './styles/tokens.css'
 import './styles/app.css'
+import './styles/skin-bear.css'
 import App from './App'
 import { ensureSeeded } from './db/seed'
 

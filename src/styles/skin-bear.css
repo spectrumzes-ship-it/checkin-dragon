@@ -1,0 +1,211 @@
+/* ===== 介面主題：熊本熊（設定 → 介面主題）=====
+   取材自點名熊圖示：薄荷綠底、制服藍、帽徽金、臉頰紅、勾號綠；
+   卡片及按鈕用貼紙式黑描邊＋制服藍錯位陰影。四種模式代表色不變。 */
+
+:root[data-skin='bear'] {
+  --bear-mint: #a7f5e3;
+  --bear-mint-soft: #e3fbf5;
+  --bear-mint-ink: #0f8a6c;
+  --bear-navy: #1f2f6e;
+  --bear-navy-ink: #17224f;
+  --bear-gold: #f3c234;
+  --bear-gold-soft: #fff4cc;
+  --bear-cheek: #e5392b;
+  --bear-line: #161616; /* 貼紙描邊 */
+  --bear-drop: #1f2f6e; /* 錯位陰影 */
+
+  --brand: var(--bear-navy);
+  --brand-bg: var(--bear-mint-soft);
+  --ok-bg: var(--bear-mint-soft);
+  --ok-ink: var(--bear-mint-ink);
+  --bad-ink: #c2311f;
+  --bg: #f4fbf8;
+  --surface-2: #eaf6f2;
+  --shadow: 3px 3px 0 var(--bear-drop);
+}
+/* 深色模式：描邊改淺色，陰影改黑 */
+:root[data-skin='bear'][data-theme='dark'] {
+  --bear-line: rgba(255, 255, 255, 0.7);
+  --bear-drop: #000;
+  --bear-mint-soft: #1d3a34;
+  --bg: #161c1b;
+  --surface-2: #232b29;
+  --ok-bg: #1d3a34;
+  --ok-ink: #7be3c4;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-skin='bear']:not([data-theme]) {
+    --bear-line: rgba(255, 255, 255, 0.7);
+    --bear-drop: #000;
+    --bear-mint-soft: #1d3a34;
+    --bg: #161c1b;
+    --surface-2: #232b29;
+    --ok-bg: #1d3a34;
+    --ok-ink: #7be3c4;
+  }
+}
+
+/* ---------- 貼紙式卡片 ---------- */
+[data-skin='bear'] .card,
+[data-skin='bear'] .event-card,
+[data-skin='bear'] .today-cards .event-card,
+[data-skin='bear'] .rc-sign,
+[data-skin='bear'] .room-card,
+[data-skin='bear'] .souvenir-card,
+[data-skin='bear'] .guests-hero {
+  border: 2px solid var(--bear-line);
+  box-shadow: 3px 3px 0 var(--bear-drop);
+}
+[data-skin='bear'] .event-card {
+  background: var(--surface);
+}
+
+/* ---------- 主要按鈕：帽徽金＋深藍字 ---------- */
+[data-skin='bear'] .btn-primary,
+[data-skin='bear'] .dash-scan,
+[data-skin='bear'] .ocr-shoot:not(.is-status),
+[data-skin='bear'] .manual-add {
+  background: var(--bear-gold);
+  color: var(--bear-navy-ink);
+  border: 2px solid var(--bear-line);
+  box-shadow: 3px 3px 0 var(--bear-line);
+}
+[data-skin='bear'] .btn-primary:active,
+[data-skin='bear'] .dash-scan:active,
+[data-skin='bear'] .ocr-shoot:not(.is-status):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--bear-line);
+}
+
+/* ---------- 首頁 ---------- */
+[data-skin='bear'] .home-head {
+  margin: -16px -16px 8px;
+  padding: 16px;
+  background: var(--bear-mint);
+  border-bottom: 2px solid var(--bear-line);
+}
+[data-skin='bear'] .home-head .bi-zh,
+[data-skin='bear'] .home-head .bi-en {
+  color: var(--bear-navy-ink);
+}
+[data-skin='bear'] .home-logo {
+  border: 2px solid var(--bear-line);
+  background: #fff;
+}
+/* 模式方塊：圖示放大 */
+[data-skin='bear'] .mode-card {
+  border: 2px solid var(--bear-line);
+  box-shadow: 3px 3px 0 var(--bear-drop);
+}
+[data-skin='bear'] .mode-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid var(--bear-line);
+  box-shadow: none;
+}
+[data-skin='bear'] .mode-card-icon svg {
+  width: 28px;
+  height: 28px;
+}
+[data-skin='bear'] .mode-card-band {
+  border-top: 2px solid var(--bear-line);
+}
+@media (max-width: 420px) {
+  [data-skin='bear'] .mode-card-icon {
+    width: 42px;
+    height: 42px;
+  }
+  [data-skin='bear'] .mode-card-icon svg {
+    width: 25px;
+    height: 25px;
+  }
+  [data-skin='bear'] .mode-card {
+    gap: 7px;
+  }
+  [data-skin='bear'] .mode-card-name small {
+    letter-spacing: 0.06em;
+  }
+}
+
+/* ---------- 底部導覽：掃描鍵制服藍＋金色圖示 ---------- */
+[data-skin='bear'] .bn-scan-btn {
+  background: var(--bear-navy);
+  color: var(--bear-gold);
+  border: 2px solid var(--bear-line);
+}
+[data-skin='bear'] .bn-item.active,
+[data-skin='bear'] .side-item.active {
+  color: var(--bear-navy);
+}
+
+/* ---------- 掃描頁 ---------- */
+[data-skin='bear'] .scan {
+  --camera: #10172f;
+}
+[data-skin='bear'] .scan-frame i {
+  border-color: var(--bear-mint);
+}
+[data-skin='bear'] .text-scanline {
+  background: var(--bear-mint);
+  box-shadow: 0 0 14px 3px var(--bear-mint);
+}
+[data-skin='bear'] .scan-pick.purpose {
+  background: var(--bear-gold);
+  color: var(--bear-navy-ink);
+}
+[data-skin='bear'] .ocr-steps li {
+  background: var(--bear-mint-soft);
+  color: var(--bear-navy);
+}
+[data-skin='bear'] .ocr-steps b {
+  background: var(--bear-navy);
+  color: var(--bear-gold);
+}
+[data-skin='bear'] .ocr-shoot.is-status {
+  background: var(--bear-mint-soft);
+  color: var(--bear-navy);
+}
+[data-skin='bear'] .scan-modes {
+  background: var(--bear-mint-soft);
+}
+[data-skin='bear'] .scan-modes button.active {
+  background: var(--bear-navy);
+  color: #fff;
+}
+
+/* ---------- 掃描結果：有效＝薄荷綠；席位放在金色門票上 ---------- */
+[data-skin='bear'] .result.tone-ok {
+  --t-bg: var(--bear-mint);
+  --t-ink: var(--bear-navy-ink);
+}
+[data-skin='bear'] .result.tone-ok .result-sym {
+  color: var(--bear-mint-ink);
+}
+[data-skin='bear'] .result.tone-warn {
+  --t-bg: var(--bear-gold-soft);
+}
+[data-skin='bear'] .result-seats span {
+  align-self: center;
+  padding: 6px 18px;
+  border-radius: 12px;
+  background: var(--bear-gold-soft);
+  color: var(--bear-navy-ink);
+  border: 2px solid #161616;
+  box-shadow: 3px 3px 0 var(--bear-navy);
+}
+
+/* ---------- 巴士點名 ---------- */
+[data-skin='bear'] .rc-depart {
+  background: var(--bear-navy);
+  border: 2px solid var(--bear-line);
+  box-shadow: 3px 3px 0 var(--bear-line);
+}
+[data-skin='bear'] .rc-go {
+  background: var(--bear-gold);
+  color: var(--bear-navy-ink);
+  border: 2px solid #161616;
+}
+[data-skin='bear'] .rc-station {
+  border-bottom: 4px solid var(--bear-gold);
+}
