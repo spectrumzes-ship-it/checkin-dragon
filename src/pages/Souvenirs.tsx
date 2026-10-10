@@ -127,7 +127,7 @@ export default function Souvenirs() {
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=pending`} className="btn btn-mode">
                     {logicOf(it) === 'coupon' ? <Ticket size={18} /> : <ListChecks size={18} />}{' '}
-                    {logicOf(it) === 'fcfs' ? '領取登記' : logicOf(it) === 'coupon' ? '換領券' : '名單派發'}
+                    {logicOf(it) === 'fcfs' ? '領取登記' : logicOf(it) === 'coupon' ? (coupons.some((c) => c.itemId === it.id) ? '換領券' : '生成換領券') : '名單派發'}
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=done`} className="btn btn-ghost">
                     <ClipboardList size={18} /> 派發紀錄
