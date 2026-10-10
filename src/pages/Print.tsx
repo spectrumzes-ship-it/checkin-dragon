@@ -293,7 +293,7 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
   )
 }
 
-// 禮物換領券：140 × 60 毫米，A4 直放每頁 4 張（1 × 4）；左邊券面、右邊 GIFT、QR、編號
+// 禮物換領券：140 × 60 毫米，A4 直放每頁 4 張，上下無縫（共用裁剪線）；右邊 46 毫米存根留底，頁頂印本頁資料
 function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const all = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).toArray(), [itemId]) ?? []
@@ -319,10 +319,20 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
   return (
     <>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        每張 140 × 60 毫米，A4 直放每頁 4 張。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
+        每張 140 × 60 毫米（右邊另有 46 毫米存根），A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
       </p>
       {pages.map((pg, i) => (
         <section key={i} className="print-sheet page gc-sheet">
+          {/* 頁頂：本頁資料及使用方法（用盡頁面上下的空位） */}
+          <div className="gc-pagehead">
+            <span>
+              <b>{item.name}</b> · {ev.name} · 第 {pg[0].batch} 批
+            </span>
+            <span>
+              本頁 No. {String(pg[0].no).padStart(4, '0')} – {String(pg[pg.length - 1].no).padStart(4, '0')} · 第 {i + 1} / {pages.length} 頁
+            </span>
+            <small>沿虛線剪開：左邊換領券交給來賓，右邊存根由工作人員留底（換領時填上日期、經手人）。</small>
+          </div>
           {pg.map((c) => (
             <div key={c.id} className="gc">
               <div className="gc-main">
@@ -360,6 +370,15 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
                 {qr[c.code] ? <img src={qr[c.code]} alt={c.code} /> : <div className="gc-qr-ph" />}
                 <b>No. {String(c.no).padStart(4, '0')}</b>
                 <code>{c.code}</code>
+              </div>
+              {/* 存根（留底）：工作人員保留，方便對數 */}
+              <div className="gc-keep">
+                <small>存根 · 留底</small>
+                <b>No. {String(c.no).padStart(4, '0')}</b>
+                <span>{item.name}</span>
+                <code>{c.code}</code>
+                <i>換領日期</i>
+                <i>經手人</i>
               </div>
             </div>
           ))}
