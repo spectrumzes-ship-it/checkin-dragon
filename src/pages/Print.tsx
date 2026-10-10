@@ -88,7 +88,7 @@ export default function Print() {
       </div>
 
       {type === 'coupons' ? (
-        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} tail={params.get('tail') === '1'} onTail={(t) => setParams((x) => (t ? x.set('tail', '1') : x.delete('tail'), x), { replace: true })} />
+        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} mode={(['stub', 'tail'] as const).find((m) => m === params.get('mode')) ?? 'coupon'} onMode={(m) => setParams((x) => (m === 'coupon' ? x.delete('mode') : x.set('mode', m), x), { replace: true })} />
       ) : type === 'rooms' ? (
         <RoomsPrint data={data} index={index} head={head} now={now} />
       ) : type === 'bus' ? (
@@ -293,19 +293,25 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
   )
 }
 
+const MODES = [
+  ['coupon', '換領券', '只印換領券'],
+  ['stub', '存根留底', '右邊加存根'],
+  ['tail', '尾券模式', '尾券貼在禮品上'],
+] as const
+
 // 禮物換領券：140 × 60 毫米，A4 直放每頁 4 張，上下無縫（共用裁剪線）；右邊 46 毫米存根留底，頁頂印本頁資料
 function CouponsPrint({
   ev,
   itemId,
   batch,
-  tail,
-  onTail,
+  mode,
+  onMode,
 }: {
   ev: import('../db/types').EventRec
   itemId: string
   batch: number
-  tail: boolean
-  onTail: (t: boolean) => void
+  mode: 'coupon' | 'stub' | 'tail'
+  onMode: (m: 'coupon' | 'stub' | 'tail') => void
 }) {
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const all = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).toArray(), [itemId]) ?? []
@@ -332,26 +338,23 @@ function CouponsPrint({
   const dateText = ev.endDate && ev.endDate > ev.date ? `${ev.date.replace(/-/g, '.')} – ${ev.endDate.slice(5).replace('-', '.')}` : ev.date.replace(/-/g, '.')
   return (
     <>
-      <div className="no-print coupon-size">
-        <div className="seg" role="radiogroup" aria-label="右邊用途">
-          <button role="radio" aria-checked={!tail} className={!tail ? 'active' : ''} onClick={() => onTail(false)}>
-            存根留底
+      {/* 三種列印方式：預設只印換領券 */}
+      <div className="no-print gc-modes" role="radiogroup" aria-label="列印方式">
+        {MODES.map(([m, zh, note], k) => (
+          <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => onMode(m)}>
+            <b>
+              {k + 1}. {zh}
+            </b>
+            <small>{note}</small>
           </button>
-          <button role="radio" aria-checked={tail} className={tail ? 'active' : ''} onClick={() => onTail(true)}>
-            尾券（貼在禮品上）
-          </button>
-        </div>
-        <p className="hint">
-          {tail
-            ? '尾券有自己的 QR：剪下貼在對應禮品上。掃描尾券會顯示這件禮品屬於哪一張券（記名券會顯示名字）及是否已換領；只作查看，不會派發。'
-            : '存根由工作人員留底，換領時填上日期及經手人。'}
-        </p>
+        ))}
       </div>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        每張 140 × 60 毫米（右邊另有 46 毫米{tail ? '尾券' : '存根'}），A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
+        {mode === 'coupon' ? '只印換領券（140 × 60 毫米）。' : mode === 'stub' ? '右邊加 46 毫米存根，由工作人員留底，換領時填上日期及經手人。' : '右邊加 46 毫米尾券，有自己的 QR：剪下貼在對應禮品上，掃描可知道禮品屬於哪一張券及是否已換領（只作查看，不會派發）。'}
+        A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、開啟「背景圖形」，沿虛線剪開。
       </p>
       {pages.map((pg, i) => (
-        <section key={i} className="print-sheet page gc-sheet">
+        <section key={i} className={`print-sheet page gc-sheet${mode === 'coupon' ? ' w140' : ''}`}>
           {/* 頁頂：本頁資料及使用方法（用盡頁面上下的空位） */}
           <div className="gc-pagehead">
             <span>
@@ -360,7 +363,13 @@ function CouponsPrint({
             <span>
               本頁 No. {String(pg[0].no).padStart(4, '0')} – {String(pg[pg.length - 1].no).padStart(4, '0')} · 第 {i + 1} / {pages.length} 頁
             </span>
-            <small>{tail ? '沿虛線剪開：左邊換領券交給來賓，右邊尾券貼在對應禮品上；掃描尾券可知道該禮品應由誰領取。' : '沿虛線剪開：左邊換領券交給來賓，右邊存根由工作人員留底（換領時填上日期、經手人）。'}</small>
+            <small>
+              {mode === 'coupon'
+                ? '沿虛線剪開，換領券交給來賓。'
+                : mode === 'tail'
+                  ? '沿虛線剪開：左邊換領券交給來賓，右邊尾券貼在對應禮品上；掃描尾券可知道該禮品應由誰領取。'
+                  : '沿虛線剪開：左邊換領券交給來賓，右邊存根由工作人員留底（換領時填上日期、經手人）。'}
+            </small>
           </div>
           {pg.map((c) => (
             <div key={c.id} className="gc">
@@ -401,14 +410,14 @@ function CouponsPrint({
                 <code>{c.code}</code>
               </div>
               {/* 右邊：存根（留底）或尾券（貼在禮品上，可掃描配對） */}
-              {tail ? (
+              {mode === 'tail' ? (
                 <div className="gc-keep gc-tail">
                   <small>尾券 · 貼於禮品</small>
                   {qr[`${c.code}-T`] ? <img src={qr[`${c.code}-T`]} alt="" /> : <div className="gc-qr-ph" />}
                   <b>No. {String(c.no).padStart(4, '0')}</b>
                   <span>{item.name}</span>
                 </div>
-              ) : (
+              ) : mode === 'stub' ? (
                 <div className="gc-keep">
                   <small>存根 · 留底</small>
                   <b>No. {String(c.no).padStart(4, '0')}</b>
@@ -417,7 +426,7 @@ function CouponsPrint({
                   <i>換領日期</i>
                   <i>經手人</i>
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </section>

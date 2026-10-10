@@ -7340,64 +7340,93 @@ body:has(.rc-dock) .toast {
   border: 1.5px solid color-mix(in srgb, var(--mode-solid) 45%, transparent);
 }
 
-/* ===== 列印：禮物換領券（140 × 60 毫米，A4 直放每頁 4 張） ===== */
+/* ===== 列印：禮物換領券（140 × 60 毫米，A4 直放每頁 4 張） =====
+   所有尺寸用 --mm（= 券紙闊度 ÷ 設計闊度），按實際紙張闊度等比例縮放：
+   電腦列印剛好 1:1；手機列印時即使瀏覽器先縮放，排版亦不會走位。 */
 .gc-sheet {
-  display: grid;
-  grid-template-columns: 186mm;
-  grid-auto-rows: 60mm;
-  gap: 0;
-  justify-content: center;
+  container-type: inline-size;
+  width: min(186mm, 100%);
+  margin: 0 auto 16px;
+  padding: 0;
   max-width: none;
-  overflow-x: auto;
+  background: transparent;
+  border: 0;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+.gc-sheet.w140 {
+  width: min(140mm, 100%);
+}
+.gc-sheet > * {
+  --mm: calc(100cqw / 186);
+}
+.gc-sheet.w140 > * {
+  --mm: calc(100cqw / 140);
+}
+.gc-pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(1 * var(--mm)) calc(4 * var(--mm));
+  padding-bottom: calc(3 * var(--mm));
+  font-size: calc(3.2 * var(--mm));
+  color: #2b2a28;
+}
+.gc-pagehead small {
+  flex-basis: 100%;
+  font-size: calc(2.6 * var(--mm));
+  color: #6f6a61;
 }
 .gc {
   --gc-red: #e1242c;
   --gc-purple: #5b4b8a;
   --gc-ink: #2b2a28;
-  position: relative;
   display: grid;
-  grid-template-columns: 107mm 33mm 46mm;
+  grid-template-columns: 57.53% 17.74% 24.73%;
+  height: calc(60 * var(--mm));
   background: #fcf9f1;
   color: var(--gc-ink);
-  outline: 0.3mm dashed #b5b0a6;
-  outline-offset: -0.15mm;
+  outline: calc(0.3 * var(--mm)) dashed #b5b0a6;
+  outline-offset: calc(-0.15 * var(--mm));
   overflow: hidden;
   break-inside: avoid;
 }
+.w140 .gc {
+  grid-template-columns: 76.43% 23.57%;
+}
 .gc-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 33mm;
+  grid-template-columns: minmax(0, 1fr) calc(33 * var(--mm));
   grid-template-areas:
     'title qty'
     'item stamp'
     'text date'
     'note note';
   grid-template-rows: auto auto 1fr auto;
-  column-gap: 3mm;
-  row-gap: 1.8mm;
-  padding: 3.5mm 3mm 2.5mm 4mm;
+  column-gap: calc(3 * var(--mm));
+  row-gap: calc(1.8 * var(--mm));
+  padding: calc(3.5 * var(--mm)) calc(3 * var(--mm)) calc(2.5 * var(--mm)) calc(4 * var(--mm));
   min-width: 0;
 }
 .gc-title {
   grid-area: title;
   display: flex;
   align-items: center;
-  gap: 1.8mm;
-  padding: 1.2mm 2mm;
-  border: 0.6mm solid var(--gc-red);
-  border-radius: 1.2mm;
+  gap: calc(1.8 * var(--mm));
+  padding: calc(1.2 * var(--mm)) calc(2 * var(--mm));
+  border: calc(0.6 * var(--mm)) solid var(--gc-red);
+  border-radius: calc(1.2 * var(--mm));
   color: var(--gc-red);
 }
 .gc-gift {
-  width: 12mm;
-  height: 12mm;
+  width: calc(12 * var(--mm));
+  height: calc(12 * var(--mm));
   flex-shrink: 0;
 }
 .gc-title b {
   display: block;
-  font-size: 20pt;
+  font-size: calc(7 * var(--mm));
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.04em;
@@ -7405,66 +7434,64 @@ body:has(.rc-dock) .toast {
 .gc-title span {
   display: flex;
   align-items: center;
-  gap: 1.2mm;
-  margin-top: 1mm;
-  font-size: 9.5pt;
+  gap: calc(1.2 * var(--mm));
+  margin-top: calc(1 * var(--mm));
+  font-size: calc(3.35 * var(--mm));
   font-weight: 800;
 }
 .gc-title em {
   font-style: normal;
-  font-size: 7.5pt;
-  padding: 0 1mm;
-  border: 0.35mm solid var(--gc-red);
-  border-radius: 0.8mm;
+  font-size: calc(2.65 * var(--mm));
+  padding: 0 calc(1 * var(--mm));
+  border: calc(0.35 * var(--mm)) solid var(--gc-red);
+  border-radius: calc(0.8 * var(--mm));
 }
 .gc-qty {
   grid-area: qty;
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 1mm;
-  padding-left: 4mm;
+  gap: calc(1 * var(--mm));
+  padding-left: calc(4 * var(--mm));
   background: var(--gc-purple);
   color: #fff;
-  border-radius: 1.2mm;
+  border-radius: calc(1.2 * var(--mm));
   clip-path: polygon(16% 0, 100% 0, 100% 100%, 16% 100%, 0 50%);
 }
 .gc-qty b {
   font-family: var(--num);
-  font-size: 36pt;
+  font-size: calc(12.7 * var(--mm));
   line-height: 1.15;
 }
 .gc-qty span {
-  font-size: 13pt;
+  font-size: calc(4.6 * var(--mm));
   font-weight: 900;
 }
 .gc-item {
   grid-area: item;
   display: flex;
   align-items: baseline;
-  gap: 1.5mm;
+  gap: calc(1.5 * var(--mm));
   min-width: 0;
-  flex-wrap: wrap;
 }
 .gc-item small {
-  font-size: 7.5pt;
-  padding: 0.2mm 1mm;
-  border-radius: 0.8mm;
+  font-size: calc(2.65 * var(--mm));
+  padding: calc(0.2 * var(--mm)) calc(1 * var(--mm));
+  border-radius: calc(0.8 * var(--mm));
   background: var(--gc-ink);
   color: #fff;
 }
 .gc-item strong {
-  font-size: 14pt;
+  font-size: calc(4.9 * var(--mm));
   font-weight: 900;
-}
-.gc-item span {
-  font-size: 7.5pt;
-  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gc-text {
   grid-area: text;
   margin: 0;
-  font-size: 8.5pt;
+  font-size: calc(3 * var(--mm));
   line-height: 1.45;
   font-weight: 600;
 }
@@ -7472,153 +7499,173 @@ body:has(.rc-dock) .toast {
   grid-area: stamp;
   justify-self: end;
   align-self: center;
-  padding: 0.4mm 1.5mm;
-  border: 0.4mm solid var(--gc-ink);
-  border-radius: 0.8mm;
-  font-size: 7.5pt;
+  padding: calc(0.4 * var(--mm)) calc(1.5 * var(--mm));
+  border: calc(0.4 * var(--mm)) solid var(--gc-ink);
+  border-radius: calc(0.8 * var(--mm));
+  font-size: calc(2.65 * var(--mm));
   font-weight: 800;
 }
 .gc-date {
   grid-area: date;
   align-self: end;
-  border: 0.4mm solid var(--gc-ink);
-  border-radius: 1mm;
+  border: calc(0.4 * var(--mm)) solid var(--gc-ink);
+  border-radius: calc(1 * var(--mm));
   overflow: hidden;
   background: #fff;
 }
 .gc-date small {
   display: block;
-  padding: 0.4mm 1.5mm;
+  padding: calc(0.4 * var(--mm)) calc(1.5 * var(--mm));
   background: var(--gc-ink);
   color: #fff;
-  font-size: 7pt;
+  font-size: calc(2.5 * var(--mm));
 }
 .gc-date b {
   display: block;
-  padding: 0.6mm 1.5mm;
+  padding: calc(0.6 * var(--mm)) calc(1.5 * var(--mm));
   font-family: var(--num);
-  font-size: 10pt;
+  font-size: calc(3.5 * var(--mm));
   white-space: nowrap;
 }
 .gc-note {
   grid-area: note;
-  font-size: 6.5pt;
+  font-size: calc(2.3 * var(--mm));
   color: #6f6a61;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 右邊：GIFT、QR、編號（與券面之間不加虛線） */
+/* GIFT、QR、編號 */
 .gc-stub {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1mm;
-  padding: 2mm 1.5mm;
+  gap: calc(1 * var(--mm));
+  padding: calc(2 * var(--mm)) calc(1.5 * var(--mm));
+  min-width: 0;
 }
 .gc-tag {
-  padding: 0.3mm 2mm;
-  border-radius: 1mm;
+  padding: calc(0.3 * var(--mm)) calc(2 * var(--mm));
+  border-radius: calc(1 * var(--mm));
   background: var(--gc-ink);
   color: #fff;
-  font-size: 9pt;
+  font-size: calc(3.2 * var(--mm));
   font-weight: 900;
   letter-spacing: 0.1em;
 }
 .gc-stub-gift {
-  width: 7.5mm;
-  height: 7.5mm;
+  width: calc(7.5 * var(--mm));
+  height: calc(7.5 * var(--mm));
   color: var(--gc-purple);
 }
 .gc-stub img,
 .gc-qr-ph {
-  width: 24mm;
-  height: 24mm;
+  width: calc(24 * var(--mm));
+  height: calc(24 * var(--mm));
 }
 .gc-stub b {
   font-family: var(--num);
-  font-size: 10pt;
+  font-size: calc(3.5 * var(--mm));
 }
 .gc-stub code {
-  font-size: 6.5pt;
+  font-size: calc(2.3 * var(--mm));
   letter-spacing: 0.05em;
   color: #6f6a61;
 }
-@media print {
-  .gc-sheet {
-    margin: 0;
-  }
-}
-
-/* 換領券：頁頂資料列（佔用頁面上方空位） */
-.gc-sheet {
-  grid-template-rows: auto;
-}
-.gc-pagehead {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1mm 4mm;
-  padding: 0 0 4mm;
-  font-size: 9pt;
-  color: #2b2a28;
-}
-.gc-pagehead small {
-  flex-basis: 100%;
-  font-size: 7.5pt;
-  color: #6f6a61;
-}
-/* 存根（留底）：與換領券之間用虛線分開，方便剪下 */
+/* 存根（留底）／尾券：與換領券之間用虛線分開 */
 .gc-keep {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1.2mm;
-  padding: 3mm 3.5mm;
-  border-left: 0.35mm dashed #9a958c;
+  gap: calc(1.2 * var(--mm));
+  padding: calc(3 * var(--mm)) calc(3.5 * var(--mm));
+  border-left: calc(0.35 * var(--mm)) dashed #9a958c;
   background: #f3efe5;
-  font-size: 8pt;
+  font-size: calc(2.8 * var(--mm));
   min-width: 0;
 }
 .gc-keep small {
-  font-size: 7pt;
+  font-size: calc(2.5 * var(--mm));
   letter-spacing: 0.12em;
   color: #6f6a61;
 }
 .gc-keep b {
   font-family: var(--num);
-  font-size: 13pt;
+  font-size: calc(4.6 * var(--mm));
 }
 .gc-keep span {
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 .gc-keep code {
-  font-size: 7pt;
+  font-size: calc(2.5 * var(--mm));
   letter-spacing: 0.05em;
 }
 .gc-keep i {
   font-style: normal;
-  font-size: 7.5pt;
-  padding-top: 2.5mm;
-  border-bottom: 0.3mm solid #9a958c;
+  font-size: calc(2.65 * var(--mm));
+  padding-top: calc(2.5 * var(--mm));
+  border-bottom: calc(0.3 * var(--mm)) solid #9a958c;
 }
-
-/* 尾券：QR＋No.，置中 */
 .gc-tail {
   align-items: center;
   text-align: center;
-  gap: 1mm;
+  gap: calc(1 * var(--mm));
 }
 .gc-tail img,
 .gc-tail .gc-qr-ph {
-  width: 26mm;
-  height: 26mm;
+  width: calc(26 * var(--mm));
+  height: calc(26 * var(--mm));
 }
-.gc-tail span {
-  max-width: 100%;
+/* 三種列印方式的大按鈕（只在螢幕顯示） */
+.gc-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 900px;
+  margin: 0 auto 8px;
+}
+.gc-modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 8px 6px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.gc-modes button b {
+  font-size: 16px;
+  white-space: nowrap;
+}
+.gc-modes button small {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.gc-modes button.on {
+  border-color: #5b4b8a;
+  background: #5b4b8a;
+  color: #fff;
+}
+.gc-modes button.on small {
+  color: rgba(255, 255, 255, 0.85);
+}
+@media print {
+  .gc-sheet {
+    margin: 0 auto;
+    width: 100%;
+  }
+  .gc-sheet.w140 {
+    width: 75.27%;
+  }
 }
