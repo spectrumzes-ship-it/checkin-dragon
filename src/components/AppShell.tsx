@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ChartPie, FolderOpen, House, ScanLine, Settings, Users, FileText } from 'lucide-react'
+import { ChartPie, FolderOpen, House, ScanQrCode, Settings, Users, FileText } from 'lucide-react'
 import { useSettings } from '../lib/settings'
 import { cx, pickScanEvent } from '../lib/util'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -15,6 +15,8 @@ export const AppShell = () => {
   const guests = ev ? `${ev}/guests` : '/events?pick=guests'
   // 掃描：按時間自動揀今日的活動；今日沒有活動才用上次的活動
   const events = useLiveQuery(() => db.events.toArray(), []) ?? []
+  const pathId = loc.pathname.match(/^\/e\/([^/]+)/)?.[1]
+  const navMode = pathId ? events.find((e) => e.id === pathId)?.mode : undefined
   const auto = pickScanEvent(events)
   const scan = auto ? `/e/${auto.id}/scan` : ev ? `${ev}/scan` : '/events?pick=scan'
   const stats = ev ? ev : '/events?pick=stats'
@@ -28,7 +30,7 @@ export const AppShell = () => {
     { to: '/', icon: House, zh: '首頁', en: 'Home', active: path === '/' },
     { to: '/events', icon: FolderOpen, zh: '活動', en: 'Events', active: (path.startsWith('/events') && !pick) || (inEvent && !isGuests) },
     { to: guests, icon: Users, zh: '嘉賓', en: 'Guests', active: isGuests || pick === 'guests' },
-    { to: scan, icon: ScanLine, zh: '掃描', en: 'Scan', active: pick === 'scan' },
+    { to: scan, icon: ScanQrCode, zh: '掃描', en: 'Scan', active: pick === 'scan' },
     { to: '/reports', icon: FileText, zh: '報告', en: 'Reports', active: path.startsWith('/reports') },
     { to: '/settings', icon: Settings, zh: '設定', en: 'Settings', active: path.startsWith('/settings') },
   ]
@@ -53,7 +55,8 @@ export const AppShell = () => {
         <Outlet />
       </main>
 
-      <nav className="bottom-nav" aria-label="主選單">
+      {/* 在活動內：底部導覽帶該活動的模式（掃描鍵用代表色） */}
+      <nav className="bottom-nav" aria-label="主選單" data-mode={navMode}>
         <NavLink to="/" end className={() => cx('bn-item', path === '/' && 'active')}>
           <House size={22} strokeWidth={1.9} />
           <span>首頁</span>
@@ -64,7 +67,7 @@ export const AppShell = () => {
         </NavLink>
         <NavLink to={scan} className={() => 'bn-scan'} aria-label="掃描 Scan">
           <span className="bn-scan-btn">
-            <ScanLine size={28} strokeWidth={2} />
+            <ScanQrCode size={28} strokeWidth={2} />
           </span>
           <span>掃描</span>
         </NavLink>

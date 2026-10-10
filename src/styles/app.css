@@ -6955,3 +6955,12 @@ body:has(.rc-dock) .toast {
     display: none;
   }
 }
+
+/* 預設主題：在活動內，掃描鍵用該活動的代表色（和色設計，2026-10-08 預覽）；首頁等維持墨色 */
+:root:not([data-skin]) .bottom-nav[data-mode] .bn-scan-btn {
+  background: var(--mode-solid);
+  color: #fff;
+}
+:root:not([data-skin]) .bottom-nav[data-mode] .bn-item.active {
+  color: var(--mode-ink);
+}
