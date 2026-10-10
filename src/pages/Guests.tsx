@@ -12,7 +12,7 @@ import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { CarsBar, ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
-import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently, logicOf, verifySouvenir, type ScanOutcome } from '../lib/actions'
+import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently, logicOf, verifyAllSouvenirs, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
@@ -52,7 +52,7 @@ export default function Guests() {
   const souvenirList = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
   const hasSouvenirs = souvenirList.length > 0
   // 禮品領取模式：按名單派發的禮品（不包括限量先到先得）
-  const listItems = souvenirList.filter((x) => logicOf(x) !== 'fcfs')
+  const listItems = souvenirList.filter((x) => logicOf(x) === 'person' || logicOf(x) === 'invitation')
   const [giftFor, setGiftFor] = useState<GuestEntry | null>(null)
   const giveItem = async (item: SouvenirItem, e: GuestEntry) => {
     setGiftFor(null)
@@ -295,6 +295,19 @@ export default function Guests() {
       )}
       <Sheet open={!!giftFor} onClose={() => setGiftFor(null)} title={`派發給 ${giftFor ? nameOf(giftFor.p) : ''}`}>
         <div className="menu-list">
+          <button
+            className="menu-item"
+            onClick={async () => {
+              if (!giftFor) return
+              const e = giftFor
+              setGiftFor(null)
+              const o = await verifyAllSouvenirs(ev.id, '', 'SEARCH', e.p.id)
+              feedback(o.result === 'valid' ? 'valid' : 'invalid')
+              toast(o.result === 'valid' ? `✓ ${nameOf(e.p)} 已領取 ${o.souvenir?.item.name ?? ''}` : o.reason ?? '未能派發')
+            }}
+          >
+            <strong>全部禮品（一次派齊）</strong>
+          </button>
           {listItems.map((item) => (
             <button key={item.id} className="menu-item" onClick={() => giftFor && giveItem(item, giftFor)}>
               {item.name}

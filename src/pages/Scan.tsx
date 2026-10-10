@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, ChevronDown, Flashlight, FlashlightOff, Keyboard, Loader2, Plus, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant, ScanMethod } from '../db/types'
-import { checkIn, undoCheckIn, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
+import { checkIn, logicOf, undoCheckIn, verifyAllSouvenirs, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
 import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
@@ -161,6 +161,8 @@ export default function Scan() {
     ...(!noCheckin ? [{ v: 'checkin', l: ev?.mode === 'bus' ? '報到' : '簽到', g: '' }] : []),
     ...sessions.map((x) => ({ v: `r:${x.id}`, l: zhName(x.name), g: '點名' })),
     ...souvenirs.map((x) => ({ v: `s:${x.id}`, l: x.name, g: groupName })),
+    // 一次派齊：有兩款或以上按名單派發的禮品時，掃一次會員卡全部派完
+    ...(souvenirs.filter((x) => ['person', 'invitation'].includes(logicOf(x))).length >= 2 ? [{ v: 's:*', l: '全部禮品（一次派齊）', g: groupName }] : []),
   ]
   const purposeGroups = [...new Set(purposeOptions.map((o) => o.g))]
   const purposeLabel = purposeOptions.find((o) => o.v === purposeKey)?.l ?? '簽到'
@@ -274,7 +276,7 @@ export default function Scan() {
     busy.current = true
     try {
       let out: ScanOutcome
-      if (purpose === 'souvenir') out = await verifySouvenir(id, targetId, raw, method, pid)
+      if (purpose === 'souvenir') out = targetId === '*' ? await verifyAllSouvenirs(id, raw, method, pid) : await verifySouvenir(id, targetId, raw, method, pid)
       else if (purpose === 'rollcall') out = await verifyRollCall(id, targetId, raw, method, pid)
       else out = await verifyCheckIn(id, raw, method, pid)
       setOcr(null)

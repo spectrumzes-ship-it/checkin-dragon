@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Gift, ScanText, UserPlus } from 'lucide-react'
+import { Check, Gift, Printer, ScanText, Ticket, UserPlus, Users } from 'lucide-react'
 import CardScanner from '../components/CardScanner'
 import Seal from '../components/Seal'
 import { db } from '../db/db'
-import type { EventRec, ScanMethod } from '../db/types'
+import type { EventRec, ScanMethod, SouvenirItem, SouvenirRedemption } from '../db/types'
 import {
   eligible,
   emptyGuest,
   entitlement,
+  generateCoupons,
   idPrefixOf,
+  phoneRedeemedAt,
+  voidCoupons,
   logicLabel,
   logicOf,
   perClaimOf,
@@ -24,7 +27,7 @@ import {
 import { feedback } from '../lib/feedback'
 import { useDebounced, useEventData } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
-import { ageFromBirth, formatTime } from '../lib/util'
+import { ageFromBirth, cx, formatTime, todayKey, toDateKey } from '../lib/util'
 import { GiftArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { ConfirmSheet, EmptyState, FilterChip, PageHeader, SearchBar, Sheet, toast } from '../components/ui'
@@ -52,6 +55,11 @@ export default function SouvenirRecords() {
   const [scan, setScan] = useState(false)
   const [usedOcr, setUsedOcr] = useState(false)
   const [joinEvent, setJoinEvent] = useState(false) // 即場登記：false = 只領禮品；true = 同時參加活動
+  const [proxyMode, setProxyMode] = useState(false) // 代領：揀選幾位一次派發
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [proxyAsk, setProxyAsk] = useState(false)
+  const [proxyOther, setProxyOther] = useState('')
+  const [phoneWarn, setPhoneWarn] = useState<number | null>(null) // 先到先得：同一電話已領過的時間
 
   const set = (k: string, v: string) => {
     const n = new URLSearchParams(params)
@@ -85,11 +93,11 @@ export default function SouvenirRecords() {
 
   const { done, pending } = useMemo(() => {
     if (!item) return { done: [], pending: [] }
-    const byP = new Map<string, { qty: number; time: number; operator: string }>()
+    const byP = new Map<string, { qty: number; time: number; operator: string; proxyBy?: string }>()
     for (const r of mine) {
       const x = byP.get(r.participantId) ?? { qty: 0, time: 0, operator: '' }
       x.qty += r.quantity
-      if (r.time > x.time) Object.assign(x, { time: r.time, operator: r.operator })
+      if (r.time > x.time) Object.assign(x, { time: r.time, operator: r.operator, proxyBy: r.proxyBy })
       byP.set(r.participantId, x)
     }
     // 按請柬派發：同一張請柬有人領了，其他同行者不再列入「未領取」
@@ -126,13 +134,38 @@ export default function SouvenirRecords() {
 
   // 按名單派發：與掃描派發用同一套檢查（資格、數量、庫存）
   const give = async (e: GuestEntry) => item && report(await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id), nameOf(e.p))
+  // 代領：一次派給已揀選的幾位；由其中一位或其他人代領
+  const giveProxy = async (collector: string, collectorId?: string) => {
+    if (!item) return
+    let ok = 0
+    const fail: string[] = []
+    for (const e of pending.filter((x) => picked.has(x.p.id))) {
+      const o = await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id, e.p.id === collectorId ? {} : { proxyBy: collector })
+      if (o.result === 'valid') ok++
+      else fail.push(nameOf(e.p))
+    }
+    feedback(ok ? 'valid' : 'invalid')
+    toast(`✓ 已派發 ${ok} 位（由 ${collector} 領取）${fail.length ? `；未能派發：${fail.join('、')}` : ''}`)
+    setPicked(new Set())
+    setProxyMode(false)
+    setProxyAsk(false)
+    setProxyOther('')
+  }
   // 限量先到先得：不登記，直接扣庫存
-  const soldOut = left !== null && left <= 0
+  const todayGiven = mine.filter((r) => toDateKey(new Date(r.time)) === todayKey()).reduce((a, r) => a + r.quantity, 0)
+  const quotaFull = !!item?.dailyQuota && todayGiven >= item.dailyQuota
+  const soldOut = (left !== null && left <= 0) || quotaFull
+  const lowStock = !!item && item.stock !== null && item.stock > 0 && left !== null && left > 0 && left / item.stock < 0.1
   const giveAnonymous = async () => item && report(await verifySouvenir(ev.id, item.id, '', 'MANUAL'), '')
 
-  const submitReg = async () => {
+  const submitReg = async (force = false) => {
     if (!reg || !item) return
     if (!reg.name.trim() && !reg.englishName.trim()) return toast('請輸入中文或英文姓名')
+    // 先到先得的輕度查重：同一電話已領過就先提醒（仍可照派）
+    if (!force && logic === 'fcfs' && item.phoneCheck && reg.phone.trim()) {
+      const t = await phoneRedeemedAt(ev.id, item.id, reg.phone)
+      if (t) return setPhoneWarn(t)
+    }
     const group = item.eligibility.startsWith('group:') ? [item.eligibility.slice(6)] : []
     const o = await registerAndRedeem(ev.id, item.id, { ...emptyGuest(), ...reg, giftGroups: group }, pre?.reg || usedOcr ? 'OCR' : 'MANUAL', ev.mode !== 'gift' && !joinEvent)
     setReg(null)
@@ -143,11 +176,12 @@ export default function SouvenirRecords() {
   return (
     <div className="page">
       <PageHeader
-        zh={logic === 'fcfs' ? '領取登記及紀錄' : '名單派發及紀錄'}
-        en={logic === 'fcfs' ? 'Collection Register' : 'Distribute by List'}
+        zh={logic === 'fcfs' ? '領取登記及紀錄' : logic === 'coupon' ? '換領券及紀錄' : '名單派發及紀錄'}
+        en={logic === 'fcfs' ? 'Collection Register' : logic === 'coupon' ? 'Coupons' : 'Distribute by List'}
         back={`/e/${ev.id}/souvenirs`}
         actions={
-          logic !== 'fcfs' && (
+          (logic === 'person' || logic === 'invitation') &&
+          item?.allowWalkIn !== false && (
             <button className="btn btn-primary btn-sm" onClick={() => setReg(blankReg())}>
               <UserPlus size={18} /> 即場登記
             </button>
@@ -164,14 +198,25 @@ export default function SouvenirRecords() {
       {item && (
         <p className="hint">
           {logicLabel(item)} · {quantityLabel(item, left)} · 已派 {given} 份
+          {item.dailyQuota ? ` · 今日 ${todayGiven} / ${item.dailyQuota}` : ''}
         </p>
       )}
+      {lowStock && <p className="stock-warn">存貨只剩 {left} 份，請準備補貨或通知排隊人士</p>}
 
-      {logic === 'fcfs' && item ? (
+      {logic === 'coupon' && item ? (
+        <CouponPanel ev={ev} item={item} mine={mine} names={new Map(index.map((e) => [e.p.id, nameOf(e.p)]))} people={index.filter((e) => e.p.status === 'active').map((e) => e.p)} report={report} onUndo={(rid, name) => setUndo({ rid, name })} />
+      ) : logic === 'fcfs' && item ? (
         <>
-          <button className="btn btn-primary fcfs-give" onClick={() => setReg(blankReg())} disabled={soldOut}>
-            <UserPlus size={20} /> {soldOut ? '禮物已派發完畢' : `領取登記（派發 ×${Math.min(perClaimOf(item), left ?? Infinity)}）`}
-          </button>
+          {soldOut ? (
+            <div className="soldout-panel" role="status">
+              <strong>{quotaFull && !(left !== null && left <= 0) ? '今日配額已派完' : '已派完'}</strong>
+              <span>{quotaFull && !(left !== null && left <= 0) ? `今日已派 ${todayGiven} 份（每日上限 ${item.dailyQuota}），請明日再來` : `「${item.name}」全部 ${item.stock} 份已派發完畢`}</span>
+            </div>
+          ) : (
+            <button className="btn btn-primary fcfs-give" onClick={() => setReg(blankReg())}>
+              <UserPlus size={20} /> {`領取登記（派發 ×${Math.min(perClaimOf(item), left ?? Infinity)}）`}
+            </button>
+          )}
           {!soldOut && (
             <button className="btn btn-ghost fcfs-give" onClick={giveAnonymous}>
               <Gift size={20} /> 不登記，直接派發
@@ -233,6 +278,7 @@ export default function SouvenirRecords() {
                         <strong>×{r.qty}</strong>
                         <span className="muted">
                           {formatTime(r.time)} · {r.operator}
+                          {r.proxyBy && ` · 由 ${r.proxyBy} 代領`}
                         </span>
                       </span>
                     }
@@ -243,11 +289,45 @@ export default function SouvenirRecords() {
               <p className="muted pad center">未有人領取</p>
             )
           ) : pending.length ? (
-            <div className="list card">
-              {pending.map((e) => (
-                <GuestRow key={e.p.id} e={e} mark={<span className="gift-seal empty" aria-label="未領取" />} onClick={() => give(e)} trailing={item && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>} />
-              ))}
-            </div>
+            <>
+              <div className="proxy-bar">
+                <button className={cx('btn btn-sm', proxyMode ? 'btn-primary' : 'btn-ghost')} onClick={() => (setProxyMode(!proxyMode), setPicked(new Set()))}>
+                  <Users size={16} /> {proxyMode ? '取消代領' : '代領（一人領幾份）'}
+                </button>
+                {proxyMode && <span className="muted">已揀 {picked.size} 位</span>}
+              </div>
+              <div className="list card">
+                {pending.map((e) => (
+                  <GuestRow
+                    key={e.p.id}
+                    e={e}
+                    mark={
+                      proxyMode ? (
+                        <span className={cx('proxy-check', picked.has(e.p.id) && 'on')}>{picked.has(e.p.id) && <Check size={18} strokeWidth={3} />}</span>
+                      ) : (
+                        <span className="gift-seal empty" aria-label="未領取" />
+                      )
+                    }
+                    onClick={() =>
+                      proxyMode
+                        ? setPicked((x) => {
+                            const n = new Set(x)
+                            if (n.has(e.p.id)) n.delete(e.p.id)
+                            else n.add(e.p.id)
+                            return n
+                          })
+                        : give(e)
+                    }
+                    trailing={item && !proxyMode && <span className="btn btn-sm btn-mode">派發 ×{entitlement(item, e.p)}</span>}
+                  />
+                ))}
+              </div>
+              {proxyMode && picked.size > 0 && (
+                <button className="btn btn-primary btn-block proxy-go" onClick={() => setProxyAsk(true)}>
+                  派發給已揀的 {picked.size} 位
+                </button>
+              )}
+            </>
           ) : (
             <p className="muted pad center">{dq ? `找不到「${dq}」，可按「即場登記」` : index.length ? '全部已領取 ✓' : '名單上未有領取人，請按「即場登記」'}</p>
           )}
@@ -263,7 +343,7 @@ export default function SouvenirRecords() {
             <button className="btn btn-ghost" onClick={() => setReg(null)}>
               取消
             </button>
-            <button className="btn btn-primary" onClick={submitReg}>
+            <button className="btn btn-primary" onClick={() => submitReg()}>
               登記並派發
             </button>
           </>
@@ -376,6 +456,35 @@ export default function SouvenirRecords() {
         />
       )}
 
+      <Sheet open={proxyAsk} onClose={() => setProxyAsk(false)} title="由誰領取？">
+        <p className="hint">揀選實際來領取的人；其他人會記錄為「由某某代領」。</p>
+        <div className="menu-list">
+          {pending
+            .filter((e) => picked.has(e.p.id))
+            .map((e) => (
+              <button key={e.p.id} className="menu-item" onClick={() => giveProxy(nameOf(e.p), e.p.id)}>
+                {nameOf(e.p)}（本人）
+              </button>
+            ))}
+        </div>
+        <label className="field" style={{ marginTop: 12 }}>
+          <span>其他人（名單以外，輸入名字）</span>
+          <input value={proxyOther} onChange={(e) => setProxyOther(e.target.value)} placeholder="例如 陳太（家人）" />
+        </label>
+        <button className="btn btn-primary btn-block" disabled={!proxyOther.trim()} onClick={() => giveProxy(proxyOther.trim())}>
+          由 {proxyOther.trim() || '…'} 代領
+        </button>
+      </Sheet>
+
+      <ConfirmSheet
+        open={phoneWarn !== null}
+        onClose={() => setPhoneWarn(null)}
+        onConfirm={() => submitReg(true)}
+        title="此電話已領取過"
+        message={<p>電話 {reg?.phone} 已於 {phoneWarn ? formatTime(phoneWarn) : ''} 領取過「{item?.name}」。仍然要派發嗎？</p>}
+        confirmText="仍然派發"
+      />
+
       <ConfirmSheet
         open={!!undo}
         onClose={() => setUndo(null)}
@@ -396,5 +505,180 @@ export default function SouvenirRecords() {
         confirmText="取消領取"
       />
     </div>
+  )
+}
+
+// 憑券換領：統計、輸入編號換領、生成及列印換領券、作廢、紀錄
+function CouponPanel({
+  ev,
+  item,
+  mine,
+  names: nameMap,
+  people,
+  report,
+  onUndo,
+}: {
+  ev: EventRec
+  item: SouvenirItem
+  mine: SouvenirRedemption[]
+  names: Map<string, string>
+  people: import('../db/types').Participant[]
+  report: (o: ScanOutcome, who: string) => void
+  onUndo: (rid: string, name: string) => void
+}) {
+  const coupons = useLiveQuery(() => db.coupons.where('itemId').equals(item.id).toArray(), [item.id]) ?? []
+  const [code, setCode] = useState('')
+  const [gen, setGen] = useState<null | { named: boolean; count: number }>(null)
+  const [voidBatch, setVoidBatch] = useState<number | null>(null)
+  const used = new Map(mine.filter((r) => r.couponId).map((r) => [r.couponId!, r]))
+  const voided = coupons.filter((c) => c.voided).length
+  const redeemed = coupons.filter((c) => used.has(c.id)).length
+  const batches = [...new Set(coupons.map((c) => c.batch))].sort((a, b) => b - a)
+  const typed = code.trim().toUpperCase()
+  const found = typed.length >= 6 ? coupons.find((c) => c.code === typed) : undefined
+  const redeem = async () => {
+    if (!typed) return
+    report(await verifySouvenir(ev.id, item.id, typed, 'MANUAL'), found?.name ?? '')
+    setCode('')
+  }
+  return (
+    <>
+      <div className="coupon-stats">
+        <span><b>{coupons.length}</b>已印</span>
+        <span><b>{redeemed}</b>已換領</span>
+        <span><b>{coupons.length - redeemed - voided}</b>未換領</span>
+        <span><b>{voided}</b>作廢</span>
+      </div>
+      <div className="coupon-entry">
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="輸入券上編號（或用掃描）" autoCapitalize="characters" onKeyDown={(e) => e.key === 'Enter' && redeem()} />
+        <button className="btn btn-primary" onClick={redeem} disabled={!typed}>
+          換領
+        </button>
+      </div>
+      {found && (
+        <p className="hint">
+          {found.voided ? '此券已作廢' : used.has(found.id) ? `此券已於 ${formatTime(used.get(found.id)!.time)} 換領` : '此券未換領'}
+          {found.name && ` · ${found.name}`}{' '}
+          <button className="link" onClick={() => voidCoupons([found.id], !found.voided)}>
+            {found.voided ? '恢復此券' : '作廢此券'}
+          </button>
+        </p>
+      )}
+      <div className="coupon-actions">
+        <Link to={`/e/${ev.id}/scan?p=s:${item.id}`} className="btn btn-mode">
+          <Ticket size={18} /> 掃描換領
+        </Link>
+        <button className="btn btn-ghost" onClick={() => setGen({ named: false, count: 50 })}>
+          ＋ 生成換領券
+        </button>
+      </div>
+      {batches.length > 0 && (
+        <div className="list card">
+          {batches.map((b) => {
+            const cs = coupons.filter((c) => c.batch === b)
+            const r = cs.filter((c) => used.has(c.id)).length
+            const v = cs.filter((c) => c.voided).length
+            return (
+              <div key={b} className="coupon-batch">
+                <span>
+                  <strong>第 {b} 批 · {cs.length} 張{cs[0]?.name ? '（記名）' : ''}</strong>
+                  <span className="muted">已換領 {r}{v ? ` · 作廢 ${v}` : ''}</span>
+                </span>
+                <Link className="btn btn-sm btn-ghost" to={`/e/${ev.id}/print?type=coupons&item=${item.id}&batch=${b}`}>
+                  <Printer size={16} /> 列印
+                </Link>
+                <button className="btn btn-sm btn-ghost" onClick={() => (v === cs.length ? voidCoupons(cs.map((c) => c.id), false) : setVoidBatch(b))}>
+                  {v === cs.length ? '恢復' : '作廢'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <p className="hint">一券只可換領一次；作廢的券掃描時會顯示「已作廢」。點下面的紀錄可取消換領。</p>
+      {mine.length ? (
+        <div className="list card">
+          {mine.map((r) => {
+            const c = coupons.find((x) => x.id === r.couponId)
+            const who = (r.participantId && nameMap.get(r.participantId)) || c?.name || ''
+            return (
+              <button key={r.id} className="fcfs-row" onClick={() => onUndo(r.id, who || `換領券 ${c?.code ?? ''}`)}>
+                <Seal className="gift-seal" text="領" />
+                <span>
+                  <strong>{who || `換領券 ${c?.code ?? ''}`}</strong>
+                  <span className="muted">
+                    {formatTime(r.time)} · {METHOD[r.method ?? 'MANUAL']} · {r.operator}
+                  </span>
+                </span>
+                <strong>×{r.quantity}</strong>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="muted pad center">未有換領紀錄</p>
+      )}
+
+      <Sheet
+        open={!!gen}
+        onClose={() => setGen(null)}
+        title="生成換領券"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setGen(null)}>
+              取消
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                if (!gen) return
+                const r = await generateCoupons(ev.id, item.id, gen.named ? { people } : { count: gen.count })
+                setGen(null)
+                toast(`已生成第 ${r.batch} 批 ${r.count} 張，可按「列印」`)
+              }}
+            >
+              生成
+            </button>
+          </>
+        }
+      >
+        {gen && (
+          <>
+            <div className="radio-list" role="radiogroup">
+              <label className={!gen.named ? 'active' : ''}>
+                <input type="radio" name="cn" style={TICK} checked={!gen.named} onChange={() => setGen({ ...gen, named: false })} />
+                <span>
+                  <strong>不記名</strong>
+                  <small>自訂張數，任何人持券都可換領。</small>
+                </span>
+              </label>
+              <label className={gen.named ? 'active' : ''}>
+                <input type="radio" name="cn" style={TICK} checked={gen.named} onChange={() => setGen({ ...gen, named: true })} />
+                <span>
+                  <strong>記名（按名單每人一張）</strong>
+                  <small>券上印名字，共 {people.length} 張。</small>
+                </span>
+              </label>
+            </div>
+            {!gen.named && (
+              <label className="field">
+                <span>張數（最多 2000）</span>
+                <input type="number" min={1} max={2000} value={gen.count} onChange={(e) => setGen({ ...gen, count: Math.max(1, Math.min(2000, Number(e.target.value) || 1)) })} />
+              </label>
+            )}
+            <p className="hint">每張券有隨機編號及 QR，不能估到其他號碼。生成後按「列印」，A4 每頁 10 張，有裁剪線。</p>
+          </>
+        )}
+      </Sheet>
+      <ConfirmSheet
+        open={voidBatch !== null}
+        onClose={() => setVoidBatch(null)}
+        onConfirm={() => voidCoupons(coupons.filter((c) => c.batch === voidBatch && !used.has(c.id)).map((c) => c.id))}
+        title={`作廢第 ${voidBatch} 批`}
+        message={<p>把第 {voidBatch} 批中未換領的券全部作廢？作廢後掃描會顯示「已作廢」，之後可按「恢復」。</p>}
+        confirmText="作廢"
+        danger
+      />
+    </>
   )
 }

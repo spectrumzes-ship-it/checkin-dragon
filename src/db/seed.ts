@@ -293,9 +293,13 @@ export const seedDemo = async () => {
       Object.assign(gift.tickets[i], { qrCode: p.memberId, invitationId: '', ticketNumber: '' })
     })
     await save(gift)
-    const totes: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '環保袋', stock: 100, perGuest: 0, logic: 'fcfs', perClaim: 1, eligibility: 'all', sortOrder: 1 }
+    const totes: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '環保袋', stock: 100, perGuest: 0, logic: 'fcfs', perClaim: 1, eligibility: 'all', sortOrder: 1, dailyQuota: 40 }
     const memberGift: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '會員紀念品', stock: 60, perGuest: 0, logic: 'person', perClaim: 1, eligibility: 'all', sortOrder: 2 }
-    await db.souvenirs.bulkAdd([totes, memberGift])
+    const calendar: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '會員月曆', stock: 60, perGuest: 0, logic: 'person', perClaim: 1, eligibility: 'all', sortOrder: 3 }
+    const voucher: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '超市禮券', stock: 30, perGuest: 0, logic: 'coupon', perClaim: 1, eligibility: 'all', sortOrder: 4 }
+    await db.souvenirs.bulkAdd([totes, memberGift, calendar, voucher])
+    // 憑券換領示範：第 1 批 20 張不記名換領券（編號固定，方便列印測試）
+    await db.coupons.bulkAdd(Array.from({ length: 20 }, () => ({ id: uid(), eventId: gift.event.id, itemId: voucher.id, code: demoCode() + demoCode().slice(0, 2), batch: 1, createdAt: now })))
     await db.redemptions.bulkAdd(
       gift.people.slice(0, 8).map((p, i) => ({ id: uid(), eventId: gift.event.id, itemId: memberGift.id, participantId: p.id, quantity: 1, method: 'QR' as const, time: now - (i + 1) * 420000, deviceId, operator: 'Amy', kind: 'redeem' as const, voided: false })),
     )
@@ -303,7 +307,7 @@ export const seedDemo = async () => {
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 8
+export const DEMO_VERSION = 9
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {

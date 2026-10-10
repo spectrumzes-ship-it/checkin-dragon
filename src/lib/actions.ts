@@ -2,6 +2,7 @@ import { db } from '../db/db'
 import type {
   BusConfig,
   CheckIn,
+  Coupon,
   EventRec,
   Mode,
   Participant,
@@ -17,7 +18,7 @@ import type {
   Ticket,
 } from '../db/types'
 import { getSettings } from './settings'
-import { formatTime, normalize, randomCode, uid } from './util'
+import { formatTime, normalize, randomCode, toDateKey, uid } from './util'
 import { names } from './names'
 import { NO_BUS, isBusClosed } from './rollcall'
 
@@ -713,11 +714,17 @@ export const perClaimOf = (item: SouvenirItem) => Math.max(1, item.perClaim ?? (
 // 這位嘉賓可領多少份：按人頭 = 每位 X 份（一票多人按人數）；按請柬／先到先得 = 每次 X 份
 export const entitlement = (item: SouvenirItem, p: Participant) => (logicOf(item) === 'person' ? perClaimOf(item) * p.guestCount : perClaimOf(item))
 
-export const logicLabel = (item: SouvenirItem) => (logicOf(item) === 'fcfs' ? '限量先到先得' : eligibilityLabel(item.eligibility))
+export const logicLabel = (item: SouvenirItem) => {
+  const l = logicOf(item)
+  return l === 'fcfs' ? '限量先到先得' : l === 'coupon' ? '憑券換領' : eligibilityLabel(item.eligibility)
+}
 export const quantityLabel = (item: SouvenirItem, left: number | null) => {
   const x = perClaimOf(item)
   const l = logicOf(item)
-  return l === 'person' ? `每人 ${x} 份` : l === 'invitation' ? `每張請柬 ${x} 份` : left === null ? `每次 ${x} 份 · 不限數量` : `剩餘 ${Math.max(0, left)} 份`
+  if (l === 'person') return `每人 ${x} 份`
+  if (l === 'invitation') return `每張請柬 ${x} 份`
+  if (l === 'coupon') return `每券 ${x} 份${left === null ? '' : ` · 剩餘 ${Math.max(0, left)} 份`}`
+  return left === null ? `每次 ${x} 份 · 不限數量` : `剩餘 ${Math.max(0, left)} 份`
 }
 
 // 同一張請柬的所有人：原嘉賓＋分拆出來的同行者
@@ -746,7 +753,14 @@ export const redeemedQty = async (itemId: string, participantId?: string) => {
   return rows.filter((r) => !r.voided && r.kind === 'redeem').reduce((a, r) => a + r.quantity, 0)
 }
 
-export const verifySouvenir = async (eventId: string, itemId: string, raw: string, method: ScanMethod, participantId?: string): Promise<ScanOutcome> => {
+export const verifySouvenir = async (
+  eventId: string,
+  itemId: string,
+  raw: string,
+  method: ScanMethod,
+  participantId?: string,
+  opts: { proxyBy?: string } = {},
+): Promise<ScanOutcome> => {
   const now = Date.now()
   const item = await db.souvenirs.get(itemId)
   const found = participantId ? { participant: (await db.participants.get(participantId))! } : raw ? await findByCode(raw, method === 'QR') : undefined
@@ -756,10 +770,57 @@ export const verifySouvenir = async (eventId: string, itemId: string, raw: strin
   const mine = found?.participant && found.participant.eventId === eventId ? found.participant : undefined
   const { operator, deviceId } = who()
   const left = async () => (item.stock === null ? Infinity : item.stock - (await redeemedQty(item.id)))
-  const give = async (pid: string, qty: number, who_: string) => {
-    await db.redemptions.add({ id: uid(), eventId, itemId: item.id, participantId: pid, quantity: qty, method, time: now, deviceId, operator, kind: 'redeem', voided: false })
-    await audit(eventId, `領取紀念品 ${item.name} ×${qty}`, 'souvenir', item.id, who_)
+  const give = async (pid: string, qty: number, who_: string, couponId?: string) => {
+    await db.redemptions.add({
+      id: uid(),
+      eventId,
+      itemId: item.id,
+      participantId: pid,
+      quantity: qty,
+      method,
+      time: now,
+      deviceId,
+      operator,
+      kind: 'redeem',
+      voided: false,
+      ...(couponId ? { couponId } : {}),
+      ...(opts.proxyBy ? { proxyBy: opts.proxyBy } : {}),
+    })
+    await audit(eventId, `領取紀念品 ${item.name} ×${qty}${opts.proxyBy ? `（${opts.proxyBy} 代領）` : ''}`, 'souvenir', item.id, who_)
     await log('valid', '', pid || null)
+  }
+
+  // 憑券換領：掃描券上的 QR（或輸入編號）；一券只可換領一次，作廢的券不可用
+  if (logic === 'coupon') {
+    const code = raw.trim().toUpperCase()
+    const c = code ? await db.coupons.where('code').equals(code).filter((x) => x.eventId === eventId).first() : undefined
+    if (!c) {
+      await log('invalid', '不是換領券', null)
+      return { result: 'invalid', reason: '找不到此換領券 Coupon Not Found', time: now, rawValue: raw }
+    }
+    if (c.itemId !== item.id) {
+      const other = await db.souvenirs.get(c.itemId)
+      await log('invalid', '其他禮品的券', null)
+      return { result: 'invalid', reason: `這是「${other?.name ?? '其他禮品'}」的換領券`, time: now, rawValue: raw }
+    }
+    const p = c.participantId ? await db.participants.get(c.participantId) : undefined
+    if (c.voided) {
+      await log('invalid', '換領券已作廢', p?.id ?? null)
+      return { result: 'invalid', reason: '此換領券已作廢 Voided', participant: p, time: now, rawValue: raw }
+    }
+    const used = await db.redemptions.where('itemId').equals(item.id).filter((r) => r.couponId === c.id && !r.voided).first()
+    if (used) {
+      await log('duplicate', '換領券已用', p?.id ?? null)
+      return { result: 'duplicate', reason: `此換領券已於 ${formatTime(used.time)} 換領`, participant: p, time: now, previousTime: used.time, souvenir: { item, quantity: used.quantity }, rawValue: raw }
+    }
+    const remain = await left()
+    if (remain <= 0) {
+      await log('out_of_stock', '', p?.id ?? null)
+      return { result: 'out_of_stock', reason: '禮物已派發完畢（已售罄）', participant: p, time: now, souvenir: { item, quantity: 0 }, rawValue: raw }
+    }
+    const qty = Math.min(perClaimOf(item), remain)
+    await give(p?.id ?? '', qty, p ? names(p).full : `換領券 ${c.code}`, c.id)
+    return { result: 'valid', participant: p, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
   }
 
   // 限量先到先得：不認人、不查重複，到場核銷即扣庫存，扣完即止
@@ -778,7 +839,13 @@ export const verifySouvenir = async (eventId: string, itemId: string, raw: strin
       await log('out_of_stock', '', p?.id ?? null)
       return { result: 'out_of_stock', reason: '禮物已派發完畢（已售罄）', participant: p, time: now, souvenir: { item, quantity: 0 }, rawValue: raw }
     }
-    const qty = Math.min(perClaimOf(item), remain)
+    // 每日配額：今日已派滿就停（明日再派）
+    const todayLeft = item.dailyQuota ? item.dailyQuota - (await givenToday(item.id)) : Infinity
+    if (todayLeft <= 0) {
+      await log('out_of_stock', '今日配額已滿', p?.id ?? null)
+      return { result: 'out_of_stock', reason: `今日配額（${item.dailyQuota} 份）已派完，請明日再來`, participant: p, time: now, souvenir: { item, quantity: 0 }, rawValue: raw }
+    }
+    const qty = Math.min(perClaimOf(item), remain, todayLeft)
     await give(p?.id ?? '', qty, p ? names(p).full : '')
     return { result: 'valid', participant: p, seats: p ? await seatsFor(p.id) : undefined, time: now, souvenir: { item, quantity: qty }, rawValue: raw }
   }
@@ -869,6 +936,77 @@ export const undoRedemption = async (itemId: string, p: Participant) => {
   for (const r of rows) await db.redemptions.update(r.id, { voided: true })
   const item = await db.souvenirs.get(itemId)
   await audit(p.eventId, `取消領取紀念品 ${item?.name ?? ''}`, 'souvenir', itemId, names(p).full)
+}
+
+// 今日已派份數（每日配額用；按本機日期）
+export const givenToday = async (itemId: string) => {
+  const today = toDateKey(new Date())
+  const rows = await db.redemptions.where('itemId').equals(itemId).filter((r) => !r.voided && r.kind === 'redeem' && toDateKey(new Date(r.time)) === today).toArray()
+  return rows.reduce((a, r) => a + r.quantity, 0)
+}
+
+// 先到先得的輕度查重：同一電話是否已領過這款禮品（回傳上次時間）
+export const phoneRedeemedAt = async (eventId: string, itemId: string, phone: string) => {
+  const ph = phone.replace(/\D/g, '')
+  if (ph.length < 6) return null
+  const rows = await db.redemptions.where('itemId').equals(itemId).filter((r) => !r.voided && !!r.participantId).toArray()
+  for (const r of rows.sort((a, b) => b.time - a.time)) {
+    const p = await db.participants.get(r.participantId)
+    if (p && p.eventId === eventId && p.phone.replace(/\D/g, '') === ph) return r.time
+  }
+  return null
+}
+
+// 一次派齊：同一位會員把所有按名單派發、符合資格而未領的禮品一次派完
+export const verifyAllSouvenirs = async (eventId: string, raw: string, method: ScanMethod, participantId?: string, opts: { proxyBy?: string } = {}): Promise<ScanOutcome> => {
+  const now = Date.now()
+  const items = (await db.souvenirs.where('eventId').equals(eventId).sortBy('sortOrder')).filter((i) => ['person', 'invitation'].includes(logicOf(i)))
+  const found = participantId ? { participant: await db.participants.get(participantId) } : raw ? await findByCode(raw, method === 'QR') : undefined
+  const p = found?.participant && found.participant.eventId === eventId ? found.participant : undefined
+  if (!p || !items.length) return verifySouvenir(eventId, items[0]?.id ?? '', raw, method, participantId, opts)
+  const got: string[] = []
+  let qty = 0
+  let last: ScanOutcome | null = null
+  for (const it of items) {
+    if (!eligible(it, p)) continue
+    const o = await verifySouvenir(eventId, it.id, raw, method, p.id, opts)
+    last = o
+    if (o.result === 'valid') {
+      got.push(`${it.name} ×${o.souvenir?.quantity ?? 1}`)
+      qty += o.souvenir?.quantity ?? 1
+    }
+  }
+  if (!got.length) return last ?? { result: 'not_eligible', reason: '沒有可以領取的禮品', participant: p, time: now, rawValue: raw }
+  const pseudo = { ...items[0], name: got.join('、') }
+  return { result: 'valid', participant: p, time: now, souvenir: { item: pseudo, quantity: qty }, rawValue: raw }
+}
+
+// ---------- 換領券 ----------
+
+// 生成換領券：count = 不記名張數；或 people = 記名（每人一張，印上名字）
+export const generateCoupons = async (eventId: string, itemId: string, opt: { count?: number; people?: Participant[] }) => {
+  const existing = await db.coupons.where('itemId').equals(itemId).toArray()
+  const batch = existing.reduce((m, c) => Math.max(m, c.batch), 0) + 1
+  const taken = new Set((await db.coupons.where('eventId').equals(eventId).toArray()).map((c) => c.code))
+  const now = Date.now()
+  const make = (p?: Participant): Coupon => {
+    let code = randomCode(10)
+    while (taken.has(code)) code = randomCode(10)
+    taken.add(code)
+    return { id: uid(), eventId, itemId, code, batch, createdAt: now, ...(p ? { participantId: p.id, name: names(p).full } : {}) }
+  }
+  const rows = opt.people ? opt.people.map((p) => make(p)) : Array.from({ length: Math.max(0, Math.min(2000, opt.count ?? 0)) }, () => make())
+  await db.coupons.bulkAdd(rows)
+  const item = await db.souvenirs.get(itemId)
+  await audit(eventId, `生成換領券 ${item?.name ?? ''} 第 ${batch} 批 ${rows.length} 張${opt.people ? '（記名）' : ''}`, 'souvenir', itemId)
+  return { batch, count: rows.length }
+}
+
+export const voidCoupons = async (ids: string[], voided = true) => {
+  if (!ids.length) return
+  const first = await db.coupons.get(ids[0])
+  await db.coupons.bulkUpdate(ids.map((key) => ({ key, changes: { voided } })))
+  if (first) await audit(first.eventId, `${voided ? '作廢' : '恢復'}換領券 ${ids.length} 張`, 'souvenir', first.itemId)
 }
 
 // ---------- 席 ----------

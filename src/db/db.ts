@@ -4,6 +4,7 @@ import type {
   AttendanceSession,
   AuditLog,
   CheckIn,
+  Coupon,
   EventRec,
   Participant,
   Resource,
@@ -30,6 +31,7 @@ export class CheckInDB extends Dexie {
   scanLogs!: Table<ScanLog, string>
   auditLogs!: Table<AuditLog, string>
   conflicts!: Table<SyncConflict, string>
+  coupons!: Table<Coupon, string>
 
   constructor() {
     super('checkin-dragon')
@@ -47,6 +49,10 @@ export class CheckInDB extends Dexie {
       scanLogs: 'id, eventId, time',
       auditLogs: 'id, eventId, time',
       conflicts: 'id, eventId',
+    })
+    // 第 2 版：憑券換領的換領券
+    this.version(2).stores({
+      coupons: 'id, eventId, itemId, code',
     })
   }
 }
@@ -67,4 +73,5 @@ export const allTables = () => [
   db.scanLogs,
   db.auditLogs,
   db.conflicts,
+  db.coupons,
 ]

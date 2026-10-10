@@ -1,5 +1,8 @@
 import { busRows, defaultLayout } from '../lib/busLayout'
-import { useMemo, Fragment, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, Fragment, type ReactNode } from 'react'
+import QRCode from 'qrcode'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
@@ -75,7 +78,7 @@ export default function Print() {
   return (
     <div className="print-page">
       <div className="print-toolbar no-print">
-        <Link to={type === 'rooms' ? `/e/${ev.id}/rooms` : type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
+        <Link to={type === 'coupons' ? `/e/${ev.id}/souvenirs/records?item=${params.get('item') ?? ''}` : type === 'rooms' ? `/e/${ev.id}/rooms` : type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
           <ChevronLeft size={22} />
         </Link>
         <strong>列印預覽</strong>
@@ -84,7 +87,9 @@ export default function Print() {
         </button>
       </div>
 
-      {type === 'rooms' ? (
+      {type === 'coupons' ? (
+        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} />
+      ) : type === 'rooms' ? (
         <RoomsPrint data={data} index={index} head={head} now={now} />
       ) : type === 'bus' ? (
         data.resources
@@ -285,5 +290,51 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
       )}
       <footer className="print-foot">列印時間 {now}</footer>
     </section>
+  )
+}
+
+// 禮物換領券：A4 每頁 10 張（2 × 5），有裁剪線；每張有 QR、編號、禮品名、活動名及日期
+function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
+  const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
+  const coupons = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).filter((c) => !batch || c.batch === batch).toArray(), [itemId, batch]) ?? []
+  const [qr, setQr] = useState<Record<string, string>>({})
+  useEffect(() => {
+    let off = false
+    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 1, width: 240, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
+      if (!off) setQr(Object.fromEntries(rows))
+    })
+    return () => {
+      off = true
+    }
+  }, [coupons.length, itemId, batch]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!item) return null
+  const pages: (typeof coupons)[] = []
+  for (let i = 0; i < coupons.length; i += 10) pages.push(coupons.slice(i, i + 10))
+  return (
+    <>
+      <p className="no-print hint" style={{ padding: '0 16px' }}>
+        共 {coupons.length} 張（{pages.length} 頁）。列印時選 A4、縮放 100%，沿虛線剪開。
+      </p>
+      {pages.map((pg, i) => (
+        <section key={i} className="print-sheet page coupon-sheet">
+          {pg.map((c) => (
+            <div key={c.id} className="coupon">
+              <div className="coupon-main">
+                <small>禮物換領券 GIFT COUPON</small>
+                <strong>{item.name}</strong>
+                <span>{ev.name}</span>
+                <span>{formatDateRange(ev)}</span>
+                {c.name && <em>{c.name}</em>}
+                <span className="coupon-rule">一券換領一份 · 影印無效</span>
+              </div>
+              <div className="coupon-qr">
+                {qr[c.code] ? <img src={qr[c.code]} alt={c.code} /> : <div className="coupon-qr-ph" />}
+                <code>{c.code}</code>
+              </div>
+            </div>
+          ))}
+        </section>
+      ))}
+    </>
   )
 }

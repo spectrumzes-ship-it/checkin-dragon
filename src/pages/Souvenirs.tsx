@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks } from 'lucide-react'
+import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks, Ticket } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem, SouvenirLogic } from '../db/types'
 import { eligibilityLabel, logicLabel, logicOf, perClaimOf, quantityLabel, saveSouvenir } from '../lib/actions'
-import { uid } from '../lib/util'
+import { todayKey, toDateKey, uid } from '../lib/util'
 import { useSettings } from '../lib/settings'
 import { GiftArt } from '../illustrations'
 import { EmptyState, PageHeader, CarsBar, Sheet, toast } from '../components/ui'
@@ -16,11 +16,20 @@ const LOGICS: [SouvenirLogic, string, string][] = [
   ['invitation', '按請柬單位派發（同行者共用）', '同一張請柬只可領一次，任何一位領了，其他同行者不可再領。適合宴會家庭請柬。'],
   ['fcfs', '限量先到先得', '不認人、不查重複，每次核銷即扣庫存，派完即止。適合「禮品領取」。'],
 ]
+// 禮品領取模式的三種派發方式
+const GIFT_LOGICS: [SouvenirLogic, string, string][] = [
+  ['person', '按人頭登記派發（會員名單）', '可事前匯入會員名單，憑會員卡 QR 或搜尋名字派發；每人可領一次。'],
+  ['coupon', '憑券換領', '自動生成 QR 換領券並列印，一券換一份，不記名（亦可按名單生成記名券）。'],
+  ['fcfs', '限量先到先得', '不認人、不查重複，每派一份就扣庫存，派完即止；可選擇登記領取人資料。'],
+]
 
 export default function Souvenirs() {
   const ev = useOutletContext<EventRec>()
   const items = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id])
   const reds = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).filter((r) => !r.voided).toArray(), [ev.id]) ?? []
+  const coupons = useLiveQuery(() => db.coupons.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
+  const logics = ev.mode === 'gift' ? GIFT_LOGICS : LOGICS
+  const today = todayKey()
   const [edit, setEdit] = useState<SouvenirItem | null>(null)
   const groups = useSettings().giftGroups
   const word = ev.mode === 'gift' ? '禮品' : '紀念品'
@@ -80,15 +89,35 @@ export default function Souvenirs() {
                 </p>
                 {it.stock !== null && <CarsBar value={qty} max={it.stock} tone={low ? 'warn' : undefined} />}
                 <p className={low ? 'warn-text' : 'muted'}>
-                  {people} 位嘉賓已領{left !== null && ` · 剩 ${left}`}
-                  {low && ' · 庫存不足'}
+                  {logicOf(it) === 'coupon' ? `${mine.length} 張券已換領` : `${people} 位嘉賓已領`}
+                  {left !== null && ` · 剩 ${left}`}
+                  {low && ' · 存貨不足'}
                 </p>
+                {logicOf(it) === 'coupon' &&
+                  (() => {
+                    const cs = coupons.filter((c) => c.itemId === it.id)
+                    const used = new Set(mine.map((r) => r.couponId))
+                    const voided = cs.filter((c) => c.voided).length
+                    const redeemed = cs.filter((c) => used.has(c.id)).length
+                    return (
+                      <p className="muted">
+                        已印 {cs.length} 張 · 已換領 {redeemed} · 未換領 {cs.length - redeemed - voided}
+                        {voided > 0 && ` · 作廢 ${voided}`}
+                      </p>
+                    )
+                  })()}
+                {logicOf(it) === 'fcfs' && it.dailyQuota ? (
+                  <p className="muted">
+                    今日已派 {mine.filter((r) => toDateKey(new Date(r.time)) === today).reduce((a, r) => a + r.quantity, 0)} / {it.dailyQuota} 份（每日上限）
+                  </p>
+                ) : null}
                 <div className="souvenir-actions">
                   <Link to={`/e/${ev.id}/scan?p=s:${it.id}`} className="btn btn-primary">
-                    <ScanLine size={18} /> 掃描派發
+                    <ScanLine size={18} /> {logicOf(it) === 'coupon' ? '掃描換領' : '掃描派發'}
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=pending`} className="btn btn-mode">
-                    <ListChecks size={18} /> {logicOf(it) === 'fcfs' ? '領取登記' : '名單派發'}
+                    {logicOf(it) === 'coupon' ? <Ticket size={18} /> : <ListChecks size={18} />}{' '}
+                    {logicOf(it) === 'fcfs' ? '領取登記' : logicOf(it) === 'coupon' ? '換領券' : '名單派發'}
                   </Link>
                   <Link to={`/e/${ev.id}/souvenirs/records?item=${it.id}&tab=done`} className="btn btn-ghost">
                     <ClipboardList size={18} /> 派發紀錄
@@ -129,8 +158,8 @@ export default function Souvenirs() {
               <span>名稱 Name</span>
               <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="例如 帆布袋 Tote Bag" autoFocus />
             </label>
-            {/* 先到先得不認人，所以沒有領取資格 */}
-            {logicOf(edit) !== 'fcfs' && (
+            {/* 先到先得及憑券換領不認人，所以沒有領取資格 */}
+            {(logicOf(edit) === 'person' || logicOf(edit) === 'invitation') && (
             <label className="field">
               <span>領取資格 Eligibility</span>
               <select value={edit.eligibility} onChange={(e) => setEdit({ ...edit, eligibility: e.target.value })}>
@@ -172,7 +201,7 @@ export default function Souvenirs() {
             <div className="field">
               <span>派發方式 Distribution</span>
               <div className="radio-list" role="radiogroup">
-                {LOGICS.map(([v, zh, note]) => (
+                {logics.map(([v, zh, note]) => (
                   <label key={v} className={logicOf(edit) === v ? 'active' : ''}>
                     <input type="radio" name="logic" checked={logicOf(edit) === v} onChange={() => setEdit({ ...edit, perClaim: perClaimOf(edit), logic: v })} />
                     <span>
@@ -183,6 +212,37 @@ export default function Souvenirs() {
                 ))}
               </div>
             </div>
+            {(logicOf(edit) === 'person' || logicOf(edit) === 'invitation') && (
+              <label className="check-row">
+                <input type="checkbox" checked={edit.allowWalkIn !== false} onChange={(e) => setEdit({ ...edit, allowWalkIn: e.target.checked })} />
+                <span>
+                  <strong>容許即場加入名單</strong>
+                  <small>名單上沒有的人可以即場登記並派發</small>
+                </span>
+              </label>
+            )}
+            {logicOf(edit) === 'fcfs' && (
+              <>
+                <label className="field">
+                  <span>每日上限（份）Daily Quota</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={edit.dailyQuota ?? ''}
+                    placeholder="不限"
+                    onChange={(e) => setEdit({ ...edit, dailyQuota: e.target.value === '' ? null : Math.max(1, Number(e.target.value)) })}
+                  />
+                </label>
+                <p className="hint">多日活動適用：例如共 300 份、每日上限 100 份，避免第一日全部派完。留空 = 不限。</p>
+                <label className="check-row">
+                  <input type="checkbox" checked={!!edit.phoneCheck} onChange={(e) => setEdit({ ...edit, phoneCheck: e.target.checked })} />
+                  <span>
+                    <strong>同一電話再次登記時提醒</strong>
+                    <small>只是提醒，仍可照樣派發</small>
+                  </span>
+                </label>
+              </>
+            )}
             <p className="hint">
               想只派給某一類嘉賓？先到 <Link to="/settings">設定 → 禮物組別</Link> 新增組別（例如「贊助商」），再在嘉賓資料選擇組別。
             </p>

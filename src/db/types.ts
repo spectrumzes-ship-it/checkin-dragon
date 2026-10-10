@@ -149,7 +149,7 @@ export interface AttendanceRecord {
 }
 
 // 派發邏輯：person = 按人頭／門票；invitation = 按請柬（同行者共用）；fcfs = 限量先到先得（不認人）
-export type SouvenirLogic = 'person' | 'invitation' | 'fcfs'
+export type SouvenirLogic = 'person' | 'invitation' | 'fcfs' | 'coupon' // coupon = 憑券換領（禮品領取模式）
 
 export interface SouvenirItem {
   id: string
@@ -161,6 +161,22 @@ export interface SouvenirItem {
   perClaim?: number // 每次領取上限（份）
   eligibility: string // 'all' | 'vip' | 'group:禮物組別'（舊資料可能有 'tag:XXX'）
   sortOrder: number
+  allowWalkIn?: boolean // 按名單派發：可否即場加入名單（未設定 = 可以）
+  dailyQuota?: number | null // 先到先得：每日上限（多日活動用；空 = 不限）
+  phoneCheck?: boolean // 先到先得：同一電話再次登記時提醒（仍可派發）
+}
+
+// 憑券換領：每張券一個隨機編號（QR 內容）；一券只可換領一次
+export interface Coupon {
+  id: string
+  eventId: string
+  itemId: string
+  code: string
+  batch: number // 第幾批（同一次生成）
+  participantId?: string // 記名券：對應名單上的人
+  name?: string // 記名券：印在券上的名字
+  voided?: boolean
+  createdAt: number
 }
 
 export interface SouvenirRedemption {
@@ -169,6 +185,8 @@ export interface SouvenirRedemption {
   itemId: string
   participantId: string // 限量先到先得而沒有登記領取人時為空字串
   quantity: number
+  couponId?: string // 憑券換領：用了哪一張券
+  proxyBy?: string // 代領：由誰代領（領取人的 participantId，或「不記名」時為空字串以外的文字）
   method?: ScanMethod // 核銷方式（QR／文字掃描／手動）
   time: number
   deviceId: string
