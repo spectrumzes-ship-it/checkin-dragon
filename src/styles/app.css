@@ -7273,3 +7273,63 @@ body:has(.rc-dock) .toast {
 }
 
 
+
+/* 換領券大小選擇（只在螢幕顯示） */
+.coupon-size {
+  max-width: 900px;
+  margin: 0 auto 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* 卡片大小：85.6 × 54 毫米（信用卡／Starbucks 禮品卡），A4 每頁 2 × 5 張；不印存根 */
+.coupon-sheet.size-card {
+  grid-template-columns: repeat(2, 85.6mm);
+  grid-auto-rows: 54mm;
+  gap: 0;
+  justify-content: center;
+}
+.size-card .coupon {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.size-card .coupon-stub {
+  display: none;
+}
+.size-card .coupon-head {
+  padding: 1.6mm 3.5mm;
+  font-size: 7pt;
+}
+.size-card .coupon-head small {
+  font-size: 6.5pt;
+}
+.size-card .coupon-main {
+  gap: 0.8mm;
+  padding: 2mm 3.5mm 2.5mm;
+}
+.size-card .coupon-kind {
+  font-size: 6.5pt;
+}
+.size-card .coupon-main strong {
+  font-size: 13pt;
+}
+.size-card .coupon-main em {
+  font-size: 8pt;
+}
+.size-card .coupon-main span {
+  font-size: 6.5pt;
+}
+.size-card .coupon-main .coupon-rule {
+  font-size: 5.5pt;
+}
+.size-card .coupon-qr {
+  padding: 0 3mm 0 0;
+  gap: 0.8mm;
+}
+.size-card .coupon-qr img,
+.size-card .coupon-qr-ph {
+  width: 22mm;
+  height: 22mm;
+}
+.size-card .coupon-qr code {
+  font-size: 6.5pt;
+}

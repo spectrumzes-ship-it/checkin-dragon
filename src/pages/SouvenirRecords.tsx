@@ -666,7 +666,7 @@ function CouponPanel({
                 <input type="number" min={1} max={2000} value={gen.count} onChange={(e) => setGen({ ...gen, count: Math.max(1, Math.min(2000, Number(e.target.value) || 1)) })} />
               </label>
             )}
-            <p className="hint">每張券有隨機編號及 QR，不能估到其他號碼。生成後按「列印」，券的大小似月餅券（約 186 × 88 毫米），A4 每頁 3 張，有裁剪線及存根。</p>
+            <p className="hint">每張券有隨機編號及 QR，不能估到其他號碼。生成後按「列印」，預設為卡片大小（85.6 × 54 毫米，與 Starbucks 禮品卡相同，A4 每頁 10 張），列印頁可改為長條附存根。</p>
           </>
         )}
       </Sheet>

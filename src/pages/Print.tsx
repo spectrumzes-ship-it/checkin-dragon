@@ -18,7 +18,7 @@ const extra = (e: GuestEntry) => [...e.p.tags, e.p.dietary].filter(Boolean).join
 // 列印：每席名單（每席一頁或連續）、單一席、總名單。可在列印視窗選「儲存為 PDF」
 export default function Print() {
   const { id } = useParams()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const type = params.get('type') ?? 'tables'
   const cont = params.get('cont') === '1'
   const tid = params.get('tid')
@@ -88,7 +88,7 @@ export default function Print() {
       </div>
 
       {type === 'coupons' ? (
-        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} />
+        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} size={params.get('size') === 'long' ? 'long' : 'card'} onSize={(v) => setParams((x) => (x.set('size', v), x), { replace: true })} />
       ) : type === 'rooms' ? (
         <RoomsPrint data={data} index={index} head={head} now={now} />
       ) : type === 'bus' ? (
@@ -294,7 +294,20 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
 }
 
 // 禮物換領券：仿香港月餅券大小（約 186 × 88 毫米，長條形），A4 每頁 3 張；右邊有存根（店舖留底）
-function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
+function CouponsPrint({
+  ev,
+  itemId,
+  batch,
+  size,
+  onSize,
+}: {
+  ev: import('../db/types').EventRec
+  itemId: string
+  batch: number
+  size: 'card' | 'long'
+  onSize: (v: 'card' | 'long') => void
+}) {
+  const per = size === 'card' ? 10 : 3
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const coupons = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).filter((c) => !batch || c.batch === batch).toArray(), [itemId, batch]) ?? []
   const [qr, setQr] = useState<Record<string, string>>({})
@@ -309,14 +322,27 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
   }, [coupons.length, itemId, batch]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!item) return null
   const pages: (typeof coupons)[] = []
-  for (let i = 0; i < coupons.length; i += 3) pages.push(coupons.slice(i, i + 3))
+  for (let i = 0; i < coupons.length; i += per) pages.push(coupons.slice(i, i + per))
   return (
     <>
-      <p className="no-print hint" style={{ padding: '0 16px' }}>
-        共 {coupons.length} 張（{pages.length} 頁，每頁 3 張）。每張約 186 × 88 毫米（月餅券大小）。列印時選 A4、縮放 100%，沿虛線剪開；存根可撕下留底。
-      </p>
+      <div className="no-print coupon-size">
+        <div className="seg" role="radiogroup" aria-label="券的大小">
+          <button role="radio" aria-checked={size === 'card'} className={size === 'card' ? 'active' : ''} onClick={() => onSize('card')}>
+            卡片大小
+          </button>
+          <button role="radio" aria-checked={size === 'long'} className={size === 'long' ? 'active' : ''} onClick={() => onSize('long')}>
+            長條（附存根）
+          </button>
+        </div>
+        <p className="hint">
+          {size === 'card'
+            ? `卡片大小：85.6 × 54 毫米（與 Starbucks 禮品卡、信用卡相同），A4 每頁 10 張。`
+            : `長條：約 186 × 88 毫米（似月餅券），A4 每頁 3 張，右邊存根可撕下留底。`}
+          共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%，沿虛線剪開。
+        </p>
+      </div>
       {pages.map((pg, i) => (
-        <section key={i} className="print-sheet page coupon-sheet">
+        <section key={i} className={`print-sheet page coupon-sheet size-${size}`}>
           {pg.map((c) => (
             <div key={c.id} className="coupon">
               <div className="coupon-head">
