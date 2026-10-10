@@ -293,14 +293,14 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
   )
 }
 
-// 禮物換領券：A4 每頁 10 張（2 × 5），有裁剪線；每張有 QR、編號、禮品名、活動名及日期
+// 禮物換領券：仿香港月餅券大小（約 186 × 88 毫米，長條形），A4 每頁 3 張；右邊有存根（店舖留底）
 function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const coupons = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).filter((c) => !batch || c.batch === batch).toArray(), [itemId, batch]) ?? []
   const [qr, setQr] = useState<Record<string, string>>({})
   useEffect(() => {
     let off = false
-    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 1, width: 240, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
+    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 1, width: 280, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
       if (!off) setQr(Object.fromEntries(rows))
     })
     return () => {
@@ -309,27 +309,39 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
   }, [coupons.length, itemId, batch]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!item) return null
   const pages: (typeof coupons)[] = []
-  for (let i = 0; i < coupons.length; i += 10) pages.push(coupons.slice(i, i + 10))
+  for (let i = 0; i < coupons.length; i += 3) pages.push(coupons.slice(i, i + 3))
   return (
     <>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        共 {coupons.length} 張（{pages.length} 頁）。列印時選 A4、縮放 100%，沿虛線剪開。
+        共 {coupons.length} 張（{pages.length} 頁，每頁 3 張）。每張約 186 × 88 毫米（月餅券大小）。列印時選 A4、縮放 100%，沿虛線剪開；存根可撕下留底。
       </p>
       {pages.map((pg, i) => (
         <section key={i} className="print-sheet page coupon-sheet">
           {pg.map((c) => (
             <div key={c.id} className="coupon">
-              <div className="coupon-main">
-                <small>禮物換領券 GIFT COUPON</small>
-                <strong>{item.name}</strong>
+              <div className="coupon-head">
                 <span>{ev.name}</span>
-                <span>{formatDateRange(ev)}</span>
-                {c.name && <em>{c.name}</em>}
-                <span className="coupon-rule">一券換領一份 · 影印無效</span>
+                <small>No. {c.code}</small>
+              </div>
+              <div className="coupon-main">
+                <small className="coupon-kind">禮物換領券 GIFT COUPON</small>
+                <strong>{item.name}</strong>
+                {c.name && <em>持券人：{c.name}</em>}
+                <span>換領日期：{formatDateRange(ev)}{ev.startTime ? ` · ${ev.startTime}${ev.endTime ? `–${ev.endTime}` : ''}` : ''}</span>
+                {ev.venue && <span>換領地點：{ev.venue}</span>}
+                <span className="coupon-rule">每券換領一份 · 影印無效 · 遺失不補 · 逾期作廢</span>
               </div>
               <div className="coupon-qr">
                 {qr[c.code] ? <img src={qr[c.code]} alt={c.code} /> : <div className="coupon-qr-ph" />}
                 <code>{c.code}</code>
+              </div>
+              <div className="coupon-stub">
+                <small>存根 STUB</small>
+                <strong>{item.name}</strong>
+                <code>{c.code}</code>
+                {c.name && <span>{c.name}</span>}
+                <span>換領日期 ________</span>
+                <span>經手人 ________</span>
               </div>
             </div>
           ))}

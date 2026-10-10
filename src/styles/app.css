@@ -7114,65 +7114,111 @@ body:has(.rc-dock) .toast {
   flex-direction: column;
 }
 
-/* 列印：禮物換領券（A4 每頁 2 × 5 張） */
+/* 列印：禮物換領券（仿月餅券，約 186 × 88 毫米，A4 每頁 3 張；右邊存根） */
 .coupon-sheet {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 52mm;
-  gap: 0;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 88mm;
+  gap: 3mm;
 }
 .coupon {
-  display: flex;
-  align-items: center;
-  gap: 3mm;
-  padding: 4mm 5mm;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 40mm;
+  grid-template-rows: auto 1fr;
   border: 1px dashed #9a958c;
   color: #2c2b29;
   background: #fff;
   break-inside: avoid;
+  overflow: hidden;
 }
 .coupon-main {
-  flex: 1;
+  grid-column: 1;
+  grid-row: 2;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1mm;
+  gap: 1.6mm;
+  padding: 3mm 6mm 5mm;
 }
-.coupon-main small {
+.coupon-head {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2.5mm 6mm;
+  background: #2c2b29;
+  color: #fff;
+  font-size: 9.5pt;
+  font-weight: 700;
+}
+.coupon-head small {
   font-size: 8pt;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.coupon-kind {
+  font-size: 9pt;
+  letter-spacing: 0.15em;
   color: #77736c;
 }
 .coupon-main strong {
-  font-size: 15pt;
-  line-height: 1.15;
-}
-.coupon-main span {
-  font-size: 8.5pt;
+  font-size: 24pt;
+  line-height: 1.1;
 }
 .coupon-main em {
   font-style: normal;
   font-weight: 700;
-  font-size: 11pt;
+  font-size: 12pt;
+}
+.coupon-main span {
+  font-size: 9.5pt;
 }
 .coupon-main .coupon-rule {
-  margin-top: 1mm;
-  font-size: 7.5pt;
+  margin-top: auto;
+  font-size: 8pt;
   color: #77736c;
 }
 .coupon-qr {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1mm;
+  justify-content: center;
+  gap: 1.5mm;
+  padding: 0 5mm;
 }
 .coupon-qr img,
 .coupon-qr-ph {
-  width: 30mm;
-  height: 30mm;
+  width: 36mm;
+  height: 36mm;
 }
 .coupon-qr code {
-  font-size: 8pt;
+  font-size: 9pt;
+  letter-spacing: 0.1em;
+}
+.coupon-stub {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.2mm;
+  padding: 4mm;
+  border-left: 1.5px dashed #9a958c;
+  background: #f6f4ef;
+  font-size: 8.5pt;
+}
+.coupon-stub small {
+  letter-spacing: 0.15em;
+  color: #77736c;
+}
+.coupon-stub strong {
+  font-size: 11pt;
+}
+.coupon-stub code {
+  font-size: 9pt;
   letter-spacing: 0.08em;
 }
 
