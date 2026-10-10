@@ -173,6 +173,7 @@ export interface Coupon {
   itemId: string
   code: string
   batch: number // 第幾批（同一次生成）
+  seq?: number // 同一款禮品的流水號（第幾張，由 1 開始）
   participantId?: string // 記名券：對應名單上的人
   name?: string // 記名券：印在券上的名字
   voided?: boolean

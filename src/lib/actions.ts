@@ -987,13 +987,14 @@ export const verifyAllSouvenirs = async (eventId: string, raw: string, method: S
 export const generateCoupons = async (eventId: string, itemId: string, opt: { count?: number; people?: Participant[] }) => {
   const existing = await db.coupons.where('itemId').equals(itemId).toArray()
   const batch = existing.reduce((m, c) => Math.max(m, c.batch), 0) + 1
+  let seq = existing.reduce((m, c) => Math.max(m, c.seq ?? 0), existing.length)
   const taken = new Set((await db.coupons.where('eventId').equals(eventId).toArray()).map((c) => c.code))
   const now = Date.now()
   const make = (p?: Participant): Coupon => {
     let code = randomCode(10)
     while (taken.has(code)) code = randomCode(10)
     taken.add(code)
-    return { id: uid(), eventId, itemId, code, batch, createdAt: now, ...(p ? { participantId: p.id, name: names(p).full } : {}) }
+    return { id: uid(), eventId, itemId, code, batch, seq: ++seq, createdAt: now, ...(p ? { participantId: p.id, name: names(p).full } : {}) }
   }
   const rows = opt.people ? opt.people.map((p) => make(p)) : Array.from({ length: Math.max(0, Math.min(2000, opt.count ?? 0)) }, () => make())
   await db.coupons.bulkAdd(rows)

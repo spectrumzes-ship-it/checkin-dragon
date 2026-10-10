@@ -299,7 +299,7 @@ export const seedDemo = async () => {
     const voucher: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '超市禮券', stock: 30, perGuest: 0, logic: 'coupon', perClaim: 1, eligibility: 'all', sortOrder: 4 }
     await db.souvenirs.bulkAdd([totes, memberGift, calendar, voucher])
     // 憑券換領示範：第 1 批 20 張不記名換領券（編號固定，方便列印測試）
-    await db.coupons.bulkAdd(Array.from({ length: 20 }, () => ({ id: uid(), eventId: gift.event.id, itemId: voucher.id, code: demoCode() + demoCode().slice(0, 2), batch: 1, createdAt: now })))
+    await db.coupons.bulkAdd(Array.from({ length: 20 }, (_, i) => ({ id: uid(), eventId: gift.event.id, itemId: voucher.id, code: demoCode() + demoCode().slice(0, 2), batch: 1, seq: i + 1, createdAt: now })))
     await db.redemptions.bulkAdd(
       gift.people.slice(0, 8).map((p, i) => ({ id: uid(), eventId: gift.event.id, itemId: memberGift.id, participantId: p.id, quantity: 1, method: 'QR' as const, time: now - (i + 1) * 420000, deviceId, operator: 'Amy', kind: 'redeem' as const, voided: false })),
     )

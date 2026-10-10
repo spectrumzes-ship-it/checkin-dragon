@@ -4,7 +4,7 @@ import QRCode from 'qrcode'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, Printer } from 'lucide-react'
+import { ChevronLeft, Gift, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
 import { names, nameOf } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
@@ -293,15 +293,17 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
   )
 }
 
-// 禮物換領券：A4 每頁 10 張（2 × 5，約 93 × 52 毫米），有虛線裁剪
+// 禮物換領券：約 140 × 50 毫米，A4 橫向每頁 8 張（2 × 4）；左邊券面、右邊存根（GIFT、QR、編號），中間虛線撕位
 function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
-  const per = 10 // A4 每頁 2 × 5 張（最初的大小，約 93 × 52 毫米）
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
-  const coupons = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).filter((c) => !batch || c.batch === batch).toArray(), [itemId, batch]) ?? []
+  const all = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).toArray(), [itemId]) ?? []
+  // 流水號：新券有 seq；舊券按編號次序補上
+  const numbered = [...all].sort((a, b) => (a.seq ?? 1e9) - (b.seq ?? 1e9) || a.batch - b.batch || a.createdAt - b.createdAt || a.code.localeCompare(b.code)).map((c, i) => ({ ...c, no: c.seq ?? i + 1 }))
+  const coupons = numbered.filter((c) => !batch || c.batch === batch)
   const [qr, setQr] = useState<Record<string, string>>({})
   useEffect(() => {
     let off = false
-    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 1, width: 280, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
+    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 0, width: 220, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
       if (!off) setQr(Object.fromEntries(rows))
     })
     return () => {
@@ -309,40 +311,58 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
     }
   }, [coupons.length, itemId, batch]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!item) return null
+  const per = 8
   const pages: (typeof coupons)[] = []
   for (let i = 0; i < coupons.length; i += per) pages.push(coupons.slice(i, i + per))
+  const qty = Math.max(1, item.perClaim ?? 1)
+  const dateText = ev.endDate && ev.endDate > ev.date ? `${ev.date.replace(/-/g, '.')} – ${ev.endDate.slice(5).replace('-', '.')}` : ev.date.replace(/-/g, '.')
   return (
     <>
+      {/* 換領券用 A4 橫向、窄邊界，一頁剛好 2 × 4 張 */}
+      <style>{'@media print { @page { size: A4 landscape; margin: 5mm 8mm; } }'}</style>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        每張約 93 × 52 毫米，A4 每頁 10 張（2 × 5）。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%，沿虛線剪開。
+        每張約 140 × 50 毫米，A4 橫向每頁 8 張。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4 橫向、縮放 100%、開啟「背景圖形」，沿虛線剪開。
       </p>
       {pages.map((pg, i) => (
-        <section key={i} className="print-sheet page coupon-sheet size-card">
+        <section key={i} className="print-sheet page gc-sheet">
           {pg.map((c) => (
-            <div key={c.id} className="coupon">
-              <div className="coupon-head">
-                <span>{ev.name}</span>
-                <small>No. {c.code}</small>
+            <div key={c.id} className="gc">
+              <div className="gc-main">
+                <div className="gc-title">
+                  <Gift className="gc-gift" strokeWidth={2.4} />
+                  <div>
+                    <b>領取禮品</b>
+                    <span>
+                      活動換領券 <em>第 {c.no} 張</em>
+                    </span>
+                  </div>
+                </div>
+                <div className="gc-qty">
+                  <b>{qty}</b>
+                  <span>份</span>
+                </div>
+                <div className="gc-item">
+                  <small>禮品</small>
+                  <strong>{item.name}</strong>
+                  {c.name && <span>持券人：{c.name}</span>}
+                </div>
+                <p className="gc-text">
+                  憑本券可於{ev.venue || '活動服務台'}領取「{item.name}」{qty} 份。
+                  {item.stock !== null ? '數量有限，換完即止。' : ''}
+                </p>
+                <span className="gc-stamp">不可轉讓</span>
+                <div className="gc-date">
+                  <small>活動日期</small>
+                  <b>{dateText}</b>
+                </div>
+                <small className="gc-note">※ 每券換領一次，影印無效。{ev.name}</small>
               </div>
-              <div className="coupon-main">
-                <small className="coupon-kind">禮物換領券 GIFT COUPON</small>
-                <strong>{item.name}</strong>
-                {c.name && <em>持券人：{c.name}</em>}
-                <span>換領日期：{formatDateRange(ev)}{ev.startTime ? ` · ${ev.startTime}${ev.endTime ? `–${ev.endTime}` : ''}` : ''}</span>
-                {ev.venue && <span>換領地點：{ev.venue}</span>}
-                <span className="coupon-rule">每券換領一份 · 影印無效 · 遺失不補 · 逾期作廢</span>
-              </div>
-              <div className="coupon-qr">
-                {qr[c.code] ? <img src={qr[c.code]} alt={c.code} /> : <div className="coupon-qr-ph" />}
+              <div className="gc-stub">
+                <span className="gc-tag">GIFT</span>
+                <Gift className="gc-stub-gift" strokeWidth={2.4} />
+                {qr[c.code] ? <img src={qr[c.code]} alt={c.code} /> : <div className="gc-qr-ph" />}
+                <b>No. {String(c.no).padStart(4, '0')}</b>
                 <code>{c.code}</code>
-              </div>
-              <div className="coupon-stub">
-                <small>存根 STUB</small>
-                <strong>{item.name}</strong>
-                <code>{c.code}</code>
-                {c.name && <span>{c.name}</span>}
-                <span>換領日期 ________</span>
-                <span>經手人 ________</span>
               </div>
             </div>
           ))}

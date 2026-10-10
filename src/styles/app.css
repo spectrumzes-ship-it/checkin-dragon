@@ -7339,3 +7339,232 @@ body:has(.rc-dock) .toast {
   color: var(--mode-ink);
   border: 1.5px solid color-mix(in srgb, var(--mode-solid) 45%, transparent);
 }
+
+/* ===== 列印：禮物換領券（約 140 × 50 毫米，A4 橫向每頁 2 × 4 張） ===== */
+.gc-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 140mm);
+  grid-auto-rows: 50mm;
+  gap: 0 1mm;
+  justify-content: center;
+  max-width: none;
+  overflow-x: auto;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gc {
+  --gc-red: #e1242c;
+  --gc-purple: #5b4b8a;
+  --gc-ink: #2b2a28;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 31mm;
+  background: #fcf9f1;
+  color: var(--gc-ink);
+  outline: 0.3mm dashed #b5b0a6;
+  outline-offset: -0.15mm;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.gc-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 31mm;
+  grid-template-areas:
+    'title qty'
+    'item stamp'
+    'text date'
+    'note note';
+  grid-template-rows: auto auto 1fr auto;
+  column-gap: 2.5mm;
+  row-gap: 1.2mm;
+  padding: 2.6mm 3mm 2mm 3.5mm;
+  min-width: 0;
+}
+.gc-title {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: 1.8mm;
+  padding: 1.2mm 2mm;
+  border: 0.6mm solid var(--gc-red);
+  border-radius: 1.2mm;
+  color: var(--gc-red);
+}
+.gc-gift {
+  width: 10mm;
+  height: 10mm;
+  flex-shrink: 0;
+}
+.gc-title b {
+  display: block;
+  font-size: 17pt;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.gc-title span {
+  display: flex;
+  align-items: center;
+  gap: 1.2mm;
+  margin-top: 0.8mm;
+  font-size: 8pt;
+  font-weight: 800;
+}
+.gc-title em {
+  font-style: normal;
+  font-size: 6.5pt;
+  padding: 0 1mm;
+  border: 0.35mm solid var(--gc-red);
+  border-radius: 0.8mm;
+}
+.gc-qty {
+  grid-area: qty;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1mm;
+  padding-left: 4mm;
+  background: var(--gc-purple);
+  color: #fff;
+  border-radius: 1.2mm;
+  clip-path: polygon(16% 0, 100% 0, 100% 100%, 16% 100%, 0 50%);
+}
+.gc-qty b {
+  font-family: var(--num);
+  font-size: 30pt;
+  line-height: 1.15;
+}
+.gc-qty span {
+  font-size: 11pt;
+  font-weight: 900;
+}
+.gc-item {
+  grid-area: item;
+  display: flex;
+  align-items: baseline;
+  gap: 1.5mm;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.gc-item small {
+  font-size: 6.5pt;
+  padding: 0.2mm 1mm;
+  border-radius: 0.8mm;
+  background: var(--gc-ink);
+  color: #fff;
+}
+.gc-item strong {
+  font-size: 12pt;
+  font-weight: 900;
+}
+.gc-item span {
+  font-size: 7.5pt;
+  font-weight: 700;
+}
+.gc-text {
+  grid-area: text;
+  margin: 0;
+  font-size: 7pt;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.gc-stamp {
+  grid-area: stamp;
+  justify-self: end;
+  align-self: center;
+  padding: 0.4mm 1.5mm;
+  border: 0.4mm solid var(--gc-ink);
+  border-radius: 0.8mm;
+  font-size: 6.5pt;
+  font-weight: 800;
+}
+.gc-date {
+  grid-area: date;
+  align-self: end;
+  border: 0.4mm solid var(--gc-ink);
+  border-radius: 1mm;
+  overflow: hidden;
+  background: #fff;
+}
+.gc-date small {
+  display: block;
+  padding: 0.4mm 1.5mm;
+  background: var(--gc-ink);
+  color: #fff;
+  font-size: 6pt;
+}
+.gc-date b {
+  display: block;
+  padding: 0.6mm 1.5mm;
+  font-family: var(--num);
+  font-size: 8.5pt;
+  white-space: nowrap;
+}
+.gc-note {
+  grid-area: note;
+  font-size: 5.5pt;
+  color: #6f6a61;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 存根：虛線撕位＋上下半圓缺口 */
+.gc-stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1mm;
+  border-left: 0.4mm dashed #9a958c;
+  padding: 2mm 1.5mm;
+}
+.gc-stub::before,
+.gc-stub::after {
+  content: '';
+  position: absolute;
+  left: -1.6mm;
+  width: 3mm;
+  height: 3mm;
+  border-radius: 50%;
+  background: #fff;
+}
+.gc-stub::before {
+  top: -1.5mm;
+}
+.gc-stub::after {
+  bottom: -1.5mm;
+}
+.gc-tag {
+  padding: 0.3mm 2mm;
+  border-radius: 1mm;
+  background: var(--gc-ink);
+  color: #fff;
+  font-size: 8pt;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+.gc-stub-gift {
+  width: 6.5mm;
+  height: 6.5mm;
+  color: var(--gc-purple);
+}
+.gc-stub img,
+.gc-qr-ph {
+  width: 18mm;
+  height: 18mm;
+}
+.gc-stub b {
+  font-family: var(--num);
+  font-size: 8.5pt;
+}
+.gc-stub code {
+  font-size: 5.5pt;
+  letter-spacing: 0.05em;
+  color: #6f6a61;
+}
+@media print {
+  .gc-sheet {
+    margin: 0;
+  }
+}
