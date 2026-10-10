@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks, Ticket } from 'lucide-react'
 import { db } from '../db/db'
@@ -35,6 +35,16 @@ export default function Souvenirs() {
   const word = ev.mode === 'gift' ? '禮品' : '紀念品'
 
   const blank = (): SouvenirItem => ({ id: uid(), eventId: ev.id, name: '', stock: 100, perGuest: 0, perClaim: 1, logic: ev.mode === 'gift' ? 'fcfs' : 'person', eligibility: 'all', sortOrder: (items?.length ?? 0) + 1 })
+
+  // 由總覽「新增禮品」進入（?new=1）：直接打開新增表格
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (items && params.get('new') === '1') {
+      setEdit(blank())
+      setParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, params])
 
   if (!items) return <div className="page" />
   return (

@@ -71,9 +71,15 @@ function GiftSummary({ ev }: { ev: EventRec }) {
         </div>
       </section>
 
-      <Link to={`/e/${ev.id}/scan`} className="dash-scan">
-        <ScanLine size={22} /> 掃描派發
-      </Link>
+      {items.length === 0 ? (
+        <Link to={`/e/${ev.id}/souvenirs?new=1`} className="dash-scan">
+          <Plus size={22} /> 第一步：新增禮品
+        </Link>
+      ) : (
+        <Link to={`/e/${ev.id}/scan`} className="dash-scan">
+          <ScanLine size={22} /> 掃描派發
+        </Link>
+      )}
 
       {recent.length > 0 && (
         <section className="card" style={{ marginBottom: 16 }}>
@@ -121,9 +127,12 @@ function GiftSummary({ ev }: { ev: EventRec }) {
             })}
           </div>
         ) : (
-          <p className="muted pad">
-            還沒有禮品。<Link to={`/e/${ev.id}/souvenirs`}>新增禮品</Link>
-          </p>
+          <div className="gift-empty">
+            <p>還沒有禮品，請先新增要派發的禮品。</p>
+            <Link to={`/e/${ev.id}/souvenirs?new=1`} className="btn btn-primary btn-block">
+              <Plus size={18} /> 新增禮品
+            </Link>
+          </div>
         )}
       </section>
     </>

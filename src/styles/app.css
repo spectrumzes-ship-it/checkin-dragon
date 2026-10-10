@@ -7225,3 +7225,14 @@ body:has(.rc-dock) .toast {
   color: var(--text);
   font: inherit;
 }
+
+/* 禮品總覽：未有禮品時的新增按鈕 */
+.gift-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+.gift-empty p {
+  color: var(--text-2);
+}
