@@ -18,7 +18,7 @@ const extra = (e: GuestEntry) => [...e.p.tags, e.p.dietary].filter(Boolean).join
 // 列印：每席名單（每席一頁或連續）、單一席、總名單。可在列印視窗選「儲存為 PDF」
 export default function Print() {
   const { id } = useParams()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const type = params.get('type') ?? 'tables'
   const cont = params.get('cont') === '1'
   const tid = params.get('tid')
@@ -88,7 +88,7 @@ export default function Print() {
       </div>
 
       {type === 'coupons' ? (
-        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} />
+        <CouponsPrint ev={ev} itemId={params.get('item') ?? ''} batch={Number(params.get('batch')) || 0} tail={params.get('tail') === '1'} onTail={(t) => setParams((x) => (t ? x.set('tail', '1') : x.delete('tail'), x), { replace: true })} />
       ) : type === 'rooms' ? (
         <RoomsPrint data={data} index={index} head={head} now={now} />
       ) : type === 'bus' ? (
@@ -294,7 +294,19 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
 }
 
 // 禮物換領券：140 × 60 毫米，A4 直放每頁 4 張，上下無縫（共用裁剪線）；右邊 46 毫米存根留底，頁頂印本頁資料
-function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
+function CouponsPrint({
+  ev,
+  itemId,
+  batch,
+  tail,
+  onTail,
+}: {
+  ev: import('../db/types').EventRec
+  itemId: string
+  batch: number
+  tail: boolean
+  onTail: (t: boolean) => void
+}) {
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const all = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).toArray(), [itemId]) ?? []
   // 流水號：新券有 seq；舊券按編號次序補上
@@ -303,7 +315,9 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
   const [qr, setQr] = useState<Record<string, string>>({})
   useEffect(() => {
     let off = false
-    Promise.all(coupons.map(async (c) => [c.code, await QRCode.toDataURL(c.code, { margin: 0, width: 220, errorCorrectionLevel: 'M' })] as const)).then((rows) => {
+    Promise.all(
+      coupons.flatMap((c) => [c.code, `${c.code}-T`]).map(async (v) => [v, await QRCode.toDataURL(v, { margin: 0, width: 220, errorCorrectionLevel: 'M' })] as const),
+    ).then((rows) => {
       if (!off) setQr(Object.fromEntries(rows))
     })
     return () => {
@@ -318,8 +332,23 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
   const dateText = ev.endDate && ev.endDate > ev.date ? `${ev.date.replace(/-/g, '.')} – ${ev.endDate.slice(5).replace('-', '.')}` : ev.date.replace(/-/g, '.')
   return (
     <>
+      <div className="no-print coupon-size">
+        <div className="seg" role="radiogroup" aria-label="右邊用途">
+          <button role="radio" aria-checked={!tail} className={!tail ? 'active' : ''} onClick={() => onTail(false)}>
+            存根留底
+          </button>
+          <button role="radio" aria-checked={tail} className={tail ? 'active' : ''} onClick={() => onTail(true)}>
+            尾券（貼在禮品上）
+          </button>
+        </div>
+        <p className="hint">
+          {tail
+            ? '尾券有自己的 QR：剪下貼在對應禮品上。掃描尾券會顯示這件禮品屬於哪一張券（記名券會顯示名字）及是否已換領；只作查看，不會派發。'
+            : '存根由工作人員留底，換領時填上日期及經手人。'}
+        </p>
+      </div>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        每張 140 × 60 毫米（右邊另有 46 毫米存根），A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
+        每張 140 × 60 毫米（右邊另有 46 毫米{tail ? '尾券' : '存根'}），A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
       </p>
       {pages.map((pg, i) => (
         <section key={i} className="print-sheet page gc-sheet">
@@ -331,7 +360,7 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
             <span>
               本頁 No. {String(pg[0].no).padStart(4, '0')} – {String(pg[pg.length - 1].no).padStart(4, '0')} · 第 {i + 1} / {pages.length} 頁
             </span>
-            <small>沿虛線剪開：左邊換領券交給來賓，右邊存根由工作人員留底（換領時填上日期、經手人）。</small>
+            <small>{tail ? '沿虛線剪開：左邊換領券交給來賓，右邊尾券貼在對應禮品上；掃描尾券可知道該禮品應由誰領取。' : '沿虛線剪開：左邊換領券交給來賓，右邊存根由工作人員留底（換領時填上日期、經手人）。'}</small>
           </div>
           {pg.map((c) => (
             <div key={c.id} className="gc">
@@ -371,15 +400,24 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
                 <b>No. {String(c.no).padStart(4, '0')}</b>
                 <code>{c.code}</code>
               </div>
-              {/* 存根（留底）：工作人員保留，方便對數 */}
-              <div className="gc-keep">
-                <small>存根 · 留底</small>
-                <b>No. {String(c.no).padStart(4, '0')}</b>
-                <span>{item.name}</span>
-                <code>{c.code}</code>
-                <i>換領日期</i>
-                <i>經手人</i>
-              </div>
+              {/* 右邊：存根（留底）或尾券（貼在禮品上，可掃描配對） */}
+              {tail ? (
+                <div className="gc-keep gc-tail">
+                  <small>尾券 · 貼於禮品</small>
+                  {qr[`${c.code}-T`] ? <img src={qr[`${c.code}-T`]} alt="" /> : <div className="gc-qr-ph" />}
+                  <b>No. {String(c.no).padStart(4, '0')}</b>
+                  <span>{item.name}</span>
+                </div>
+              ) : (
+                <div className="gc-keep">
+                  <small>存根 · 留底</small>
+                  <b>No. {String(c.no).padStart(4, '0')}</b>
+                  <span>{item.name}</span>
+                  <code>{c.code}</code>
+                  <i>換領日期</i>
+                  <i>經手人</i>
+                </div>
+              )}
             </div>
           ))}
         </section>

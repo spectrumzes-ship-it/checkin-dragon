@@ -792,7 +792,9 @@ export const verifySouvenir = async (
 
   // 憑券換領：掃描券上的 QR（或輸入編號）；一券只可換領一次，作廢的券不可用
   if (logic === 'coupon') {
-    const code = raw.trim().toUpperCase()
+    // 尾券（貼在禮品上，QR 為「編號-T」）：只核對配對，不會派發
+    const tail = /-T$/i.test(raw.trim())
+    const code = raw.trim().toUpperCase().replace(/-T$/, '')
     const c = code ? await db.coupons.where('code').equals(code).filter((x) => x.eventId === eventId).first() : undefined
     if (!c) {
       await log('invalid', '不是換領券', null)
@@ -809,6 +811,20 @@ export const verifySouvenir = async (
       return { result: 'invalid', reason: '此換領券已作廢 Voided', participant: p, time: now, rawValue: raw }
     }
     const used = await db.redemptions.where('itemId').equals(item.id).filter((r) => r.couponId === c.id && !r.voided).first()
+    if (tail) {
+      // 尾券：告訴工作人員這件禮品屬於哪一張券／哪一位，以及是否已換領
+      const no = c.seq ? `No. ${String(c.seq).padStart(4, '0')}` : `編號 ${c.code}`
+      const owner = c.name || (p ? names(p).full : '')
+      await log('manual', '尾券核對', p?.id ?? null)
+      return {
+        result: 'manual',
+        reason: `此禮品屬 ${no}${owner ? `（${owner}）` : ''}：${used ? `已於 ${formatTime(used.time)} 換領` : c.voided ? '換領券已作廢' : '尚未換領'}`,
+        participant: p,
+        time: now,
+        souvenir: { item, quantity: used?.quantity ?? perClaimOf(item) },
+        rawValue: raw,
+      }
+    }
     if (used) {
       await log('duplicate', '換領券已用', p?.id ?? null)
       return { result: 'duplicate', reason: `此換領券已於 ${formatTime(used.time)} 換領`, participant: p, time: now, previousTime: used.time, souvenir: { item, quantity: used.quantity }, rawValue: raw }

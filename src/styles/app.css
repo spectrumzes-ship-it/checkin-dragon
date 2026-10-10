@@ -7607,3 +7607,18 @@ body:has(.rc-dock) .toast {
   padding-top: 2.5mm;
   border-bottom: 0.3mm solid #9a958c;
 }
+
+/* 尾券：QR＋No.，置中 */
+.gc-tail {
+  align-items: center;
+  text-align: center;
+  gap: 1mm;
+}
+.gc-tail img,
+.gc-tail .gc-qr-ph {
+  width: 26mm;
+  height: 26mm;
+}
+.gc-tail span {
+  max-width: 100%;
+}
