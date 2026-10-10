@@ -344,7 +344,6 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
                 <div className="gc-item">
                   <small>禮品</small>
                   <strong>{item.name}</strong>
-                  {c.name && <span>持券人：{c.name}</span>}
                 </div>
                 <p className="gc-text">
                   憑本券可於{ev.venue || '活動服務台'}領取「{item.name}」{qty} 份。

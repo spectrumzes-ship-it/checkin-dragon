@@ -7508,32 +7508,14 @@ body:has(.rc-dock) .toast {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 存根：虛線撕位＋上下半圓缺口 */
+/* 右邊：GIFT、QR、編號（與券面之間不加虛線） */
 .gc-stub {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1mm;
-  border-left: 0.4mm dashed #9a958c;
   padding: 2mm 1.5mm;
-}
-.gc-stub::before,
-.gc-stub::after {
-  content: '';
-  position: absolute;
-  left: -1.6mm;
-  width: 3mm;
-  height: 3mm;
-  border-radius: 50%;
-  background: #fff;
-}
-.gc-stub::before {
-  top: -1.5mm;
-}
-.gc-stub::after {
-  bottom: -1.5mm;
 }
 .gc-tag {
   padding: 0.3mm 2mm;
