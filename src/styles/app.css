@@ -6964,3 +6964,15 @@ body:has(.rc-dock) .toast {
 :root:not([data-skin]) .bottom-nav[data-mode] .bn-item.active {
   color: var(--mode-ink);
 }
+
+/* 觸控裝置：按過的行不會一直保持灰色（iPhone 會把 :hover 留住） */
+@media (hover: none) {
+  .event-row-link:hover,
+  .session-row:hover,
+  .guest-row:hover:not(.selected),
+  .menu-item:hover,
+  .picker-row:hover,
+  .guest-row-btn:hover {
+    background: transparent;
+  }
+}

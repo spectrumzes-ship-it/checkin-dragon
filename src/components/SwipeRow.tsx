@@ -40,6 +40,7 @@ export default function SwipeRow({
         className={cx('swipe-front', selecting && 'selecting')}
         style={{ transform: offset ? `translateX(${offset}px)` : undefined, transition: dx !== null ? 'none' : undefined }}
         onPointerDown={(e) => {
+          swallow.current = false // 上一次拉動沒有產生點擊時，不要吞掉這一次
           if (selecting || e.button > 0) return
           start.current = { x: e.clientX, y: e.clientY, base: open ? -W : 0, moved: false }
         }}
@@ -58,6 +59,7 @@ export default function SwipeRow({
           start.current = null
           if (s?.moved) {
             swallow.current = true
+            setTimeout(() => (swallow.current = false), 400) // 只吞掉放手後即時產生的點擊
             onOpen((dx ?? 0) < -W / 2)
           }
           setDx(null)

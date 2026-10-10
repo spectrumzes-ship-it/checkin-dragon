@@ -6,13 +6,13 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Ticket, Printer, Download } from 'lucide-react'
 import { db } from '../db/db'
-import type { EventRec } from '../db/types'
+import type { EventRec, SouvenirItem } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
 import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { CarsBar, ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
-import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently } from '../lib/actions'
+import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently, logicOf, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
@@ -49,7 +49,28 @@ export default function Guests() {
   const { data, index } = useEventData(ev.id)
   const hasSeating = (data?.resources.length ?? 0) > 0
   const redemptions = useLiveQuery(() => db.redemptions.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
-  const hasSouvenirs = (useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).count(), [ev.id]) ?? 0) > 0
+  const souvenirList = useLiveQuery(() => db.souvenirs.where('eventId').equals(ev.id).sortBy('sortOrder'), [ev.id]) ?? []
+  const hasSouvenirs = souvenirList.length > 0
+  // 禮品領取模式：按名單派發的禮品（不包括限量先到先得）
+  const listItems = souvenirList.filter((x) => logicOf(x) !== 'fcfs')
+  const [giftFor, setGiftFor] = useState<GuestEntry | null>(null)
+  const giveItem = async (item: SouvenirItem, e: GuestEntry) => {
+    setGiftFor(null)
+    const o: ScanOutcome = await verifySouvenir(ev.id, item.id, '', 'SEARCH', e.p.id)
+    if (o.result === 'valid') {
+      feedback('valid')
+      toast(`✓ ${nameOf(e.p)} 已領取 ${item.name}${o.souvenir && o.souvenir.quantity > 1 ? ` × ${o.souvenir.quantity}` : ''}`)
+    } else {
+      feedback(o.result === 'duplicate' || o.result === 'out_of_stock' ? 'duplicate' : 'invalid')
+      toast(o.result === 'duplicate' ? `${nameOf(e.p)} 已領取過 ${item.name}` : o.reason ?? '未能派發')
+    }
+  }
+  // 點左邊圓圈：只有一款按名單派發的禮品就直接派發；多款就先揀
+  const giveFromList = (e: GuestEntry) => {
+    if (!listItems.length) return toast('這個活動沒有按名單派發的禮品')
+    if (listItems.length === 1) return giveItem(listItems[0], e)
+    setGiftFor(e)
+  }
   const collected = useMemo(() => new Set(redemptions.filter((r) => !r.voided).map((r) => r.participantId)), [redemptions])
 
   const counts = useMemo(() => {
@@ -252,7 +273,7 @@ export default function Guests() {
                         ) : undefined
                       }
                       onClick={() => nav(`/e/${ev.id}/guests/${e.p.id}${params.size ? `?${params}` : ''}`)}
-                      onMarkClick={gift ? undefined : async () => {
+                      onMarkClick={gift ? () => giveFromList(e) : async () => {
                         if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
                         await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
                         feedback('valid')
@@ -272,6 +293,15 @@ export default function Guests() {
           <GuestDetail ev={ev} gid={gid} entry={index.find((e) => e.p.id === gid)} onClose={() => nav(`/e/${ev.id}/guests${params.size ? `?${params}` : ''}`)} />
         </aside>
       )}
+      <Sheet open={!!giftFor} onClose={() => setGiftFor(null)} title={`派發給 ${giftFor ? nameOf(giftFor.p) : ''}`}>
+        <div className="menu-list">
+          {listItems.map((item) => (
+            <button key={item.id} className="menu-item" onClick={() => giftFor && giveItem(item, giftFor)}>
+              {item.name}
+            </button>
+          ))}
+        </div>
+      </Sheet>
       <Sheet
         open={!!gen}
         onClose={() => setGen(null)}

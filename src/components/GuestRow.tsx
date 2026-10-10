@@ -90,9 +90,9 @@ export const GuestRow = ({
         type="button"
         className="mark-btn"
         onClick={onMarkClick}
-        aria-label={p.attendance === 'not_arrived' ? `${names(p).primary} 簽到` : `${names(p).primary} 取消簽到`}
+        aria-label={mark ? `${names(p).primary} 領取` : p.attendance === 'not_arrived' ? `${names(p).primary} 簽到` : `${names(p).primary} 取消簽到`}
       >
-        <StatusMark e={e} />
+        {mark ? <span className="status-mark">{mark}</span> : <StatusMark e={e} />}
       </button>
       <button type="button" className="guest-row-btn" onClick={onClick}>
         {row}
