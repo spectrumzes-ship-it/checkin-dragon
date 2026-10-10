@@ -127,12 +127,7 @@ function GiftSummary({ ev }: { ev: EventRec }) {
             })}
           </div>
         ) : (
-          <div className="gift-empty">
-            <p>還沒有禮品，請先新增要派發的禮品。</p>
-            <Link to={`/e/${ev.id}/souvenirs?new=1`} className="btn btn-primary btn-block">
-              <Plus size={18} /> 新增禮品
-            </Link>
-          </div>
+          <p className="muted pad">還沒有禮品，請按上面「第一步：新增禮品」。</p>
         )}
       </section>
     </>
