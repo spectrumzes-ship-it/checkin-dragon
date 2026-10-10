@@ -6,25 +6,25 @@ export const MODE_META: Record<Mode, { zh: string; en: string; icon: LucideIcon;
     zh: '活動',
     en: 'Event',
     icon: Ticket,
-    types: ['Concert', 'Performance', 'Exhibition', 'Premiere', 'VIP Event', 'Company Event', 'Launch Event'],
+    types: ['Concert', 'Performance', 'Exhibition', 'Premiere', 'VIP Event', 'Company Event', 'Launch Event', '講座', '會議', '工作坊', '典禮'],
   },
   banquet: {
     zh: '宴會',
     en: 'Banquet',
     icon: UtensilsCrossed,
-    types: ['Wedding', 'Annual Dinner', 'Dinner', 'Gala', 'Award Ceremony', 'VIP Dinner'],
+    types: ['Wedding', 'Annual Dinner', 'Dinner', 'Gala', 'Award Ceremony', 'VIP Dinner', '壽宴', '春茗', '滿月宴'],
   },
   bus: {
     zh: '旅遊',
     en: 'Tour',
     icon: Bus,
-    types: ['Tour', 'School Trip', 'Company Trip', 'Shuttle'],
+    types: ['Tour', 'School Trip', 'Company Trip', 'Shuttle', '一日遊', '多日團', '參觀'],
   },
   gift: {
     zh: '禮品領取',
     en: 'Gifts',
     icon: Gift,
-    types: ['Gift Counter', 'Redemption', 'Promotion'],
+    types: ['Gift Counter', 'Redemption', 'Promotion', '會員禮品', '節日派發'],
   },
 }
 

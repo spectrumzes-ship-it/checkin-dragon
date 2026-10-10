@@ -20,6 +20,7 @@ export interface Settings {
   rollView: 'auto' | 'list' | 'seats' // 巴士點名：座位表（預設，auto 亦等於座位表）或名單
   specialNotes: string[] // 「特別需要」的選項（可自訂）
   giftGroups: string[] // 禮物領取組別（可自訂；紀念品可設定只限某組別領取）
+  customTypes?: Partial<Record<'event' | 'banquet' | 'bus' | 'gift', string[]>> // 用戶自訂的活動類型（每種模式各自一組）
 }
 
 const KEY = 'ckd-settings'

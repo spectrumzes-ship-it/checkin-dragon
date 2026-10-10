@@ -5,7 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { Mode } from '../db/types'
 import { saveEvent, type EventInput } from '../lib/actions'
 import { useEvent } from '../lib/hooks'
-import { setSettings } from '../lib/settings'
+import { setSettings, useSettings } from '../lib/settings'
 import { todayKey } from '../lib/util'
 import { MODE_META, ModeIcon, typeLabel } from '../components/icons'
 import { PageHeader, toast } from '../components/ui'
@@ -34,6 +34,16 @@ export default function EventForm() {
   const nav = useNavigate()
   const existing = useEvent(id)
   const [f, setF] = useState<EventInput>(() => blank((params.get('mode') as Mode) || 'event'))
+  const customTypes = useSettings().customTypes ?? {}
+  const [otherType, setOtherType] = useState<string | null>(null)
+  const addType = () => {
+    const t = (otherType ?? '').trim()
+    if (!t) return
+    const list = customTypes[f.mode] ?? []
+    if (!list.includes(t) && !MODE_META[f.mode].types.includes(t)) setSettings({ customTypes: { ...customTypes, [f.mode]: [...list, t] } })
+    up('type', t)
+    setOtherType(null)
+  }
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -101,16 +111,34 @@ export default function EventForm() {
             <span>活動名稱 Event Name *</span>
             <input value={f.name} onChange={(e) => up('name', e.target.value)} placeholder="例如 Annual Dinner 2026" autoFocus={!id} />
           </label>
-          <label className="field">
+          {/* 活動類型：點選方塊（只顯示中文）；可加入「其他」自訂類型，下次建立同一模式的活動時亦會出現 */}
+          <div className="field">
             <span>活動類型 Type</span>
-            <select value={f.type} onChange={(e) => up('type', e.target.value)}>
-              {MODE_META[f.mode].types.map((t) => (
-                <option key={t} value={t}>
-                  {typeLabel(t)} {t}
-                </option>
+            <div className="type-chips" role="radiogroup">
+              {[...MODE_META[f.mode].types, ...(customTypes[f.mode] ?? [])].map((t) => (
+                <button type="button" key={t} role="radio" aria-checked={f.type === t} className={f.type === t ? 'on' : ''} onClick={() => up('type', t)}>
+                  {typeLabel(t)}
+                </button>
               ))}
-            </select>
-          </label>
+              {f.type && ![...MODE_META[f.mode].types, ...(customTypes[f.mode] ?? [])].includes(f.type) && (
+                <button type="button" role="radio" aria-checked className="on">
+                  {typeLabel(f.type)}
+                </button>
+              )}
+              {otherType === null ? (
+                <button type="button" className="add" onClick={() => setOtherType('')}>
+                  <Plus size={15} /> 其他
+                </button>
+              ) : (
+                <span className="type-other">
+                  <input value={otherType} onChange={(e) => setOtherType(e.target.value)} placeholder="輸入類型，例如 校友聚會" autoFocus onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addType())} />
+                  <button type="button" className="btn btn-sm btn-primary" onClick={addType} disabled={!otherType.trim()}>
+                    加入
+                  </button>
+                </span>
+              )}
+            </div>
+          </div>
           <div className="field-row">
             <label className="field">
               <span>{f.mode === 'banquet' ? '日期 Date' : '開始日期 Start Date'}</span>

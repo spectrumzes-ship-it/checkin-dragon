@@ -7175,3 +7175,53 @@ body:has(.rc-dock) .toast {
   font-size: 8pt;
   letter-spacing: 0.08em;
 }
+
+/* 建立活動：活動類型方塊 */
+.type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.type-chips button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.type-chips button.on {
+  background: var(--mode-solid);
+  border-color: var(--mode-solid);
+  color: #fff;
+}
+.type-chips button.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-style: dashed;
+  color: var(--text-2);
+}
+.type-other {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.type-other input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
