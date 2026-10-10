@@ -292,6 +292,8 @@ export const seedDemo = async () => {
       p.guestCount = 1
       Object.assign(gift.tickets[i], { qrCode: p.memberId, invitationId: '', ticketNumber: '' })
     })
+    // 最後一位 = 測試包「證件辨識測試卡」上的樣本人物，用來測試掃描證件找會員
+    Object.assign(gift.people[gift.people.length - 1], { name: '李智能', englishName: 'LEE Chi Nan', birthDate: '1985-01-01', idPrefix: 'Z683', gender: 'M' })
     await save(gift)
     const totes: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '環保袋', stock: 100, perGuest: 0, logic: 'fcfs', perClaim: 1, eligibility: 'all', sortOrder: 1, dailyQuota: 40 }
     const memberGift: SouvenirItem = { id: uid(), eventId: gift.event.id, name: '會員紀念品', stock: 60, perGuest: 0, logic: 'person', perClaim: 1, eligibility: 'all', sortOrder: 2 }
@@ -307,7 +309,7 @@ export const seedDemo = async () => {
 }
 
 // 示範資料版本：更改示範名單的產生方法時加一。各裝置更新 App 後會自動重新產生，令所有裝置的示範名單一致。
-export const DEMO_VERSION = 9
+export const DEMO_VERSION = 10
 const DEMO_KEY = 'ckd-demo-version'
 
 export const demoVersionOnDevice = () => {

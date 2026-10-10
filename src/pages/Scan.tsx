@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, ChevronDown, Flashlight, FlashlightOff, Keyboard, Loader2, Plus, QrCode, ScanText, X } from 'lucide-react'
+import { Camera, ChevronDown, Flashlight, FlashlightOff, Keyboard, Loader2, Pencil, Plus, QrCode, ScanText, X } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, Participant, ScanMethod } from '../db/types'
 import { checkIn, logicOf, undoCheckIn, verifyAllSouvenirs, verifyCheckIn, verifyRollCall, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { useDebounced, useEvent, useEventData } from '../lib/hooks'
-import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, type FuzzyMatch, extractFields, type CardFields } from '../lib/search'
+import { fuzzyMatch, nameIdConflict, nameMismatch, searchGuests, type FuzzyMatch, extractFields, type CardFields, maskIdNumbers } from '../lib/search'
 import { setSettings, useSettings } from '../lib/settings'
 import { cx, isOnDay, isUpcoming, todayKey } from '../lib/util'
 import { nameOf } from '../lib/names'
@@ -276,6 +276,8 @@ export default function Scan() {
     busy.current = true
     try {
       let out: ScanOutcome
+      // 文字辨識：紀錄只保存身份證號碼頭 4 位
+      if (method === 'OCR') raw = maskIdNumbers(raw)
       if (purpose === 'souvenir') out = targetId === '*' ? await verifyAllSouvenirs(id, raw, method, pid) : await verifySouvenir(id, targetId, raw, method, pid)
       else if (purpose === 'rollcall') out = await verifyRollCall(id, targetId, raw, method, pid)
       else out = await verifyCheckIn(id, raw, method, pid)
@@ -675,17 +677,44 @@ function useVisibleViewport() {
 }
 
 // 辨識到的文字：可直接修改（例如把認錯的字改正）
+// 證件（身份證／回鄉證）文字很多：預設只顯示抽取到的重點資料，按「修改文字」才展開全文
 function OcrEdit({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
-  // 多行顯示，完整看到辨識到的內容
+  const [open, setOpen] = useState(false)
+  const f = extractFields(value)
+  const isCard = !!(f.idPrefix || f.permitNo) || /身[份分][證证]|IDENTITY|通行[證证]|PERMIT/i.test(value)
   const rows = Math.min(4, Math.max(2, Math.ceil(value.length / 24)))
-  return (
-    <label className="ocr-edit">
-      <span className="ocr-edit-head">
-        辨識到的文字 · 可修改
+  const head = (
+    <span className="ocr-edit-head">
+      {isCard ? '證件資料' : '辨識到的文字 · 可修改'}
+      <span className="ocr-edit-btns">
+        {isCard && (
+          <button type="button" className="ocr-clear" onClick={(e) => (e.preventDefault(), setOpen(!open))}>
+            <Pencil size={14} /> {open ? '收起' : '修改文字'}
+          </button>
+        )}
         <button type="button" className="ocr-clear" onClick={(e) => (e.preventDefault(), onClear())}>
           <Camera size={14} /> 重拍
         </button>
       </span>
+    </span>
+  )
+  if (isCard && !open) {
+    const items = [
+      [f.name, f.englishName].filter(Boolean).join(' '),
+      f.birthDate && `出生 ${f.birthDate}`,
+      f.idPrefix && `身份證 ${f.idPrefix}***`,
+      f.permitNo && `回鄉證 ${f.permitNo}`,
+    ].filter(Boolean)
+    return (
+      <div className="ocr-edit">
+        {head}
+        <p className="ocr-card">{items.length ? items.map((x) => <span key={x as string}>{x}</span>) : <span>未能讀出姓名或號碼，請按「修改文字」或重拍</span>}</p>
+      </div>
+    )
+  }
+  return (
+    <label className="ocr-edit">
+      {head}
       <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
     </label>
   )

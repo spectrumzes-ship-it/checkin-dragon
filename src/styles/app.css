@@ -3639,6 +3639,31 @@ legend {
 .ocr-clear:active {
   filter: brightness(0.95);
 }
+.ocr-edit-btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ocr-edit-btns .ocr-clear {
+  white-space: nowrap;
+  padding: 0 12px;
+}
+/* 證件辨識：只顯示重點資料（姓名、出生日期、號碼頭幾位） */
+.ocr-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 0;
+}
+.ocr-card span {
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.05));
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 /* 圍席座位：座位表／圓桌總覽切換 */
 .tables-head {
@@ -6204,17 +6229,23 @@ body:has(.rc-dock) .toast {
 }
 .kit-id {
   position: relative;
+  container-type: inline-size;
   aspect-ratio: 1.586;
   max-width: 100%;
   border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  border: 1px solid #b9b5ab;
   color: #1a1a1a;
   overflow: hidden;
   break-inside: avoid;
-  border: 1px solid #b9b5ab;
+}
+/* 卡內所有尺寸跟卡闊度等比例（cqw），螢幕及列印 85.6 × 54 毫米都放得下 */
+.kit-id-in {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4cqw;
+  height: 100%;
+  padding: 4cqw 4.5cqw;
+  line-height: 1.2;
 }
 .kit-id.hkid {
   background: linear-gradient(135deg, #e7f1e9, #f4e6ec 60%, #e5edf6);
@@ -6224,51 +6255,55 @@ body:has(.rc-dock) .toast {
 }
 .kit-id-specimen {
   position: absolute;
-  right: -30px;
-  top: 40%;
-  transform: rotate(-24deg);
-  font-size: 30px;
+  right: 3cqw;
+  top: 30%;
+  transform: rotate(-20deg);
+  font-size: 7cqw;
   font-weight: 900;
-  color: rgba(200, 68, 47, 0.28);
+  color: rgba(200, 68, 47, 0.22);
   letter-spacing: 0.1em;
   pointer-events: none;
 }
 .kit-id-head {
-  font-size: 12px;
+  font-size: 3.4cqw;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 1.2cqw;
 }
 .kit-id-head small {
   display: block;
-  font-size: 9px;
+  font-size: 2.5cqw;
   letter-spacing: 0.08em;
   font-weight: 500;
 }
 .kit-id-zh {
-  font-size: 24px;
+  font-size: 6.6cqw;
   font-family: 'Kaiti TC', 'BiauKai', 'STKaiti', serif;
 }
 .hrp .kit-id-zh {
   font-family: 'Songti SC', 'STSong', serif;
 }
 .kit-id-en {
-  font-size: 16px;
+  font-size: 4.4cqw;
   font-weight: 600;
 }
 .kit-id-code,
 .kit-id-lbl {
-  font-size: 11px;
+  font-size: 3cqw;
 }
 .kit-id-val {
-  font-size: 15px;
+  font-size: 4.2cqw;
   font-weight: 600;
 }
 .kit-id-no {
-  margin-top: auto;
-  align-self: flex-end;
-  font-size: 18px;
+  position: absolute;
+  right: 4.5cqw;
+  bottom: 3.5cqw;
+  font-size: 5.4cqw;
   font-weight: 700;
   letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0 1cqw;
+  border-radius: 1cqw;
 }
 .kit-checklist {
   display: flex;

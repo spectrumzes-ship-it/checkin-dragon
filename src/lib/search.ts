@@ -119,8 +119,11 @@ const CJK = /[\u3400-\u9fff]+/g
 
 // 由辨識到的文字抽出可比對的片段：中文姓名、英文姓名（連續 1–4 個英文字）、編號（含數字）
 // 「姓名」「邀請編號」等標籤字不會影響結果，因為只會逐段比對
+// 文字辨識常在中文字之間加空格（「李 智 能」）：只合併「逐個字分開」的情況
+const joinSpacedCjk = (t: string) => t.replace(/(?<![\u3400-\u9fff])[\u3400-\u9fff](?:[ \t][\u3400-\u9fff](?![\u3400-\u9fff]))+/g, (x) => x.replace(/[ \t]/g, ''))
+
 const extract = (text: string) => {
-  const t = (text || '').normalize('NFKC').toUpperCase()
+  const t = joinSpacedCjk((text || '').normalize('NFKC').toUpperCase())
   const ids = new Set<string>()
   for (const m of t.match(/[A-Z0-9][A-Z0-9\-_/.]{2,}/g) ?? []) {
     const c = m.replace(/[^A-Z0-9]/g, '')
@@ -149,6 +152,8 @@ const extract = (text: string) => {
 export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyMatch[] => {
   const { ids, cjk, en, words } = extract(text)
   if (!ids.length && !cjk.length && !en.some((w) => w.length >= 3)) return []
+  // 證件（身份證／回鄉證）：另外用身份證頭 4 位、回鄉證號碼及出生日期核對
+  const card = extractFields(text)
   const out: FuzzyMatch[] = []
   for (const e of index) {
     // 編號：只接受完全相同（只容許 O↔0、I↔1 等常見認錯字）；相似但不同的編號不計
@@ -180,16 +185,25 @@ export const fuzzyMatch = (index: GuestEntry[], text: string, limit = 5): FuzzyM
       if (words.length === 1 && words[0].length >= 2 && surname === words[0]) enS = Math.max(enS, 0.62)
     }
 
+    // 證件資料：回鄉證號碼完全相同 = 100%；身份證頭 4 位很多人相同，要配合出生日期才算吻合
+    const permit = !!card.permitNo && !!e.p.permitNo && card.permitNo === normalize(e.p.permitNo)
+    const idHead = !!card.idPrefix && !!e.p.idPrefix && card.idPrefix === normalize(e.p.idPrefix)
+    const birth = !!card.birthDate && card.birthDate === e.p.birthDate
+    const docScore = permit ? 1 : idHead && birth ? 0.95 : 0
+    const docHit = permit || idHead || birth
+    if (docScore > idScore) idScore = docScore
+
     const nameScore = Math.max(zh, enS)
     if (!nameScore && !idScore) continue
-    // 姓名與編號都吻合同一人：最可信
-    const both = nameScore >= 0.8 && idScore >= 0.9
+    // 姓名與編號（或證件資料）都吻合同一人：最可信
+    const both = nameScore >= 0.8 && (idScore >= 0.9 || docHit)
     const score = both ? 1 : Math.max(nameScore, idScore)
-    const field = both ? '姓名＋編號' : idScore >= nameScore ? '編號' : zh >= enS ? '姓名' : '英文名'
+    const idWord = docScore || docHit ? '證件' : '編號'
+    const field = both ? `姓名＋${idWord}` : idScore >= nameScore ? idWord : zh >= enS ? '姓名' : '英文名'
     out.push({ entry: e, score, field, nameScore, idScore })
   }
   // 同分時「姓名＋編號」優先
-  out.sort((a, b) => b.score - a.score || Number(b.field === '姓名＋編號') - Number(a.field === '姓名＋編號'))
+  out.sort((a, b) => b.score - a.score || Number(b.field.startsWith('姓名＋')) - Number(a.field.startsWith('姓名＋')))
   return out.slice(0, limit)
 }
 
@@ -373,3 +387,7 @@ export const extractFields = (text: string): CardFields => {
 
 // 是否證件上的固定字眼（不是姓名）
 export const isDocWord = (w: string) => DOC_ZH.some((l) => l.includes(w) || w.includes(l)) || LABELS.has(w)
+
+// 掃描紀錄只保存身份證號碼頭 4 位（私隱）：把辨識文字中的完整身份證號碼改成「Z683***」
+export const maskIdNumbers = (text: string) =>
+  (text || '').replace(/(?<![A-Za-z0-9])([A-Za-z]{1,2})\s?(\d{6})\s?[(\[{<]?\s?([0-9Aa])\s?[)\]}>]?(?![0-9])/g, (_, a: string, d: string) => `${(a + d).slice(0, 4).toUpperCase()}***`)

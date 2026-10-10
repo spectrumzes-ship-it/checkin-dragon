@@ -30,7 +30,7 @@ import {
   verifySouvenir,
   type EventInput,
 } from './actions'
-import { buildIndex, extractFields, fuzzyMatch, nameIdConflict, nameMismatch } from './search'
+import { buildIndex, extractFields, fuzzyMatch, maskIdNumbers, nameIdConflict, nameMismatch } from './search'
 import { ageFromBirth, uid } from './util'
 import { computeStats } from './hooks'
 import { busRows } from './busLayout'
@@ -441,6 +441,20 @@ describe('巴士座位排列', () => {
 })
 
 describe('證件文字抽取', () => {
+  it('掃描身份證：中文字分開、身份證頭 4 位＋出生日期都能找到會員；紀錄遮去完整號碼', () => {
+    const card = '香港永久性居民身份證\nHONG KONG PERMANENT IDENTITY CARD\n李 智 能\nL E E, Chi Nan\n2621 2535 5174\n出生日期 Date of Birth\n01-01-1985  男 M\nZ683365(5)'
+    const p = (id: string, name: string, extra: object = {}) => ({ id, eventId: 'E', name, englishName: '', phone: '', company: '', memberId: '', ...extra }) as never
+    const idx = buildIndex([p('a', '李智能', { idPrefix: 'Z683', birthDate: '1985-01-01' }), p('b', '陳大文', { idPrefix: 'Z683' })], [], [], [])
+    const ms = fuzzyMatch(idx, card)
+    expect(ms[0].entry.p.id).toBe('a')
+    expect(ms[0].score).toBe(1)
+    expect(ms[0].field).toBe('姓名＋證件')
+    expect(ms.some((m) => m.entry.p.id === 'b' && m.score >= 0.95)).toBe(false) // 只有頭 4 位相同不算吻合
+    // 只讀到號碼及出生日期（姓名認錯）仍可找到
+    expect(fuzzyMatch(idx, '出生日期 01-01-1985\nZ683365(5)')[0].entry.p.id).toBe('a')
+    expect(maskIdNumbers(card)).not.toContain('365(5)')
+    expect(maskIdNumbers(card)).toContain('Z683***')
+  })
   it('抽出姓名、出生日期、身份證頭 4 位、會員編號', () => {
     const f = extractFields('姓名 陳大文\nCHAN TAI MAN\n出生日期 25-12-1990\nA123456(7)\n會員編號: M00123')
     expect(f.name).toBe('陳大文')

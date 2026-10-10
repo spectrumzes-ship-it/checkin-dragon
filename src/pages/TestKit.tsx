@@ -215,6 +215,7 @@ export default function TestKit() {
       <div className="kit-ids">
         <div className="kit-id hkid">
           <span className="kit-id-specimen">樣本 SPECIMEN</span>
+          <div className="kit-id-in">
           <div className="kit-id-head">
             測試用身份證樣式（非真實證件）
             <small>IDENTITY CARD TEST SAMPLE</small>
@@ -226,10 +227,12 @@ export default function TestKit() {
           <span className="kit-id-val">01-01-1985 &nbsp; 男 M</span>
           <span className="kit-id-lbl">簽發日期 Date of Issue</span>
           <span className="kit-id-val">(01-79) 26-11-18</span>
+          </div>
           <span className="kit-id-no">Z683365(5)</span>
         </div>
         <div className="kit-id hrp">
           <span className="kit-id-specimen">樣本 SPECIMEN</span>
+          <div className="kit-id-in">
           <div className="kit-id-head">
             港澳居民来往内地通行证（测试样式）
             <small>MAINLAND TRAVEL PERMIT TEST SAMPLE</small>
@@ -239,10 +242,11 @@ export default function TestKit() {
           <span className="kit-id-en">CHAN, LAI WA</span>
           <span className="kit-id-val">出生日期 1980.01.01 &nbsp; 性别 女</span>
           <span className="kit-id-val">有效期限 2024.05.06-2034.05.05</span>
+          </div>
           <span className="kit-id-no">证件号码 H08765432 01</span>
         </div>
       </div>
-      <p className="hint">應讀到：身份證卡 → 李智能、LEE CHI NAN、1985-01-01、男、Z683；回鄉證卡 → 陈丽华、CHAN LAI WA、1980-01-01、女、H08765432、2034-05-05。</p>
+      <p className="hint">「會員禮品派發日」名單已有李智能（身份證 Z683、1985-01-01），可在掃描「文字」模式測試找會員。應讀到：身份證卡 → 李智能、LEE CHI NAN、1985-01-01、男、Z683；回鄉證卡 → 陈丽华、CHAN LAI WA、1980-01-01、女、H08765432、2034-05-05。</p>
 
       <h2 className="kit-h kit-break">
         五、真機測試清單{' '}
