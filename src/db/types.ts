@@ -164,6 +164,8 @@ export interface SouvenirItem {
   allowWalkIn?: boolean // 按名單派發：可否即場加入名單（未設定 = 可以）
   dailyQuota?: number | null // 先到先得：每日上限（多日活動用；空 = 不限）
   phoneCheck?: boolean // 先到先得：同一電話再次登記時提醒（仍可派發）
+  couponText?: string // 憑券換領：券面說明文字（空 = 預設文字）
+  couponNote?: string // 憑券換領：券底細則（空 = 預設文字）
 }
 
 // 憑券換領：每張券一個隨機編號（QR 內容）；一券只可換領一次

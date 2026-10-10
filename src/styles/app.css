@@ -7669,3 +7669,12 @@ body:has(.rc-dock) .toast {
     width: 75.27%;
   }
 }
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent, #5b4b8a);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

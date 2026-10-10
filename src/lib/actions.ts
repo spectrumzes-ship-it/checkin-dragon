@@ -1380,3 +1380,12 @@ export const mergeCompanion = async (c: Participant) => {
   })
   return host
 }
+
+// 換領券券面預設文字（用戶可在禮品設定修改）
+export function defaultCouponText(item: SouvenirItem, venue?: string): string {
+  const qty = Math.max(1, item.perClaim ?? 1)
+  return `憑本券可於${venue || '活動服務台'}領取「${item.name || '禮品'}」${qty} 份。${item.stock !== null ? '數量有限，換完即止。' : ''}`
+}
+export function defaultCouponNote(eventName: string): string {
+  return `※ 每券換領一次，影印無效。${eventName}`
+}

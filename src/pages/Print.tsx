@@ -6,6 +6,7 @@ import { db } from '../db/db'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Gift, Printer } from 'lucide-react'
 import { useEvent, useEventData } from '../lib/hooks'
+import { defaultCouponNote, defaultCouponText } from '../lib/actions'
 import { names, nameOf } from '../lib/names'
 import type { GuestEntry } from '../lib/search'
 import type { Resource } from '../db/types'
@@ -351,7 +352,8 @@ function CouponsPrint({
       </div>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
         {mode === 'coupon' ? '只印換領券（140 × 60 毫米）。' : mode === 'stub' ? '右邊加 46 毫米存根，由工作人員留底，換領時填上日期及經手人。' : '右邊加 46 毫米尾券，有自己的 QR：剪下貼在對應禮品上，掃描可知道禮品屬於哪一張券及是否已換領（只作查看，不會派發）。'}
-        A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、開啟「背景圖形」，沿虛線剪開。
+        A4 直放每頁 4 張，上下無縫。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、開啟「背景圖形」，沿虛線剪開。券面說明及細則可在{' '}
+        <Link to={`/e/${ev.id}/souvenirs?edit=${item.id}`}>禮品設定</Link> 修改。
       </p>
       {pages.map((pg, i) => (
         <section key={i} className={`print-sheet page gc-sheet${mode === 'coupon' ? ' w140' : ''}`}>
@@ -391,16 +393,13 @@ function CouponsPrint({
                   <small>禮品</small>
                   <strong>{item.name}</strong>
                 </div>
-                <p className="gc-text">
-                  憑本券可於{ev.venue || '活動服務台'}領取「{item.name}」{qty} 份。
-                  {item.stock !== null ? '數量有限，換完即止。' : ''}
-                </p>
+                <p className="gc-text">{item.couponText?.trim() || defaultCouponText(item, ev.venue)}</p>
                 <span className="gc-stamp">不可轉讓</span>
                 <div className="gc-date">
                   <small>活動日期</small>
                   <b>{dateText}</b>
                 </div>
-                <small className="gc-note">※ 每券換領一次，影印無效。{ev.name}</small>
+                <small className="gc-note">{item.couponNote?.trim() || defaultCouponNote(ev.name)}</small>
               </div>
               <div className="gc-stub">
                 <span className="gc-tag">GIFT</span>
@@ -412,7 +411,6 @@ function CouponsPrint({
               {/* 右邊：存根（留底）或尾券（貼在禮品上，可掃描配對） */}
               {mode === 'tail' ? (
                 <div className="gc-keep gc-tail">
-                  <small>尾券 · 貼於禮品</small>
                   {qr[`${c.code}-T`] ? <img src={qr[`${c.code}-T`]} alt="" /> : <div className="gc-qr-ph" />}
                   <b>No. {String(c.no).padStart(4, '0')}</b>
                   <span>{item.name}</span>

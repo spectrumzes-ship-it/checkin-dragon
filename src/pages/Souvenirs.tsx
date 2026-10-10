@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ClipboardList, Gift, Pencil, Plus, ScanLine, ListChecks, Ticket } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem, SouvenirLogic } from '../db/types'
-import { eligibilityLabel, logicLabel, logicOf, perClaimOf, quantityLabel, saveSouvenir } from '../lib/actions'
+import { defaultCouponNote, defaultCouponText, eligibilityLabel, logicLabel, logicOf, perClaimOf, quantityLabel, saveSouvenir } from '../lib/actions'
 import { todayKey, toDateKey, uid } from '../lib/util'
 import { useSettings } from '../lib/settings'
 import { GiftArt } from '../illustrations'
@@ -41,6 +41,13 @@ export default function Souvenirs() {
   useEffect(() => {
     if (items && params.get('new') === '1') {
       setEdit(blank())
+      setParams({}, { replace: true })
+    }
+    // 由換領券列印頁「禮品設定」進入（?edit=id）：直接打開該禮品
+    const eid = params.get('edit')
+    if (items && eid) {
+      const it = items.find((i) => i.id === eid)
+      if (it) setEdit(it)
       setParams({}, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -230,6 +237,28 @@ export default function Souvenirs() {
                   <small>名單上沒有的人可以即場登記並派發</small>
                 </span>
               </label>
+            )}
+            {logicOf(edit) === 'coupon' && (
+              <>
+                <label className="field">
+                  <span>券面說明 Coupon Text</span>
+                  <textarea
+                    rows={3}
+                    value={edit.couponText ?? defaultCouponText(edit, ev.venue)}
+                    onChange={(e) => setEdit({ ...edit, couponText: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  <span>細則 Fine Print</span>
+                  <input value={edit.couponNote ?? defaultCouponNote(ev.name)} onChange={(e) => setEdit({ ...edit, couponNote: e.target.value })} />
+                </label>
+                <p className="hint">
+                  印在換領券上。清空 = 用預設文字。{' '}
+                  <button type="button" className="link-btn" onClick={() => setEdit({ ...edit, couponText: undefined, couponNote: undefined })}>
+                    還原預設
+                  </button>
+                </p>
+              </>
             )}
             {logicOf(edit) === 'fcfs' && (
               <>
