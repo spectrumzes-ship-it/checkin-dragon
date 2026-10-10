@@ -293,7 +293,7 @@ function RoomsPrint({ data, index, head, now }: { data: { resources: Resource[] 
   )
 }
 
-// 禮物換領券：約 140 × 50 毫米，A4 橫向每頁 8 張（2 × 4）；左邊券面、右邊存根（GIFT、QR、編號），中間虛線撕位
+// 禮物換領券：140 × 60 毫米，A4 直放每頁 4 張（1 × 4）；左邊券面、右邊 GIFT、QR、編號
 function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRec; itemId: string; batch: number }) {
   const item = useLiveQuery(() => db.souvenirs.get(itemId), [itemId])
   const all = useLiveQuery(() => db.coupons.where('itemId').equals(itemId).toArray(), [itemId]) ?? []
@@ -311,17 +311,15 @@ function CouponsPrint({ ev, itemId, batch }: { ev: import('../db/types').EventRe
     }
   }, [coupons.length, itemId, batch]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!item) return null
-  const per = 8
+  const per = 4
   const pages: (typeof coupons)[] = []
   for (let i = 0; i < coupons.length; i += per) pages.push(coupons.slice(i, i + per))
   const qty = Math.max(1, item.perClaim ?? 1)
   const dateText = ev.endDate && ev.endDate > ev.date ? `${ev.date.replace(/-/g, '.')} – ${ev.endDate.slice(5).replace('-', '.')}` : ev.date.replace(/-/g, '.')
   return (
     <>
-      {/* 換領券用 A4 橫向、窄邊界，一頁剛好 2 × 4 張 */}
-      <style>{'@media print { @page { size: A4 landscape; margin: 5mm 8mm; } }'}</style>
       <p className="no-print hint" style={{ padding: '0 16px' }}>
-        每張約 140 × 50 毫米，A4 橫向每頁 8 張。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4 橫向、縮放 100%、開啟「背景圖形」，沿虛線剪開。
+        每張 140 × 60 毫米，A4 直放每頁 4 張。共 {coupons.length} 張、{pages.length} 頁。列印時選 A4、縮放 100%、開啟「背景圖形」，沿虛線剪開。
       </p>
       {pages.map((pg, i) => (
         <section key={i} className="print-sheet page gc-sheet">

@@ -7340,12 +7340,12 @@ body:has(.rc-dock) .toast {
   border: 1.5px solid color-mix(in srgb, var(--mode-solid) 45%, transparent);
 }
 
-/* ===== 列印：禮物換領券（約 140 × 50 毫米，A4 橫向每頁 2 × 4 張） ===== */
+/* ===== 列印：禮物換領券（140 × 60 毫米，A4 直放每頁 4 張） ===== */
 .gc-sheet {
   display: grid;
-  grid-template-columns: repeat(2, 140mm);
-  grid-auto-rows: 50mm;
-  gap: 0 1mm;
+  grid-template-columns: 140mm;
+  grid-auto-rows: 60mm;
+  gap: 4mm;
   justify-content: center;
   max-width: none;
   overflow-x: auto;
@@ -7358,7 +7358,7 @@ body:has(.rc-dock) .toast {
   --gc-ink: #2b2a28;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 31mm;
+  grid-template-columns: minmax(0, 1fr) 33mm;
   background: #fcf9f1;
   color: var(--gc-ink);
   outline: 0.3mm dashed #b5b0a6;
@@ -7368,16 +7368,16 @@ body:has(.rc-dock) .toast {
 }
 .gc-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 31mm;
+  grid-template-columns: minmax(0, 1fr) 33mm;
   grid-template-areas:
     'title qty'
     'item stamp'
     'text date'
     'note note';
   grid-template-rows: auto auto 1fr auto;
-  column-gap: 2.5mm;
-  row-gap: 1.2mm;
-  padding: 2.6mm 3mm 2mm 3.5mm;
+  column-gap: 3mm;
+  row-gap: 1.8mm;
+  padding: 3.5mm 3mm 2.5mm 4mm;
   min-width: 0;
 }
 .gc-title {
@@ -7391,13 +7391,13 @@ body:has(.rc-dock) .toast {
   color: var(--gc-red);
 }
 .gc-gift {
-  width: 10mm;
-  height: 10mm;
+  width: 12mm;
+  height: 12mm;
   flex-shrink: 0;
 }
 .gc-title b {
   display: block;
-  font-size: 17pt;
+  font-size: 20pt;
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.04em;
@@ -7406,13 +7406,13 @@ body:has(.rc-dock) .toast {
   display: flex;
   align-items: center;
   gap: 1.2mm;
-  margin-top: 0.8mm;
-  font-size: 8pt;
+  margin-top: 1mm;
+  font-size: 9.5pt;
   font-weight: 800;
 }
 .gc-title em {
   font-style: normal;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   padding: 0 1mm;
   border: 0.35mm solid var(--gc-red);
   border-radius: 0.8mm;
@@ -7431,11 +7431,11 @@ body:has(.rc-dock) .toast {
 }
 .gc-qty b {
   font-family: var(--num);
-  font-size: 30pt;
+  font-size: 36pt;
   line-height: 1.15;
 }
 .gc-qty span {
-  font-size: 11pt;
+  font-size: 13pt;
   font-weight: 900;
 }
 .gc-item {
@@ -7447,14 +7447,14 @@ body:has(.rc-dock) .toast {
   flex-wrap: wrap;
 }
 .gc-item small {
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   padding: 0.2mm 1mm;
   border-radius: 0.8mm;
   background: var(--gc-ink);
   color: #fff;
 }
 .gc-item strong {
-  font-size: 12pt;
+  font-size: 14pt;
   font-weight: 900;
 }
 .gc-item span {
@@ -7464,7 +7464,7 @@ body:has(.rc-dock) .toast {
 .gc-text {
   grid-area: text;
   margin: 0;
-  font-size: 7pt;
+  font-size: 8.5pt;
   line-height: 1.45;
   font-weight: 600;
 }
@@ -7475,7 +7475,7 @@ body:has(.rc-dock) .toast {
   padding: 0.4mm 1.5mm;
   border: 0.4mm solid var(--gc-ink);
   border-radius: 0.8mm;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   font-weight: 800;
 }
 .gc-date {
@@ -7491,18 +7491,18 @@ body:has(.rc-dock) .toast {
   padding: 0.4mm 1.5mm;
   background: var(--gc-ink);
   color: #fff;
-  font-size: 6pt;
+  font-size: 7pt;
 }
 .gc-date b {
   display: block;
   padding: 0.6mm 1.5mm;
   font-family: var(--num);
-  font-size: 8.5pt;
+  font-size: 10pt;
   white-space: nowrap;
 }
 .gc-note {
   grid-area: note;
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   color: #6f6a61;
   white-space: nowrap;
   overflow: hidden;
@@ -7522,26 +7522,26 @@ body:has(.rc-dock) .toast {
   border-radius: 1mm;
   background: var(--gc-ink);
   color: #fff;
-  font-size: 8pt;
+  font-size: 9pt;
   font-weight: 900;
   letter-spacing: 0.1em;
 }
 .gc-stub-gift {
-  width: 6.5mm;
-  height: 6.5mm;
+  width: 7.5mm;
+  height: 7.5mm;
   color: var(--gc-purple);
 }
 .gc-stub img,
 .gc-qr-ph {
-  width: 18mm;
-  height: 18mm;
+  width: 24mm;
+  height: 24mm;
 }
 .gc-stub b {
   font-family: var(--num);
-  font-size: 8.5pt;
+  font-size: 10pt;
 }
 .gc-stub code {
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   letter-spacing: 0.05em;
   color: #6f6a61;
 }

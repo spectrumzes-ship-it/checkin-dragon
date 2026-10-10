@@ -666,7 +666,7 @@ function CouponPanel({
                 <input type="number" min={1} max={2000} value={gen.count} onChange={(e) => setGen({ ...gen, count: Math.max(1, Math.min(2000, Number(e.target.value) || 1)) })} />
               </label>
             )}
-            <p className="hint">每張券有隨機編號及 QR，不能估到其他號碼。生成後按「列印」，每張約 140 × 50 毫米，A4 橫向每頁 8 張，有裁剪線及存根。</p>
+            <p className="hint">每張券有隨機編號及 QR，不能估到其他號碼。生成後按「列印」，每張 140 × 60 毫米，A4 直放每頁 4 張，有裁剪線。</p>
           </>
         )}
       </Sheet>
