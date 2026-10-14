@@ -35,6 +35,7 @@ export const GuestRow = ({
   mark,
   seating = true,
   call = true,
+  endExtra,
 }: {
   e: GuestEntry
   onClick?: () => void
@@ -45,6 +46,7 @@ export const GuestRow = ({
   onMarkClick?: () => void // 按左邊狀態圓圈：快速簽到／取消簽到
   seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
   call?: boolean // 右邊顯示撥號按鈕（預設開；沒有電話就留空位，令各行對齊）
+  endExtra?: ReactNode // 撥號按鈕旁的資料（例如禮品已派發份數）
 }) => {
   const p = e.p
   const row = (
@@ -81,14 +83,17 @@ export const GuestRow = ({
   const cls = cx('guest-row', selected && 'selected', p.status === 'cancelled' && 'cancelled')
   const tel = p.phone.replace(/[^\d+]/g, '')
   const callBtn = call ? (
-    tel ? (
+    <>
+      {endExtra}
+      {tel ? (
       <a className="call-btn" href={`tel:${tel}`} aria-label={`致電 ${names(p).primary}`} title={`致電 ${p.phone}`}>
         <Phone size={20} />
       </a>
-    ) : (
-      <span className="call-btn none" aria-hidden="true" />
-    )
-  ) : null
+      ) : (
+        <span className="call-btn none" aria-hidden="true" />
+      )}
+    </>
+  ) : endExtra ?? null
   if (call && (!onMarkClick || p.status === 'cancelled'))
     return (
       <div className={cx(cls, 'split')}>

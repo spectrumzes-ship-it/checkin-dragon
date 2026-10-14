@@ -8052,3 +8052,24 @@ body:has(.rc-dock) .toast {
 .partner-list small {
   color: var(--text-2);
 }
+/* 禮品領取名單：撥號按鈕旁的已派發份數 */
+.give-qty {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 40px;
+  margin-right: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mode-ink, var(--text));
+  white-space: nowrap;
+}
+.give-qty b {
+  font-family: var(--num);
+  font-size: 20px;
+  margin-right: 1px;
+}
+.give-qty.none {
+  color: var(--text-3, var(--text-2));
+  font-weight: 500;
+}

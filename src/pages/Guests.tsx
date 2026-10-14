@@ -76,6 +76,12 @@ export default function Guests() {
     setGiftFor(e)
   }
   const collected = useMemo(() => new Set(redemptions.filter((r) => !r.voided).map((r) => r.participantId)), [redemptions])
+  // 禮品領取：每人已派發的份數（名單右邊顯示）
+  const givenQty = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of redemptions) if (!r.voided && r.participantId) m.set(r.participantId, (m.get(r.participantId) ?? 0) + r.quantity)
+    return m
+  }, [redemptions])
 
   const counts = useMemo(() => {
     const c = { all: 0, left: 0, gift_only: 0, arrived: 0, not_arrived: 0, vip: 0, cancelled: 0, manual: 0, souvenir: 0, no_souvenir: 0 }
@@ -141,7 +147,8 @@ export default function Guests() {
   useLayoutEffect(() => {
     setMargin(listRef.current?.offsetTop ?? 0)
   })
-  const virt = useWindowVirtualizer({ count: list.length, estimateSize: () => 72, overscan: 10, scrollMargin: margin })
+  // 行高按每位嘉賓記住（不是按第幾行），換篩選後不會留下空位
+  const virt = useWindowVirtualizer({ count: list.length, estimateSize: () => 72, overscan: 10, scrollMargin: margin, getItemKey: (i) => list[i]?.p.id ?? i })
 
   const setFilter = (f: Filter) => {
     const next = new URLSearchParams(params)
@@ -304,6 +311,7 @@ export default function Guests() {
                       souvenir={!gift && collected.has(e.p.id)}
                       seating={hasSeating}
                       call
+                      endExtra={gift ? <span className={givenQty.get(e.p.id) ? 'give-qty' : 'give-qty none'}>{givenQty.get(e.p.id) ? <><b>{givenQty.get(e.p.id)}</b>份</> : '未領'}</span> : undefined}
                       mark={
                         gift ? (
                           collected.has(e.p.id) ? <Seal className="gift-seal" text="領" /> : <span className="gift-seal empty" aria-label="未領取" />
