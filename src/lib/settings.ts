@@ -18,7 +18,7 @@ export interface Settings {
   currentEventId: string | null
   language: 'zh-Hant' | 'zh-Hans' | 'en' // 介面語言（第 5 階段加入切換）；英文版的「已到」用綠色勾號，不用「到」印章
   rollView: 'auto' | 'list' | 'seats' // 巴士點名：座位表（預設，auto 亦等於座位表）或名單
-  rollSeatNo: boolean // 名單點名：每行左邊是否顯示彩色座位號方塊（車號＋座位號）
+  seatSplash: boolean // 點名／名單簽到後，顯示全畫面座位資訊（同掃描 QR 的結果畫面），方便告訴對方座位
   specialNotes: string[] // 「特別需要」的選項（可自訂）
   giftGroups: string[] // 禮物領取組別（可自訂；紀念品可設定只限某組別領取）
   customTypes?: Partial<Record<'event' | 'banquet' | 'bus' | 'gift', string[]>> // 用戶自訂的活動類型（每種模式各自一組）
@@ -42,7 +42,7 @@ const defaults = (): Settings => ({
   currentEventId: null,
   language: 'zh-Hant',
   rollView: 'auto',
-  rollSeatNo: true,
+  seatSplash: false,
   specialNotes: ['輪椅', '素食', '需協助', '傳譯'],
   giftGroups: [],
 })

@@ -241,8 +241,8 @@ export default function Settings() {
 
       <SectionTitle zh="點名" en="Roll Call" />
       <div className="card set-group">
-        <Item zh="名單點名顯示座位號" en="Seat No. in List" hint="用「名單」點名時，每行左邊的彩色方塊（車號＋座位號，上車後變綠色）；關閉後只顯示姓名">
-          <Toggle label="名單點名顯示座位號" on={s.rollSeatNo} onChange={(v) => set({ rollSeatNo: v })} />
+        <Item zh="點名後顯示座位大字" en="Seat Display" hint="在點名頁或嘉賓名單按名字點名／簽到後，彈出同掃描 QR 一樣的全畫面結果（姓名、車號／席號、座位號），方便告訴對方坐哪裏；點一下畫面或數秒後自動關閉">
+          <Toggle label="點名後顯示座位大字" on={s.seatSplash} onChange={(v) => set({ seatSplash: v })} />
         </Item>
       </div>
 

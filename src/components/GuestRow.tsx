@@ -34,7 +34,7 @@ export const GuestRow = ({
   onMarkClick,
   mark,
   seating = true,
-  call = false,
+  call = true,
 }: {
   e: GuestEntry
   onClick?: () => void
@@ -44,7 +44,7 @@ export const GuestRow = ({
   mark?: ReactNode // 取代左邊的簽到狀態圖示（例如紀念品名單顯示「已領取」圖案）
   onMarkClick?: () => void // 按左邊狀態圓圈：快速簽到／取消簽到
   seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
-  call?: boolean // 右邊顯示撥號按鈕（沒有電話就留空位，令各行對齊）
+  call?: boolean // 右邊顯示撥號按鈕（預設開；沒有電話就留空位，令各行對齊）
 }) => {
   const p = e.p
   const row = (
@@ -62,7 +62,7 @@ export const GuestRow = ({
         </span>
         <span className="guest-row-sub">
           {e.room && <span className="muted">{roomText(e.room)}　</span>}
-          {seatText(e) || (isAnonymous(p) ? <span className="muted">不記名</span> : seating ? <span className="muted">未安排座位</span> : null)}
+          {seatText(e) || (isAnonymous(p) ? <span className="muted">不記名</span> : seating ? <span className="muted">未安排座位</span> : p.memberId ? <span className="muted">會員編號 {p.memberId}</span> : null)}
           {p.tags.map((t) => (
             <SoftTag key={t}>{t}</SoftTag>
           ))}

@@ -16,6 +16,7 @@ import {
   setRollStatus,
   verifyRollCall,
   parseQuickGuest,
+  guestToInput,
   setLeftTrip,
   mergeCompanion,
   registerAndRedeem,
@@ -366,6 +367,17 @@ describe('點名狀態', () => {
     expect(wrong.reason).toContain('B 車 12 號')
     const right = await verifyRollCall(e.id, s.id, 'P2', 'QR', undefined, A.id)
     expect(right.caution).toBe(false)
+  })
+  it('同行人士：設定後雙方互相連結；更改後舊的一方解除', async () => {
+    const e = await saveEvent(ev('T'))
+    const a = await guest(e.id, 'A', 'Q1')
+    const b = await guest(e.id, 'B', 'Q2')
+    const c = await guest(e.id, 'C', 'Q3')
+    const a1 = await saveGuest(e.id, { ...(await guestToInput(a)), partnerId: b.id }, a)
+    expect((await db.participants.get(b.id))!.partnerId).toBe(a.id)
+    await saveGuest(e.id, { ...(await guestToInput(a1)), partnerId: c.id }, a1)
+    expect((await db.participants.get(b.id))!.partnerId).toBeUndefined()
+    expect((await db.participants.get(c.id))!.partnerId).toBe(a.id)
   })
   it('一格輸入快速新增：分出中文名、英文名、電話', () => {
     expect(parseQuickGuest('陳大文 6000 1234')).toEqual({ name: '陳大文', englishName: '', phone: '60001234' })

@@ -530,6 +530,7 @@ export default function Scan() {
                 const pick = (m: FuzzyMatch) => run(ocr.text, 'OCR', m.entry.p.id)
                 const row = (m: FuzzyMatch) => (
                   <GuestRow
+                    call={false}
                     key={m.entry.p.id}
                     e={m.entry}
                     onClick={() => pick(m)}
@@ -583,6 +584,7 @@ export default function Scan() {
                 const arrived = e.p.attendance !== 'not_arrived'
                 return (
                   <GuestRow
+                    call={false}
                     key={e.p.id}
                     e={e}
                     // 簽到用途：左邊圓圈 = 簽到／取消簽到（需確認）；按名字或右邊按鈕 = 嘉賓詳情

@@ -8000,3 +8000,55 @@ body:has(.rc-dock) .toast {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 修改嘉賓：同行人士（搜尋或點選） */
+.partner-chosen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 4px 4px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.partner-chosen b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.partner-chosen .btn {
+  white-space: nowrap;
+}
+.partner-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.partner-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.partner-list button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border-top: 1px solid var(--border-soft);
+}
+.partner-list button:first-child {
+  border-top: 0;
+}
+.partner-list button.on {
+  background: var(--mode-bg);
+}
+.partner-list small {
+  color: var(--text-2);
+}

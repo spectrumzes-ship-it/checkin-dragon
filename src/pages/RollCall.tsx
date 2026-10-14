@@ -10,7 +10,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { LogOut, MoreHorizontal, RotateCcw, Phone, Printer, Undo2, Plus, ScanLine, Trash2, Armchair, List, ChevronLeft, Check } from 'lucide-react'
 import { db } from '../db/db'
 import type { AttendanceSession, EventRec, RollStatus } from '../db/types'
-import { ROLL_LABEL, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
+import { ScanResult } from '../components/ScanResult'
+import { ROLL_LABEL, type ScanOutcome, clearSession, closeSession, createSession, deleteSession, moveBusSeat, reopenSession, setRollStatus, undoMoveSeat } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { useEventData } from '../lib/hooks'
 import type { GuestEntry } from '../lib/search'
@@ -292,7 +293,8 @@ export function RollCallSession() {
   // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
   const seatMode = useSettings().rollView !== 'list'
   const english = useSettings().language === 'en'
-  const showSeatNo = useSettings().rollSeatNo !== false
+  const seatSplash = useSettings().seatSplash
+  const [splash, setSplash] = useState<ScanOutcome | null>(null) // 點名後的全畫面座位資訊
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -326,8 +328,9 @@ export function RollCallSession() {
   // 點一下名字：未上車 → 已上車；已上車 → 改回（已出發的車會變回未到）。已出發後補登記為遲到
   const toggle = async (e: GuestEntry) => {
     const toPresent = statusOf(e) !== 'present'
-    feedback(toPresent ? 'valid' : 'tap')
+    if (!(toPresent && seatSplash)) feedback(toPresent ? 'valid' : 'tap') // 全畫面結果自己會發聲
     await setRollStatus(session.id, ev.id, e.p, toPresent ? 'present' : isBusClosed(session, busKey(e)) ? 'no_show' : 'pending')
+    if (toPresent && seatSplash) setSplash({ result: 'valid', participant: e.p, seats: e.seats, time: Date.now(), rawValue: '' })
     if (toPresent) {
       setFlash(e.p.id)
       window.setTimeout(() => setFlash((f) => (f === e.p.id ? '' : f)), 900)
@@ -356,12 +359,10 @@ export function RollCallSession() {
       >
         <button className="rc-main" onClick={() => (selecting ? pick(e) : toggle(e))} aria-pressed={selecting ? on : st === 'present'}>
           {selecting && <span className={cx('rc-check', on && 'on')} aria-hidden="true">{on && <Check size={16} strokeWidth={3} />}</span>}
-          {showSeatNo && (
-            <span className={cx('rc-seatno', st === 'present' && 'on')}>
-              <small>{bs?.resource.label ?? '–'}</small>
-              <b>{bs?.seatLabel || '–'}</b>
-            </span>
-          )}
+          <span className={cx('rc-seatno', st === 'present' && 'on')}>
+            <small>{bs?.resource.label ?? '–'}</small>
+            <b>{bs?.seatLabel || '–'}</b>
+          </span>
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
             <span className="muted">
@@ -377,7 +378,7 @@ export function RollCallSession() {
             <Seal className="rc-seal" />
           )}
         </button>
-        {!selecting && st !== 'present' && e.p.phone && (
+        {!selecting && e.p.phone && (
           <a className="icon-btn" href={`tel:${e.p.phone.replace(/\s+/g, '')}`} aria-label={`致電 ${nameOf(e.p)}`}>
             <Phone size={18} />
           </a>
@@ -711,6 +712,7 @@ export function RollCallSession() {
         </section>
       )}
 
+      {splash && <ScanResult outcome={splash} purpose="rollcall" onDone={() => setSplash(null)} />}
       <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu ? `${nameOf(menu.p)} · 點名狀態` : ''}>
         {menu && (
           <div className="rc-menu">

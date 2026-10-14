@@ -406,6 +406,17 @@ export const saveGuest = async (eventId: string, g: GuestInput, existing?: Parti
     }
     await db.tickets.put(ticket)
     await writeSeats(eventId, pid, g)
+    // 同行人士雙方互相連結；改了或移除時，舊的一方亦一併解除
+    if (p.partnerId !== existing?.partnerId) {
+      if (existing?.partnerId) {
+        const old = await db.participants.get(existing.partnerId)
+        if (old?.partnerId === pid) await db.participants.update(old.id, { partnerId: undefined, updatedAt: now })
+      }
+      if (p.partnerId) {
+        const other = await db.participants.get(p.partnerId)
+        if (other && (!other.partnerId || other.partnerId === pid)) await db.participants.update(other.id, { partnerId: pid, updatedAt: now })
+      }
+    }
     await audit(eventId, existing ? '修改嘉賓 Edit Guest' : '新增嘉賓 Add Guest', 'participant', pid, names(p).full)
   })
   return p

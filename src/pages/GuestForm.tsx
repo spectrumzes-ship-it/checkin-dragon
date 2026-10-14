@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { EventRec } from '../db/types'
+import type { EventRec, Participant, Resource } from '../db/types'
 import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefixOf } from '../lib/actions'
 import { feedback } from '../lib/feedback'
-import { cx, ageFromBirth, todayKey } from '../lib/util'
+import { cx, ageFromBirth, todayKey, searchNorm } from '../lib/util'
 import { PageHeader, Sheet, toast } from '../components/ui'
 import CardScanner from '../components/CardScanner'
-import { ScanText } from 'lucide-react'
+import { ScanText, X } from 'lucide-react'
 import { names } from '../lib/names'
 
 
@@ -62,6 +62,7 @@ export default function GuestForm() {
 
   // 選了席號／車：座位自動填上下一個空位（座位空白，或仍是上次自動填的號碼時才會改）
   const seats = useLiveQuery(() => db.seats.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
+  const allPeople = useLiveQuery(() => db.participants.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
   const autoSeat = useRef<Record<string, string>>({})
   const [autoNote, setAutoNote] = useState('')
   const pickPlace = (idKey: 'tableId' | 'busId' | 'dinnerTableId', seatKey: 'tableSeat' | 'busSeat' | 'dinnerSeat', rid: string) => {
@@ -77,14 +78,66 @@ export default function GuestForm() {
       return { ...next, [seatKey]: free }
     })
   }
+
+  // 座位下拉選單：每個座位顯示是否已安排其他人；揀了有人的座位會提示，並建議最近的空位
+  const pName = new Map(partnersAll().map((p) => [p.id, names(p).full]))
+  function partnersAll() {
+    return allPeople
+  }
+  const occupied = (rid: string) => {
+    const m = new Map<string, string>()
+    for (const x of seats) if (x.resourceId === rid && x.participantId !== gid && x.seatLabel) m.set(x.seatLabel, x.participantId)
+    return m
+  }
+  const seatList = (r: Resource | undefined, current: string) => {
+    if (!r) return []
+    const nums = Array.from({ length: r.capacity }, (_, i) => String(i + 1))
+    return current && !nums.includes(current) ? [...nums, current] : nums
+  }
+  const nearestFree = (r: Resource, want: string) => {
+    const taken = occupied(r.id)
+    const n = Number(want)
+    const free = seatList(r, '').filter((x) => !taken.has(x))
+    if (!free.length) return ''
+    if (!n) return free[0]
+    // 圓枱首尾相連；巴士按號碼前後
+    const dist = (x: number) => (r.type === 'table' ? Math.min(Math.abs(x - n), r.capacity - Math.abs(x - n)) : Math.abs(x - n))
+    return [...free].sort((a, b) => dist(+a) - dist(+b) || +b - +a)[0]
+  }
+  const [clash, setClash] = useState<null | { seatKey: 'tableSeat' | 'busSeat' | 'dinnerSeat'; r: Resource; want: string; who: string; suggest: string; prev: string }>(null)
+  const pickSeat = (seatKey: 'tableSeat' | 'busSeat' | 'dinnerSeat', r: Resource | undefined, v: string) => {
+    const prev = g[seatKey]
+    up(seatKey, v)
+    autoSeat.current[seatKey] = ''
+    setAutoNote('')
+    const who = r && v ? occupied(r.id).get(v) : undefined
+    if (r && who) setClash({ seatKey, r, want: v, who: pName.get(who) ?? '其他人', suggest: nearestFree(r, v), prev })
+  }
+  const placeName = (r: Resource) => (r.type === 'bus' ? `${r.label} 車` : `${r.purpose === '晚餐' ? '餐席 ' : ''}第 ${r.label} 席`)
+  const placeOption = (r: Resource) => {
+    const k = occupied(r.id).size
+    return `${placeName(r)} · ${k >= r.capacity ? '已滿' : `${k}/${r.capacity}`}`
+  }
+  const seatSelect = (seatKey: 'tableSeat' | 'busSeat' | 'dinnerSeat', rid: string) => {
+    const r = resources.find((x) => x.id === rid)
+    const taken = r ? occupied(r.id) : new Map<string, string>()
+    return (
+      <select value={g[seatKey]} onChange={(e) => pickSeat(seatKey, r, e.target.value)} disabled={!r}>
+        <option value="">{r ? '未定' : '請先選擇'}</option>
+        {seatList(r, g[seatKey]).map((n) => (
+          <option key={n} value={n}>
+            {n} 號{taken.has(n) ? `　${pName.get(taken.get(n)!) ?? ''}（已安排）` : ''}
+          </option>
+        ))}
+      </select>
+    )
+  }
   const tables = resources.filter((r) => r.type === 'table' && r.purpose !== '晚餐')
   const dinner = resources.filter((r) => r.type === 'table' && r.purpose === '晚餐')
   const buses = resources.filter((r) => r.type === 'bus')
 
   const anonymous = !!ev.modeConfig.anonymous
-  const partners = (useLiveQuery(() => db.participants.where('eventId').equals(ev.id).filter((p) => p.status === 'active' && !p.giftOnly && p.id !== gid).toArray(), [ev.id, gid]) ?? []).sort((a, b) =>
-    names(a).full.localeCompare(names(b).full, 'zh-Hant'),
-  )
+  const partners = allPeople.filter((p) => p.status === 'active' && !p.giftOnly && p.id !== gid).sort((a, b) => names(a).full.localeCompare(names(b).full, 'zh-Hant'))
   const started = !!gid || todayKey() >= ev.date // 活動當日或之後
   const submit = async (andCheckIn: boolean, after?: () => void) => {
     if (!g.name.trim() && !g.englishName.trim() && !(anonymous && g.ticketNumber.trim())) return toast(anonymous ? '請輸入票號或姓名' : '請輸入姓名')
@@ -174,14 +227,14 @@ export default function GuestForm() {
                   <option value="">未安排</option>
                   {tables.map((t) => (
                     <option key={t.id} value={t.id}>
-                      第 {t.label} 席
+                      {placeOption(t)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="field">
                 <span>座位 Seat</span>
-                <input value={g.tableSeat} onChange={(e) => up('tableSeat', e.target.value)} inputMode="numeric" />
+                {seatSelect('tableSeat', g.tableId)}
               </label>
             </div>
           )}
@@ -193,14 +246,14 @@ export default function GuestForm() {
                   <option value="">未安排</option>
                   {buses.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.label} 車
+                      {placeOption(b)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="field">
                 <span>巴士座位 Bus Seat</span>
-                <input value={g.busSeat} onChange={(e) => up('busSeat', e.target.value)} />
+                {seatSelect('busSeat', g.busId)}
               </label>
             </div>
           )}
@@ -212,14 +265,14 @@ export default function GuestForm() {
                   <option value="">未安排</option>
                   {dinner.map((t) => (
                     <option key={t.id} value={t.id}>
-                      第 {t.label} 席
+                      {placeOption(t)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="field">
                 <span>餐席座位 Seat</span>
-                <input value={g.dinnerSeat} onChange={(e) => up('dinnerSeat', e.target.value)} inputMode="numeric" />
+                {seatSelect('dinnerSeat', g.dinnerTableId)}
               </label>
             </div>
           )}
@@ -245,18 +298,11 @@ export default function GuestForm() {
               ))}
             </div>
           </div>
-          {ev.mode === 'bus' && (
-            <label className="field">
-              <span>同行人士（自動分房同住一間）</span>
-              <select value={g.partnerId ?? ''} onChange={(e) => up('partnerId', e.target.value)}>
-                <option value="">沒有／未定</option>
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {names(p).full}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {ev.mode !== 'gift' && (
+            <div className="field">
+              <span>{ev.mode === 'bus' ? '同行人士（自動分房同住一間）' : '同行人士'}</span>
+              <PartnerPicker value={g.partnerId ?? ''} people={partners} onChange={(v) => up('partnerId', v)} />
+            </div>
           )}
         </fieldset>
 
@@ -360,6 +406,33 @@ export default function GuestForm() {
       </form>
 
       <Sheet
+        open={!!clash}
+        onClose={() => (clash && up(clash.seatKey, clash.prev), setClash(null))}
+        title="座位已有人"
+        footer={
+          clash && (
+            <>
+              <button className="btn btn-ghost" onClick={() => (up(clash.seatKey, clash.prev), setClash(null))}>
+                揀其他座位
+              </button>
+              {clash.suggest && (
+                <button className="btn btn-primary" onClick={() => (up(clash.seatKey, clash.suggest), setClash(null))}>
+                  改坐 {clash.suggest} 號
+                </button>
+              )}
+            </>
+          )
+        }
+      >
+        {clash && (
+          <p className="confirm-msg">
+            {placeName(clash.r)} {clash.want} 號已安排給 <b>{clash.who}</b>。
+            {clash.suggest ? `最近的空位是 ${clash.suggest} 號，要改坐 ${clash.suggest} 號嗎？` : `${placeName(clash.r)}已經坐滿，請選擇其他${clash.r.type === 'bus' ? '車' : '席'}。`}
+          </p>
+        )}
+      </Sheet>
+
+      <Sheet
         open={!!leave}
         onClose={() => setLeave(null)}
         title="未儲存的修改"
@@ -394,6 +467,53 @@ export default function GuestForm() {
       >
         <p className="confirm-msg">你修改了{gid ? '嘉賓資料' : '新嘉賓的資料'}但未儲存。離開前要儲存嗎？</p>
       </Sheet>
+    </div>
+  )
+}
+
+// 同行人士：輸入名字搜尋，或直接在清單點選
+function PartnerPicker({ value, people, onChange }: { value: string; people: Participant[]; onChange: (v: string) => void }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const chosen = people.find((p) => p.id === value)
+  if (chosen && !open)
+    return (
+      <div className="partner-chosen">
+        <b>{names(chosen).full}</b>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => (setOpen(true), setQ(''))}>
+          更改
+        </button>
+        <button type="button" className="icon-btn" aria-label="移除同行人士" onClick={() => onChange('')}>
+          <X size={18} />
+        </button>
+      </div>
+    )
+  const k = searchNorm(q)
+  const list = (k ? people.filter((p) => searchNorm([p.name, p.englishName, p.phone, p.memberId].join(' ')).includes(k)) : people).slice(0, 30)
+  return (
+    <div className="partner-pick">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="輸入名字搜尋，或在下面點選" onFocus={() => setOpen(true)} />
+      <div className="partner-list" role="listbox">
+        {list.map((p) => (
+          <button
+            type="button"
+            role="option"
+            aria-selected={p.id === value}
+            key={p.id}
+            className={p.id === value ? 'on' : ''}
+            onClick={() => (onChange(p.id), setOpen(false), setQ(''))}
+          >
+            <b>{names(p).primary}</b>
+            <small>{names(p).secondary}</small>
+          </button>
+        ))}
+        {list.length === 0 && <p className="muted pad center">找不到「{q}」</p>}
+      </div>
+      {chosen && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
+          不更改
+        </button>
+      )}
     </div>
   )
 }

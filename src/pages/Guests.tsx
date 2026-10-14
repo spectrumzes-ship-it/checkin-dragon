@@ -16,6 +16,8 @@ import { checkIn, emptyGuest, generateTickets, parseQuickGuest, saveGuest, undoC
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
+import { useSettings } from '../lib/settings'
+import { ScanResult } from '../components/ScanResult'
 import { nameOf } from '../lib/names'
 
 type Filter = 'all' | 'left' | 'gift_only' | 'arrived' | 'not_arrived' | 'vip' | 'cancelled' | 'manual' | 'souvenir' | 'no_souvenir'
@@ -34,6 +36,8 @@ export default function Guests() {
   const filter = (params.get('filter') as Filter) || 'all'
   const [sort, setSort] = useState<Sort>('name')
   const [q, setQ] = useState('')
+  const seatSplash = useSettings().seatSplash
+  const [splash, setSplash] = useState<ScanOutcome | null>(null) // 名單簽到後的全畫面座位資訊
   const [undoP, setUndoP] = useState<Participant | null>(null)
   const [swiped, setSwiped] = useState('') // 向左拉開了刪除按鈕的嘉賓
   const [delGuest, setDelGuest] = useState<Participant | null>(null)
@@ -309,8 +313,11 @@ export default function Guests() {
                       onMarkClick={gift ? () => giveFromList(e) : async () => {
                         if (e.p.attendance !== 'not_arrived') return setUndoP(e.p)
                         await checkIn(e.p, 'SEARCH', 'checkin', '', e.tickets[0])
-                        feedback('valid')
-                        toast(`✓ ${nameOf(e.p)} 已簽到`)
+                        if (seatSplash) setSplash({ result: 'valid', participant: e.p, seats: e.seats, time: Date.now(), rawValue: '' })
+                        else {
+                          feedback('valid')
+                          toast(`✓ ${nameOf(e.p)} 已簽到`)
+                        }
                       }}
                     />
                     </SwipeRow>
@@ -326,6 +333,7 @@ export default function Guests() {
           <GuestDetail ev={ev} gid={gid} entry={index.find((e) => e.p.id === gid)} onClose={() => nav(`/e/${ev.id}/guests${params.size ? `?${params}` : ''}`)} />
         </aside>
       )}
+      {splash && <ScanResult outcome={splash} purpose="checkin" onDone={() => setSplash(null)} />}
       <Sheet open={!!giftFor} onClose={() => setGiftFor(null)} title={`派發給 ${giftFor ? nameOf(giftFor.p) : ''}`}>
         <div className="menu-list">
           <button
