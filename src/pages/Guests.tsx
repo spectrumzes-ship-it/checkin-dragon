@@ -12,7 +12,7 @@ import { searchGuests, type GuestEntry } from '../lib/search'
 import { GuestsArt } from '../illustrations'
 import { GuestRow } from '../components/GuestRow'
 import { CarsBar, ConfirmSheet, EmptyState, FilterChip, SearchBar, Sheet, toast } from '../components/ui'
-import { checkIn, generateTickets, undoCheckIn, deleteGuestPermanently, logicOf, verifyAllSouvenirs, verifySouvenir, type ScanOutcome } from '../lib/actions'
+import { checkIn, emptyGuest, generateTickets, parseQuickGuest, saveGuest, undoCheckIn, deleteGuestPermanently, logicOf, verifyAllSouvenirs, verifySouvenir, type ScanOutcome } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import type { Participant } from '../db/types'
 import GuestDetail from './GuestDetail'
@@ -255,7 +255,32 @@ export default function Guests() {
               />
             </div>
           ) : list.length === 0 ? (
-            <p className="muted pad center">沒有符合的嘉賓</p>
+            (() => {
+              // 一格輸入快速新增：找不到就可以直接用搜尋的文字新增（姓名＋電話），其他資料之後再補
+              const qg = parseQuickGuest(dq)
+              const can = !anonymous && !!(qg.name || qg.englishName)
+              return (
+                <div className="quick-add">
+                  <p className="muted center">沒有符合的嘉賓</p>
+                  {can && (
+                    <>
+                      <button
+                        className="btn btn-primary btn-block"
+                        onClick={async () => {
+                          const p = await saveGuest(ev.id, { ...emptyGuest(), ...qg })
+                          setQ('')
+                          feedback('valid')
+                          toast(`已新增 ${nameOf(p)}${qg.phone ? `（${qg.phone}）` : ''}；按名字可補其他資料`)
+                        }}
+                      >
+                        <Plus size={18} /> 快速新增「{[qg.name, qg.englishName].filter(Boolean).join(' ')}」{qg.phone && ` · ${qg.phone}`}
+                      </button>
+                      <p className="hint center">提示：可直接輸入「姓名 電話」，例如「陳大文 6000 1234」，再按這裏新增</p>
+                    </>
+                  )}
+                </div>
+              )
+            })()
           ) : (
             <div ref={listRef} className="vlist card" style={{ height: virt.getTotalSize() }}>
               {virt.getVirtualItems().map((v) => {

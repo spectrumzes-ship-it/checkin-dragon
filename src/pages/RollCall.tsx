@@ -274,6 +274,21 @@ export function RollCallSession() {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [pane, setPane] = useState('') // 點名頁顯示哪一組：巴士 id／'none'／'everyone'（全員名單）
   const swipe = useRef<{ x: number; y: number } | null>(null)
+  // 座位表：長按座位（約半秒）打開狀態選單（在途中、請假等）；短按 = 上車／取消
+  const press = useRef<{ timer: number; fired: boolean } | null>(null)
+  const pressStart = (e: GuestEntry) => {
+    if (press.current) clearTimeout(press.current.timer)
+    const st = { fired: false, timer: 0 }
+    st.timer = window.setTimeout(() => {
+      st.fired = true
+      feedback('tap')
+      setMenu(e)
+    }, 550)
+    press.current = st
+  }
+  const pressEnd = () => {
+    if (press.current && !press.current.fired) clearTimeout(press.current.timer)
+  }
   // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
   const seatMode = useSettings().rollView !== 'list'
   const english = useSettings().language === 'en'
@@ -421,7 +436,8 @@ export function RollCallSession() {
           <button className="btn btn-ghost btn-sm" onClick={() => setConfirmClear(true)} disabled={recs.length === 0 && !session.closedAt && !Object.keys(session.closedBuses ?? {}).length}>
             <RotateCcw size={16} /> 重新點名
           </button>
-          <Link to={`/e/${ev.id}/scan?p=r:${session.id}`} className="btn btn-primary btn-sm">
+          {/* 由某架車的名單按掃描：掃到其他車的人會提醒 */}
+          <Link to={`/e/${ev.id}/scan?p=r:${session.id}${view === 'roll' && current !== EVERYONE && current !== NO_BUS ? `&bus=${current}` : ''}`} className="btn btn-primary btn-sm">
             <ScanLine size={18} /> 掃描
           </Link>
         </div>
@@ -526,7 +542,7 @@ export function RollCallSession() {
                     const noSeat = grp.list.filter((e) => seatNo(e) === 999 || seatNo(e) > rows.flat().filter(Boolean).length)
                     return (
                       <>
-                        <p className="hint">點座位即上車／取消；在途中、請假等其他狀態請用「名單」的「⋯」。</p>
+                        <p className="hint">點座位即上車／取消；長按座位可設為在途中、請假等其他狀態。</p>
                         <div className="rc-seatmap">
                           <div className="bus-front">車頭 Front</div>
                           {rows.map((row, r) => (
@@ -541,7 +557,20 @@ export function RollCallSession() {
                                 )
                                 const st = statusOf(e)
                                 return (
-                                  <button key={k} className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just', english && 'seal-en')} onClick={() => toggle(e)} aria-pressed={st === 'present'}>
+                                  <button
+                                    key={k}
+                                    className={cx('rc-seat-cell', st === 'present' && 'here', flash === e.p.id && 'just', english && 'seal-en')}
+                                    onPointerDown={() => pressStart(e)}
+                                    onPointerUp={pressEnd}
+                                    onPointerLeave={pressEnd}
+                                    onPointerCancel={pressEnd}
+                                    onContextMenu={(x) => (x.preventDefault(), pressEnd(), setMenu(e))}
+                                    onClick={() => {
+                                      if (press.current?.fired) return void (press.current = null) // 長按已打開選單，不再當作點一下
+                                      toggle(e)
+                                    }}
+                                    aria-pressed={st === 'present'}
+                                  >
                                     <small>{n}</small>
                                     <strong>{names(e.p).primary}</strong>
                                     {st !== 'pending' && st !== 'present' && <em>{ROLL_LABEL[st]}</em>}

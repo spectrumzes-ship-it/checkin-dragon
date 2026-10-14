@@ -1,5 +1,5 @@
 import { useSettings } from '../lib/settings'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -7,7 +7,7 @@ import type { EventRec } from '../db/types'
 import { checkIn, emptyGuest, guestToInput, saveGuest, type GuestInput, idPrefixOf } from '../lib/actions'
 import { feedback } from '../lib/feedback'
 import { cx, ageFromBirth, todayKey } from '../lib/util'
-import { PageHeader, toast } from '../components/ui'
+import { PageHeader, Sheet, toast } from '../components/ui'
 import CardScanner from '../components/CardScanner'
 import { ScanText } from 'lucide-react'
 import { names } from '../lib/names'
@@ -23,12 +23,60 @@ export default function GuestForm() {
   const [g, setG] = useState<GuestInput>(emptyGuest)
   const [more, setMore] = useState(false)
   const [scan, setScan] = useState(false)
+  // 未儲存的修改：與打開時的資料比較；離開前問是否儲存
+  const [base, setBase] = useState(() => JSON.stringify(emptyGuest()))
+  const [leave, setLeave] = useState<null | (() => void)>(null)
+  const dirty = JSON.stringify(g) !== base
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
 
   useEffect(() => {
-    if (existing) guestToInput(existing).then((x) => (setG(x), setMore(true)))
+    if (existing) guestToInput(existing).then((x) => (setG(x), setBase(JSON.stringify(x)), setMore(true)))
   }, [existing])
 
+  // 按頁面以外的連結（底部選單、活動分頁等）或關閉瀏覽器時，先問是否儲存
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!dirtyRef.current) return
+      const a = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null
+      if (!a || a.closest('form') || a.target === '_blank' || /^(tel|mailto):/.test(a.getAttribute('href') ?? '')) return
+      const href = a.getAttribute('href') ?? ''
+      if (!href.startsWith('#/')) return
+      e.preventDefault()
+      e.stopPropagation()
+      setLeave(() => () => nav(href.slice(1)))
+    }
+    const onUnload = (e: BeforeUnloadEvent) => {
+      if (dirtyRef.current) e.preventDefault()
+    }
+    document.addEventListener('click', onClick, true)
+    window.addEventListener('beforeunload', onUnload)
+    return () => {
+      document.removeEventListener('click', onClick, true)
+      window.removeEventListener('beforeunload', onUnload)
+    }
+  }, [nav])
+  const guard = (go: () => void) => (dirty ? setLeave(() => go) : go())
+
   const up = <K extends keyof GuestInput>(k: K, v: GuestInput[K]) => setG((s) => ({ ...s, [k]: v }))
+
+  // 選了席號／車：座位自動填上下一個空位（座位空白，或仍是上次自動填的號碼時才會改）
+  const seats = useLiveQuery(() => db.seats.where('eventId').equals(ev.id).toArray(), [ev.id]) ?? []
+  const autoSeat = useRef<Record<string, string>>({})
+  const [autoNote, setAutoNote] = useState('')
+  const pickPlace = (idKey: 'tableId' | 'busId' | 'dinnerTableId', seatKey: 'tableSeat' | 'busSeat' | 'dinnerSeat', rid: string) => {
+    const r = resources.find((x) => x.id === rid)
+    setG((s) => {
+      const next = { ...s, [idKey]: rid }
+      const cur = s[seatKey]
+      if (!r || (cur && cur !== autoSeat.current[seatKey])) return next
+      const taken = new Set(seats.filter((x) => x.resourceId === rid && x.participantId !== gid).map((x) => x.seatLabel))
+      const free = Array.from({ length: r.capacity }, (_, i) => String(i + 1)).find((n) => !taken.has(n)) ?? ''
+      autoSeat.current[seatKey] = free
+      setAutoNote(free ? `已自動填上${r.type === 'bus' ? ` ${r.label} 車` : ` 第 ${r.label} 席`}的下一個空位：${free} 號（可修改）` : `${r.type === 'bus' ? `${r.label} 車` : `第 ${r.label} 席`}已坐滿`)
+      return { ...next, [seatKey]: free }
+    })
+  }
   const tables = resources.filter((r) => r.type === 'table' && r.purpose !== '晚餐')
   const dinner = resources.filter((r) => r.type === 'table' && r.purpose === '晚餐')
   const buses = resources.filter((r) => r.type === 'bus')
@@ -38,7 +86,7 @@ export default function GuestForm() {
     names(a).full.localeCompare(names(b).full, 'zh-Hant'),
   )
   const started = !!gid || todayKey() >= ev.date // 活動當日或之後
-  const submit = async (andCheckIn: boolean) => {
+  const submit = async (andCheckIn: boolean, after?: () => void) => {
     if (!g.name.trim() && !g.englishName.trim() && !(anonymous && g.ticketNumber.trim())) return toast(anonymous ? '請輸入票號或姓名' : '請輸入姓名')
     const p = await saveGuest(ev.id, g, existing ?? undefined)
     if (andCheckIn) {
@@ -47,12 +95,15 @@ export default function GuestForm() {
       feedback('valid')
       toast(`✓ ${p.englishName || p.name} 已新增並簽到`)
     } else toast(existing ? '已儲存' : '已新增嘉賓')
-    nav(`/e/${ev.id}/guests/${p.id}`, { replace: true })
+    setBase(JSON.stringify(g))
+    dirtyRef.current = false
+    if (after) after()
+    else nav(`/e/${ev.id}/guests/${p.id}`, { replace: true })
   }
 
   return (
     <div className="page narrow">
-      <PageHeader zh={gid ? '修改嘉賓' : '新增嘉賓'} en={gid ? 'Edit Guest' : 'Add Guest'} back />
+      <PageHeader zh={gid ? '修改嘉賓' : '新增嘉賓'} en={gid ? 'Edit Guest' : 'Add Guest'} back onBack={guard} />
       {/* 登記參加者：文字辨識（自動填寫）或手動輸入；不需要掃描 QR */}
       <button type="button" className="btn btn-mode btn-block scan-fill" onClick={() => setScan(true)}>
         <ScanText size={18} /> 文字辨識 · 自動填寫
@@ -119,7 +170,7 @@ export default function GuestForm() {
             <div className="field-row">
               <label className="field">
                 <span>席號 Table</span>
-                <select value={g.tableId} onChange={(e) => up('tableId', e.target.value)}>
+                <select value={g.tableId} onChange={(e) => pickPlace('tableId', 'tableSeat', e.target.value)}>
                   <option value="">未安排</option>
                   {tables.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -138,7 +189,7 @@ export default function GuestForm() {
             <div className="field-row">
               <label className="field">
                 <span>巴士 Bus</span>
-                <select value={g.busId} onChange={(e) => up('busId', e.target.value)}>
+                <select value={g.busId} onChange={(e) => pickPlace('busId', 'busSeat', e.target.value)}>
                   <option value="">未安排</option>
                   {buses.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -157,7 +208,7 @@ export default function GuestForm() {
             <div className="field-row">
               <label className="field">
                 <span>餐席 Meal Table</span>
-                <select value={g.dinnerTableId} onChange={(e) => up('dinnerTableId', e.target.value)}>
+                <select value={g.dinnerTableId} onChange={(e) => pickPlace('dinnerTableId', 'dinnerSeat', e.target.value)}>
                   <option value="">未安排</option>
                   {dinner.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -172,6 +223,7 @@ export default function GuestForm() {
               </label>
             </div>
           )}
+          {autoNote && (tables.length > 0 || buses.length > 0 || dinner.length > 0) && <p className="hint">{autoNote}</p>}
 
           <div className="field-row">
             <label className="field check">
@@ -294,7 +346,7 @@ export default function GuestForm() {
         )}
 
         <div className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => nav(-1)}>
+          <button type="button" className="btn btn-ghost" onClick={() => guard(() => nav(-1))}>
             取消
           </button>
           {/* 活動日之前是預先輸入名單，只有「新增」；活動當日起才有「新增並簽到」 */}
@@ -306,6 +358,42 @@ export default function GuestForm() {
           )}
         </div>
       </form>
+
+      <Sheet
+        open={!!leave}
+        onClose={() => setLeave(null)}
+        title="未儲存的修改"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setLeave(null)}>
+              繼續修改
+            </button>
+            <button
+              className="btn btn-danger-ghost"
+              onClick={() => {
+                const go = leave
+                setLeave(null)
+                dirtyRef.current = false
+                go?.()
+              }}
+            >
+              不儲存
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                const go = leave
+                setLeave(null)
+                submit(false, go ?? undefined)
+              }}
+            >
+              儲存
+            </button>
+          </>
+        }
+      >
+        <p className="confirm-msg">你修改了{gid ? '嘉賓資料' : '新嘉賓的資料'}但未儲存。離開前要儲存嗎？</p>
+      </Sheet>
     </div>
   )
 }

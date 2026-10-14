@@ -90,6 +90,7 @@ export interface ScanOutcome {
   otherEventName?: string
   souvenir?: { item: SouvenirItem; quantity: number }
   rawValue: string
+  caution?: boolean // 已登記，但要工作人員留意（例如坐錯車）
 }
 
 export const seatsFor = async (participantId: string) => {
@@ -674,7 +675,7 @@ export const deleteSession = async (sessionId: string, eventId: string, name: st
 }
 
 // 在點名中掃描
-export const verifyRollCall = async (eventId: string, sessionId: string, raw: string, method: ScanMethod, participantId?: string): Promise<ScanOutcome> => {
+export const verifyRollCall = async (eventId: string, sessionId: string, raw: string, method: ScanMethod, participantId?: string, expectedBus?: string): Promise<ScanOutcome> => {
   const now = Date.now()
   const found = participantId ? { participant: (await db.participants.get(participantId))! } : await findByCode(raw, method === 'QR')
   if (!found?.participant || found.participant.eventId !== eventId) {
@@ -696,8 +697,21 @@ export const verifyRollCall = async (eventId: string, sessionId: string, raw: st
   }
   await setRollStatus(sessionId, eventId, p, 'present')
   const late = !!(await db.attendance.get(`${sessionId}:${p.id}`))?.late
-  await logScan(eventId, 'rollcall', raw, method, 'valid', late ? '遲到補登' : '', p.id)
-  return { result: 'valid', reason: late ? '點名已結束，已補登為「已上車（遲到）」' : undefined, participant: p, seats, time: now, rawValue: raw }
+  // 在某架車點名時掃到另一架車的人：照樣登記上車，但提醒工作人員核對
+  const myBus = seats.find((x) => x.resource.type === 'bus')
+  const wrongBus = !!expectedBus && (myBus?.resource.id ?? '') !== expectedBus
+  const here = wrongBus ? (await db.resources.get(expectedBus!))?.label : ''
+  const busNote = wrongBus ? (myBus ? `此人屬 ${myBus.resource.label} 車${myBus.seatLabel ? ` ${myBus.seatLabel} 號` : ''}，不是 ${here} 車，請核對` : `此人未分車（不是 ${here} 車），請核對`) : ''
+  await logScan(eventId, 'rollcall', raw, method, 'valid', [late ? '遲到補登' : '', wrongBus ? '坐錯車' : ''].filter(Boolean).join('、'), p.id)
+  return {
+    result: 'valid',
+    reason: [busNote, late ? '點名已結束，已補登為「已上車（遲到）」' : ''].filter(Boolean).join('。') || undefined,
+    caution: wrongBus,
+    participant: p,
+    seats,
+    time: now,
+    rawValue: raw,
+  }
 }
 
 // ---------- 紀念品 ----------
@@ -1388,4 +1402,15 @@ export function defaultCouponText(item: SouvenirItem, venue?: string): string {
 }
 export function defaultCouponNote(eventName: string): string {
   return `※ 每券換領一次，影印無效。${eventName}`
+}
+
+// 一格輸入快速新增：「陳大文 6000 1234」「CHAN TAI MAN 60001234」→ 中文姓名、英文姓名、電話
+export const parseQuickGuest = (text: string) => {
+  const t = text.normalize('NFKC').trim()
+  const phoneM = /(?:\+?\d[\d\s-]{6,}\d)/.exec(t)
+  const phone = phoneM ? phoneM[0].replace(/[\s-]/g, '') : ''
+  const rest = phoneM ? t.replace(phoneM[0], ' ') : t
+  const name = (rest.match(/[\u3400-\u9fff]+/g) ?? []).join('')
+  const englishName = (rest.match(/[A-Za-z][A-Za-z.'-]*/g) ?? []).join(' ').toUpperCase()
+  return { name, englishName, phone: phone.length >= 8 ? phone : '' }
 }

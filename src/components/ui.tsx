@@ -31,18 +31,21 @@ export const PageHeader = ({
   zh,
   en,
   back,
+  onBack,
   actions,
 }: {
   zh: string
   en?: string
   back?: string | true
+  onBack?: (go: () => void) => void // 離開前先檢查（例如有未儲存的修改）；go() = 真正返回
   actions?: ReactNode
 }) => {
   const nav = useNavigate()
+  const go = () => (back === true ? nav(-1) : back ? nav(back) : undefined)
   return (
     <header className="page-header">
       {back && (
-        <button className="icon-btn" aria-label="返回" onClick={() => (back === true ? nav(-1) : nav(back))}>
+        <button className="icon-btn" aria-label="返回" onClick={() => (onBack ? onBack(go) : go())}>
           <ChevronLeft size={22} />
         </button>
       )}

@@ -48,10 +48,11 @@ export const ScanResult = ({
   }
   if (outcome.result === 'valid' && purpose === 'souvenir') Object.assign(look, { en: 'COLLECT', zh: '可領取' })
   if (outcome.result === 'valid' && purpose === 'rollcall') Object.assign(look, { en: 'PRESENT', zh: '已到' })
+  if (outcome.caution) Object.assign(look, { tone: 'warn', sym: CircleAlert, en: 'CHECK BUS', zh: '已到 · 請核對車' })
 
   useEffect(() => {
     const r = outcome.result
-    feedback(r === 'valid' ? 'valid' : r === 'manual' ? 'manual' : r === 'duplicate' || r === 'out_of_stock' ? 'duplicate' : 'invalid')
+    feedback(outcome.caution ? 'manual' : r === 'valid' ? 'valid' : r === 'manual' ? 'manual' : r === 'duplicate' || r === 'out_of_stock' ? 'duplicate' : 'invalid')
   }, [outcome])
 
   // 重複、無效時多留 1 秒；有席位／車位（宴會、巴士）時多留 3 秒（照顧年長工作人員），讓工作人員看清楚席號及座號

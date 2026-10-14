@@ -279,7 +279,7 @@ export default function Scan() {
       // 文字辨識：紀錄只保存身份證號碼頭 4 位
       if (method === 'OCR') raw = maskIdNumbers(raw)
       if (purpose === 'souvenir') out = targetId === '*' ? await verifyAllSouvenirs(id, raw, method, pid) : await verifySouvenir(id, targetId, raw, method, pid)
-      else if (purpose === 'rollcall') out = await verifyRollCall(id, targetId, raw, method, pid)
+      else if (purpose === 'rollcall') out = await verifyRollCall(id, targetId, raw, method, pid, params.get('bus') ?? undefined)
       else out = await verifyCheckIn(id, raw, method, pid)
       setOcr(null)
       setSnap(null)

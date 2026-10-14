@@ -15,6 +15,7 @@ import {
   reopenSession,
   setRollStatus,
   verifyRollCall,
+  parseQuickGuest,
   setLeftTrip,
   mergeCompanion,
   registerAndRedeem,
@@ -351,6 +352,26 @@ describe('旅遊模式房間', () => {
 })
 
 describe('點名狀態', () => {
+  it('在 A 車點名時掃到 B 車的人：照樣上車，但提醒坐錯車', async () => {
+    const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }, { label: 'B', capacity: 45 }] })
+    const rs = await db.resources.where('eventId').equals(e.id).toArray()
+    const A = rs.find((r) => r.label === 'A')!
+    const B = rs.find((r) => r.label === 'B')!
+    await guest(e.id, 'X', 'P1', { busId: B.id, busSeat: '12' })
+    await guest(e.id, 'Y', 'P2', { busId: A.id, busSeat: '3' })
+    const s = await createSession(e.id, '出發', '09:00', '', '')
+    const wrong = await verifyRollCall(e.id, s.id, 'P1', 'QR', undefined, A.id)
+    expect(wrong.result).toBe('valid')
+    expect(wrong.caution).toBe(true)
+    expect(wrong.reason).toContain('B 車 12 號')
+    const right = await verifyRollCall(e.id, s.id, 'P2', 'QR', undefined, A.id)
+    expect(right.caution).toBe(false)
+  })
+  it('一格輸入快速新增：分出中文名、英文名、電話', () => {
+    expect(parseQuickGuest('陳大文 6000 1234')).toEqual({ name: '陳大文', englishName: '', phone: '60001234' })
+    expect(parseQuickGuest('chan tai man 9123-4567')).toEqual({ name: '', englishName: 'CHAN TAI MAN', phone: '91234567' })
+    expect(parseQuickGuest('李小明')).toEqual({ name: '李小明', englishName: '', phone: '' })
+  })
   it('進行中只有待上車；結束點名才把待上車變未到；補登記為遲到；重新開放變回待上車', async () => {
     const e = await saveEvent({ ...ev('T'), mode: 'bus', buses: [{ label: 'A', capacity: 45 }] })
     const a = await guest(e.id, 'A', 'P1')
