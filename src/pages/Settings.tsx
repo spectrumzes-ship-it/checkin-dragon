@@ -239,6 +239,13 @@ export default function Settings() {
         </Item>
       </div>
 
+      <SectionTitle zh="點名" en="Roll Call" />
+      <div className="card set-group">
+        <Item zh="名單點名顯示座位號" en="Seat No. in List" hint="用「名單」點名時，每行左邊的彩色方塊（車號＋座位號，上車後變綠色）；關閉後只顯示姓名">
+          <Toggle label="名單點名顯示座位號" on={s.rollSeatNo} onChange={(v) => set({ rollSeatNo: v })} />
+        </Item>
+      </div>
+
       <SectionTitle zh="操作員與裝置" en="Operator & Device" />
       <div className="card set-group">
         <Item zh="操作員名字" en="Operator" hint="會記錄在每一個操作">

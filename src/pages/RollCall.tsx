@@ -277,6 +277,7 @@ export function RollCallSession() {
   // 所有裝置預設用座位表點名；可手動改為名單，選擇會記住在這部裝置
   const seatMode = useSettings().rollView !== 'list'
   const english = useSettings().language === 'en'
+  const showSeatNo = useSettings().rollSeatNo !== false
 
   const recOf = useMemo(() => new Map(recs.map((r) => [r.participantId, r])), [recs])
   const busKey = (e: GuestEntry) => e.seats.find((x) => x.resource.type === 'bus')?.resource.id ?? NO_BUS
@@ -340,10 +341,12 @@ export function RollCallSession() {
       >
         <button className="rc-main" onClick={() => (selecting ? pick(e) : toggle(e))} aria-pressed={selecting ? on : st === 'present'}>
           {selecting && <span className={cx('rc-check', on && 'on')} aria-hidden="true">{on && <Check size={16} strokeWidth={3} />}</span>}
-          <span className={cx('rc-seatno', st === 'present' && 'on')}>
-            <small>{bs?.resource.label ?? '–'}</small>
-            <b>{bs?.seatLabel || '–'}</b>
-          </span>
+          {showSeatNo && (
+            <span className={cx('rc-seatno', st === 'present' && 'on')}>
+              <small>{bs?.resource.label ?? '–'}</small>
+              <b>{bs?.seatLabel || '–'}</b>
+            </span>
+          )}
           <span className="rc-name">
             <strong>{names(e.p).primary}</strong>
             <span className="muted">

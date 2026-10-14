@@ -27,6 +27,14 @@ export default function Print() {
   const tids = params.get('tids')?.split(',').filter(Boolean) ?? null
   const ev = useEvent(id)
   const { data, index } = useEventData(id)
+  // 螢幕預覽：每頁按真實 A4 尺寸（210 × 297 毫米）排版，再按螢幕闊度整頁縮小，手機看到的就是列印出來的樣子
+  const [paperZoom, setPaperZoom] = useState(1)
+  useEffect(() => {
+    const fit = () => setPaperZoom(Math.min(1, (window.innerWidth - 16) / ((210 * 96) / 25.4)))
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [])
 
   const tables = useMemo(() => {
     if (!data) return []
@@ -77,7 +85,7 @@ export default function Print() {
   const checkLabel = ev.mode === 'bus' ? '報到' : '簽到'
 
   return (
-    <div className="print-page">
+    <div className="print-page" style={{ ['--paper-zoom' as string]: paperZoom }}>
       <div className="print-toolbar no-print">
         <Link to={type === 'coupons' ? `/e/${ev.id}/souvenirs/records?item=${params.get('item') ?? ''}` : type === 'rooms' ? `/e/${ev.id}/rooms` : type === 'bus' ? `/e/${ev.id}/seats` : type === 'all' ? `/e/${ev.id}/guests` : `/e/${ev.id}/tables?view=list`} className="icon-btn" aria-label="返回">
           <ChevronLeft size={22} />

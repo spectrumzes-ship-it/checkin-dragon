@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Gift } from 'lucide-react'
+import { Gift, Phone } from 'lucide-react'
 import type { GuestEntry } from '../lib/search'
 import { cx, formatTime, roomText } from '../lib/util'
 import { SoftTag, VipBadge } from './ui'
@@ -34,6 +34,7 @@ export const GuestRow = ({
   onMarkClick,
   mark,
   seating = true,
+  call = false,
 }: {
   e: GuestEntry
   onClick?: () => void
@@ -43,6 +44,7 @@ export const GuestRow = ({
   mark?: ReactNode // 取代左邊的簽到狀態圖示（例如紀念品名單顯示「已領取」圖案）
   onMarkClick?: () => void // 按左邊狀態圓圈：快速簽到／取消簽到
   seating?: boolean // 活動有席位／巴士時才顯示「未安排座位」
+  call?: boolean // 右邊顯示撥號按鈕（沒有電話就留空位，令各行對齊）
 }) => {
   const p = e.p
   const row = (
@@ -77,6 +79,26 @@ export const GuestRow = ({
     </>
   )
   const cls = cx('guest-row', selected && 'selected', p.status === 'cancelled' && 'cancelled')
+  const tel = p.phone.replace(/[^\d+]/g, '')
+  const callBtn = call ? (
+    tel ? (
+      <a className="call-btn" href={`tel:${tel}`} aria-label={`致電 ${names(p).primary}`} title={`致電 ${p.phone}`}>
+        <Phone size={20} />
+      </a>
+    ) : (
+      <span className="call-btn none" aria-hidden="true" />
+    )
+  ) : null
+  if (call && (!onMarkClick || p.status === 'cancelled'))
+    return (
+      <div className={cx(cls, 'split')}>
+        <button type="button" className="guest-row-btn plain" onClick={onClick}>
+          {mark ? <span className="status-mark">{mark}</span> : <StatusMark e={e} />}
+          {row}
+        </button>
+        {callBtn}
+      </div>
+    )
   if (!onMarkClick || p.status === 'cancelled')
     return (
       <button type="button" className={cls} onClick={onClick}>
@@ -97,6 +119,7 @@ export const GuestRow = ({
       <button type="button" className="guest-row-btn" onClick={onClick}>
         {row}
       </button>
+      {callBtn}
     </div>
   )
 }

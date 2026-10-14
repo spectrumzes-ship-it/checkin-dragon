@@ -7939,3 +7939,50 @@ body:has(.rc-dock) .toast {
     bottom: calc(84px + var(--safe-b, 0px));
   }
 }
+
+/* 列印預覽：螢幕上每頁都是真實 A4 紙（210 × 297 毫米、四邊 12 毫米），再整頁縮放到螢幕闊度 */
+@media screen {
+  .print-page {
+    padding: 12px 8px;
+    overflow-x: hidden;
+  }
+  .print-page .print-sheet {
+    box-sizing: border-box;
+    width: 210mm;
+    max-width: none;
+    min-height: 297mm;
+    padding: 12mm;
+    margin: 0 auto 16px;
+    border-radius: 2px;
+    border: 1px solid #dcd8cf;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    zoom: var(--paper-zoom, 1);
+  }
+  .print-page .gc-sheet.w140 {
+    width: 210mm;
+    padding: 12mm 35mm; /* 140 毫米券置中：(210 − 140) ÷ 2 */
+  }
+}
+
+/* 嘉賓名單：右邊撥號按鈕（左：點名圓圈；中：姓名資料，按入去看詳情；右：致電） */
+.call-btn {
+  flex-shrink: 0;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--ok-bg, #e4f3e8);
+  color: var(--ok-ink, #23683a);
+}
+.call-btn:active {
+  filter: brightness(0.92);
+}
+.call-btn.none {
+  background: none;
+}
+.guest-row-btn.plain {
+  padding-left: 16px;
+}
