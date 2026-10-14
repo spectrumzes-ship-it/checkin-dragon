@@ -7713,3 +7713,229 @@ body:has(.rc-dock) .toast {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ===== 匯入名單 ===== */
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.import-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 16px;
+  margin-bottom: 12px;
+  border: 2px dashed var(--border);
+  border-radius: var(--r-lg, 18px);
+  background: var(--surface);
+  color: var(--text-2);
+  text-align: center;
+  cursor: pointer;
+}
+.import-drop.on {
+  border-color: var(--mode-solid, var(--brand));
+  background: var(--mode-bg, var(--surface-2));
+}
+.import-drop b {
+  font-size: 18px;
+  color: var(--text);
+}
+.import-drop .btn {
+  margin-top: 8px;
+}
+.import-help {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+.import-help h3 {
+  font-size: 16px;
+}
+.import-words {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.import-file > span {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.import-file b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.import-file small {
+  color: var(--text-2);
+}
+.import-file .btn {
+  white-space: nowrap;
+}
+.import-h {
+  margin: 20px 0 8px;
+  font-size: 17px;
+}
+.import-h small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.import-map {
+  padding: 4px 14px;
+}
+.import-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-soft);
+}
+.import-col:first-child {
+  border-top: 0;
+}
+.import-col > span {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.import-col small {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.import-col select {
+  width: 46%;
+  max-width: 230px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.import-col.off b {
+  color: var(--text-2);
+}
+.import-col.off select {
+  color: var(--text-2);
+}
+.import-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.import-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.import-stats .ok,
+.import-row em.ok {
+  background: var(--ok-bg, #e4f3e8);
+  color: var(--ok-ink, #23683a);
+}
+.import-stats .info {
+  background: var(--info-bg, #e5eef9);
+  color: var(--info-ink, #2b5aa0);
+}
+.import-stats .warn {
+  background: var(--warn-bg, #fbf0d9);
+  color: var(--warn-ink, #8a5a00);
+}
+.import-stats .bad {
+  background: var(--danger-bg, #fbe5e3);
+  color: var(--danger-ink, #b3261e);
+}
+.import-seg {
+  margin-bottom: 10px;
+}
+.import-seg button {
+  white-space: nowrap;
+}
+.import-rows {
+  padding: 0;
+  overflow: hidden;
+}
+.import-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-soft);
+  border-left: 4px solid transparent;
+}
+.import-row:first-child {
+  border-top: 0;
+}
+.import-row.bad {
+  border-left-color: var(--danger-ink, #b3261e);
+  background: var(--danger-bg, #fbe5e3);
+}
+.import-row.warn {
+  border-left-color: var(--warn-ink, #c08a00);
+}
+.import-row.info {
+  border-left-color: var(--info-ink, #2b5aa0);
+}
+.import-line {
+  width: 30px;
+  flex-shrink: 0;
+  color: var(--text-2);
+  font-family: var(--num);
+  font-size: 13px;
+  padding-top: 2px;
+}
+.import-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.import-who small {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.import-who em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 600;
+}
+.import-who em.bad {
+  color: var(--danger-ink, #b3261e);
+}
+.import-who em.warn {
+  color: var(--warn-ink, #8a5a00);
+}
+.import-who em.info {
+  color: var(--info-ink, #2b5aa0);
+}
+.import-go {
+  position: sticky;
+  bottom: calc(12px + var(--safe-b, 0px));
+  margin-top: 14px;
+  z-index: 2;
+}
+@media (max-width: 767px) {
+  .import-go {
+    bottom: calc(84px + var(--safe-b, 0px));
+  }
+}

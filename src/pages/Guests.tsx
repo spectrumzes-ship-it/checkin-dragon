@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Ticket, Printer, Download } from 'lucide-react'
+import { Plus, Ticket, Printer, Download, Upload } from 'lucide-react'
 import { db } from '../db/db'
 import type { EventRec, SouvenirItem } from '../db/types'
 import { useDebounced, useEventData, useMediaQuery } from '../lib/hooks'
@@ -195,6 +195,11 @@ export default function Guests() {
                   <Ticket size={18} /> <span className="hide-sm">產生門票</span>
                 </button>
               )}
+              {!anonymous && (
+                <Link to={`/e/${ev.id}/import`} className="icon-btn" aria-label="匯入名單" title="匯入 Excel／CSV 名單">
+                  <Upload size={18} />
+                </Link>
+              )}
               <Link to={`/e/${ev.id}/print?type=all`} className="icon-btn" aria-label="列印名單" title="列印名單（可存成 PDF）">
                 <Printer size={18} />
               </Link>
@@ -240,9 +245,14 @@ export default function Guests() {
                       <Ticket size={18} /> 產生門票
                     </button>
                   ) : (
-                    <Link to={`/e/${ev.id}/guests/new`} className="btn btn-primary">
-                      <Plus size={18} /> 新增嘉賓
-                    </Link>
+                    <div className="empty-actions">
+                      <Link to={`/e/${ev.id}/import`} className="btn btn-primary">
+                        <Upload size={18} /> 匯入 Excel／CSV
+                      </Link>
+                      <Link to={`/e/${ev.id}/guests/new`} className="btn btn-ghost">
+                        <Plus size={18} /> 逐個新增
+                      </Link>
+                    </div>
                   )
                 }
               />

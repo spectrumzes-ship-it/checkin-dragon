@@ -254,7 +254,7 @@ export default function Settings() {
 
       <SectionTitle zh="資料" en="Data" />
       <div className="card set-group">
-        <Item zh="匯入／匯出／備份" en="Import · Export · Backup" hint="第 4–5 階段加入">
+        <Item zh="匯入／匯出／備份" en="Import · Export · Backup" hint="匯入：在活動的嘉賓名單按「匯入」；匯出及備份稍後加入">
           <span className="muted">—</span>
         </Item>
         <Item zh="重設示範資料" en="Reset Demo Data" hint="清除所有資料並重新載入示範活動">

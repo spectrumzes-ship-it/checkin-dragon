@@ -18,6 +18,7 @@ import Souvenirs from './pages/Souvenirs'
 import SouvenirRecords from './pages/SouvenirRecords'
 import Rooms from './pages/Rooms'
 import TestKit from './pages/TestKit'
+import Import from './pages/Import'
 import Print from './pages/Print'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
@@ -71,6 +72,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="guests" element={<Guests />} />
             <Route path="guests/new" element={<GuestForm />} />
+            <Route path="import" element={<Import />} />
             <Route path="guests/:gid" element={<Guests />} />
             <Route path="guests/:gid/edit" element={<GuestForm />} />
             <Route path="tables" element={<Tables />} />
